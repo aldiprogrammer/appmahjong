@@ -79,6 +79,33 @@ function StatusBadge({ status }) {
     );
 }
 
+function paymentStatusMeta(status) {
+    if (status === 'lunas') {
+        return { label: 'Lunas', className: 'bg-emerald-50 text-emerald-700 ring-emerald-100', dot: 'bg-emerald-500' };
+    }
+
+    if (status === 'menunggu_verifikasi') {
+        return { label: 'Menunggu verifikasi', className: 'bg-amber-50 text-amber-700 ring-amber-100', dot: 'bg-amber-500' };
+    }
+
+    if (status === 'bayar_di_tempat') {
+        return { label: 'Bayar di tempat', className: 'bg-sky-50 text-sky-700 ring-sky-100', dot: 'bg-sky-500' };
+    }
+
+    return { label: 'Belum bayar', className: 'bg-rose-50 text-rose-700 ring-rose-100', dot: 'bg-rose-500' };
+}
+
+function PaymentBadge({ status }) {
+    const meta = paymentStatusMeta(status);
+
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${meta.className}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+        </span>
+    );
+}
+
 function EmptyIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -135,6 +162,19 @@ export default function Index({ bookings, filters }) {
 
         router.patch(
             `/admin/bookings/${booking.id}/${nextStatus === '200' ? 'approve' : 'reject'}`,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessingId(null),
+            },
+        );
+    };
+
+    const verifikasiPembayaran = (booking) => {
+        setProcessingId(booking.id);
+
+        router.patch(
+            `/admin/bookings/${booking.id}/verifikasi-pembayaran`,
             {},
             {
                 preserveScroll: true,
@@ -311,12 +351,38 @@ export default function Index({ bookings, filters }) {
                                                         <p className="mt-0.5 text-xs capitalize text-slate-500">
                                                             {booking.sistem_pembayaran || '-'}
                                                         </p>
+                                                        {booking.bukti_pembayaran_url && (
+                                                            <a
+                                                                href={booking.bukti_pembayaran_url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="mt-1 inline-block text-xs font-semibold text-emerald-700 hover:underline"
+                                                            >
+                                                                Lihat bukti
+                                                            </a>
+                                                        )}
+                                                        <div className="mt-1.5">
+                                                            <PaymentBadge status={booking.status_pembayaran} />
+                                                        </div>
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <StatusBadge status={booking.status_booking} />
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <div className="flex flex-wrap items-center justify-end gap-2">
+                                                            {['menunggu_verifikasi', 'bayar_di_tempat'].includes(booking.status_pembayaran) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => verifikasiPembayaran(booking)}
+                                                                    disabled={busy}
+                                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                                    </svg>
+                                                                    Verifikasi bayar
+                                                                </button>
+                                                            )}
                                                             {booking.status_booking !== '200' && (
                                                                 <button
                                                                     type="button"

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\hargajammain;
 use App\Models\jam_main;
 use App\Models\Meja;
+use App\Models\Pengguna;
 use Inertia\Inertia;
 
 class DashboardController extends Controller
@@ -14,6 +16,8 @@ class DashboardController extends Controller
     {
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
+                'booking' => Booking::where('status_hapus', '!=', '1')->count(),
+                'pengguna' => Pengguna::count(),
                 'meja' => Meja::count(),
                 'jam_main' => jam_main::count(),
                 'harga' => hargajammain::count(),

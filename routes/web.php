@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HargaJamMainController;
@@ -21,21 +22,33 @@ Route::post('/register', [AuthController::class, 'register'])->name('register.st
 Route::middleware('pengguna.auth')->group(function () {
     Route::get('/booking', [PageController::class, 'booking'])->name('booking');
     Route::post('/booking', [PageController::class, 'storeBooking'])->name('booking.store');
+    Route::get('/booking/pembayaran/{kodePembayaran}', [PageController::class, 'pembayaran'])->name('booking.pembayaran');
+    Route::post('/booking/pembayaran/{kodePembayaran}', [PageController::class, 'storePembayaran'])->name('booking.pembayaran.store');
     Route::get('/riwayat', [PageController::class, 'riwayat'])->name('riwayat');
+    Route::delete('/riwayat/{booking}', [PageController::class, 'destroyRiwayat'])->name('riwayat.destroy');
+    Route::get('/riwayat/{booking}/tiket', [PageController::class, 'downloadTiket'])->name('riwayat.tiket');
+    Route::get('/riwayat/{booking}/download', [PageController::class, 'downloadTiket'])->name('riwayat.download');
     Route::get('/profil', [PageController::class, 'profil'])->name('profil');
     Route::post('/profil/keluar', [AuthController::class, 'logout'])->name('profil.logout');
 });
 
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn () => redirect()->route('admin.dashboard'));
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::resource('mejas', MejaController::class)->except(['create', 'edit', 'show']);
-    Route::resource('jam-mains', JamMainController::class)->except(['create', 'edit', 'show']);
-    Route::resource('harga-jam-mains', HargaJamMainController::class)->except(['create', 'edit', 'show']);
-    Route::resource('admins', AdminController::class)->except(['create', 'edit', 'show']);
-    Route::patch('bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
-    Route::patch('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
-    Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
-    Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
-    Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);
+    Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AdminAuthController::class, 'login'])->name('login.store');
+
+    Route::middleware('admin.auth')->group(function () {
+        Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
+        Route::get('/', fn () => redirect()->route('admin.dashboard'));
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::resource('mejas', MejaController::class)->except(['create', 'edit', 'show']);
+        Route::resource('jam-mains', JamMainController::class)->except(['create', 'edit', 'show']);
+        Route::resource('harga-jam-mains', HargaJamMainController::class)->except(['create', 'edit', 'show']);
+        Route::resource('admins', AdminController::class)->except(['create', 'edit', 'show']);
+        Route::patch('bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
+        Route::patch('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
+        Route::patch('bookings/{booking}/verifikasi-pembayaran', [BookingController::class, 'verifikasiPembayaran'])->name('bookings.verifikasi-pembayaran');
+        Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
+        Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
+        Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);
+    });
 });

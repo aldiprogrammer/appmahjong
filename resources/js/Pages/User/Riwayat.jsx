@@ -1,4 +1,5 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
 function formatDate(value) {
@@ -58,6 +59,33 @@ function StatusBadge({ status }) {
     );
 }
 
+function paymentStatusMeta(status) {
+    if (status === 'lunas') {
+        return { label: 'Lunas', className: 'bg-emerald-50 text-emerald-700 ring-emerald-100', dot: 'bg-emerald-500' };
+    }
+
+    if (status === 'menunggu_verifikasi') {
+        return { label: 'Menunggu verifikasi', className: 'bg-amber-50 text-amber-700 ring-amber-100', dot: 'bg-amber-500' };
+    }
+
+    if (status === 'bayar_di_tempat') {
+        return { label: 'Bayar di tempat', className: 'bg-sky-50 text-sky-700 ring-sky-100', dot: 'bg-sky-500' };
+    }
+
+    return { label: 'Belum bayar', className: 'bg-rose-50 text-rose-700 ring-rose-100', dot: 'bg-rose-500' };
+}
+
+function PaymentBadge({ status }) {
+    const meta = paymentStatusMeta(status);
+
+    return (
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${meta.className}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+            {meta.label}
+        </span>
+    );
+}
+
 function TableIcon({ className = 'h-4 w-4' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -84,9 +112,41 @@ function TicketIcon({ className = 'h-10 w-10' }) {
 
 export default function Riwayat({ pengguna, bookings }) {
     const { flash } = usePage().props;
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleting, setDeleting] = useState(false);
     const total = bookings.length;
     const disetujui = bookings.filter((booking) => booking.status_booking === '200').length;
     const menunggu = bookings.filter((booking) => !['200', '400'].includes(booking.status_booking)).length;
+
+    useEffect(() => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape' && !deleting) {
+                setDeleteTarget(null);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [deleteTarget, deleting]);
+
+    const confirmDelete = () => {
+        if (!deleteTarget) {
+            return;
+        }
+
+        setDeleting(true);
+
+        router.delete(`/riwayat/${deleteTarget.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setDeleteTarget(null),
+            onFinish: () => setDeleting(false),
+        });
+    };
 
     return (
         <>
@@ -125,6 +185,12 @@ export default function Riwayat({ pengguna, bookings }) {
                     </div>
                 )}
 
+                {flash?.error && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {flash.error}
+                    </div>
+                )}
+
                 {!pengguna || bookings.length === 0 ? (
                     <div className="flex flex-col items-center rounded-2xl border border-emerald-100 bg-white px-6 py-12 text-center shadow-sm">
                         <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
@@ -157,7 +223,10 @@ export default function Riwayat({ pengguna, bookings }) {
                                             Dipesan {formatDate(booking.tgl_booking)}
                                         </p>
                                     </div>
-                                    <StatusBadge status={booking.status_booking} />
+                                    <div className="flex flex-col items-end gap-1">
+                                        <StatusBadge status={booking.status_booking} />
+                                        <PaymentBadge status={booking.status_pembayaran} />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2 px-4 py-3">
@@ -179,17 +248,71 @@ export default function Riwayat({ pengguna, bookings }) {
                                         <div>
                                             <p className="font-semibold text-slate-800">Meja {booking.id_meja || '-'}</p>
                                             <p className="text-[10px] capitalize text-slate-500">
-                                                Pembayaran {booking.sistem_pembayaran || '-'}
+                                                Pembayaran {booking.sistem_pembayaran || 'belum dipilih'}
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between bg-emerald-50/60 px-4 py-2.5">
-                                    <span className="text-[11px] font-medium text-slate-500">Total bayar</span>
-                                    <span className="text-sm font-bold text-emerald-700">
-                                        {formatRupiah(booking.total_harga)}
-                                    </span>
+                                {booking.bukti_pembayaran_url && (
+                                    <div className="px-4 pb-3">
+                                        <a
+                                            href={booking.bukti_pembayaran_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2 transition hover:bg-emerald-50"
+                                        >
+                                            <img
+                                                src={booking.bukti_pembayaran_url}
+                                                alt="Bukti pembayaran"
+                                                className="h-10 w-10 rounded-lg object-cover"
+                                            />
+                                            <span className="text-[11px] font-semibold text-emerald-700">
+                                                Lihat bukti pembayaran
+                                            </span>
+                                        </a>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between gap-3 bg-emerald-50/60 px-4 py-2.5">
+                                    <div>
+                                        <p className="text-[10px] font-medium text-slate-500">Total bayar</p>
+                                        <p className="text-sm font-bold text-emerald-700">
+                                            {formatRupiah(booking.total_harga)}
+                                        </p>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        {booking.status_pembayaran !== 'lunas' && booking.status_booking !== '400' && (
+                                            <Link
+                                                href={`/booking/pembayaran/${booking.kode_pembayaran || booking.kode_booking}`}
+                                                className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                                            >
+                                                {booking.status_pembayaran === 'belum_bayar'
+                                                    ? 'Bayar sekarang'
+                                                    : 'Lihat pembayaran'}
+                                            </Link>
+                                        )}
+
+                                        {booking.status_booking !== '200' && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeleteTarget(booking)}
+                                                className="rounded-xl border border-rose-200 bg-white px-3 py-2 text-[11px] font-bold text-rose-600 transition hover:bg-rose-50"
+                                            >
+                                                Hapus
+                                            </button>
+                                        )}
+
+                                        {booking.status_booking === '200' && (
+                                            <a
+                                                href={`/riwayat/${booking.id}/tiket`}
+                                                className="rounded-xl bg-emerald-600 px-3 py-2 text-[11px] font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                                            >
+                                                Download Tiket
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </article>
                         ))}
@@ -203,6 +326,46 @@ export default function Riwayat({ pengguna, bookings }) {
                     </>
                 )}
             </div>
+
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                                </svg>
+                            </span>
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-bold text-slate-900">Hapus booking ini?</h2>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    Booking <span className="font-semibold text-slate-700">{deleteTarget.kode_booking}</span>{' '}
+                                    akan dihapus dari riwayat dan jadwalnya dilepas kembali.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleting}
+                                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDelete}
+                                disabled={deleting}
+                                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {deleting ? 'Menghapus...' : 'Ya, Hapus'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

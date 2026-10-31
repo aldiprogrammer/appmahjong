@@ -22,6 +22,7 @@ class BookingController extends Controller
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('kode_booking', 'like', "%{$search}%")
+                        ->orWhere('kode_pembayaran', 'like', "%{$search}%")
                         ->orWhere('id_pengguna', 'like', "%{$search}%")
                         ->orWhere('id_meja', 'like', "%{$search}%")
                         ->orWhere('tgl_main', 'like', "%{$search}%")
@@ -64,6 +65,20 @@ class BookingController extends Controller
         $booking->update(['status_booking' => '400']);
 
         return back()->with('success', "Booking {$booking->kode_booking} berhasil ditolak.");
+    }
+
+    public function verifikasiPembayaran(Booking $booking): RedirectResponse
+    {
+        Booking::query()
+            ->where('kode_pembayaran', $booking->kode_pembayaran ?: $booking->kode_booking)
+            ->where('id_pengguna', $booking->id_pengguna)
+            ->where('status_hapus', '!=', '1')
+            ->update([
+                'status_pembayaran' => 'lunas',
+                'dibayar_pada' => now(),
+            ]);
+
+        return back()->with('success', "Pembayaran {$booking->kode_pembayaran} berhasil diverifikasi.");
     }
 
     public function destroy(Booking $booking): RedirectResponse

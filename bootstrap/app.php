@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAdminAuthenticated;
 use App\Http\Middleware\EnsurePenggunaAuthenticated;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'pengguna.auth' => EnsurePenggunaAuthenticated::class,
+            'admin.auth' => EnsureAdminAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

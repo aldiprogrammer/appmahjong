@@ -41,11 +41,11 @@ function PlusIcon({ className = 'h-4 w-4' }) {
     );
 }
 
-export default function Dashboard({ stats = { meja: 0, jam_main: 0, harga: 0 }, version }) {
+export default function Dashboard({ stats = { booking: 0, pengguna: 0, meja: 0 }, version }) {
     const cards = [
+        { label: 'Total Booking', value: stats.booking, note: 'Jumlah booking yang terdaftar', icon: MejaIcon },
+        { label: 'Total Pengguna', value: stats.pengguna, note: 'Jumlah pengguna terdaftar', icon: ClockIcon },
         { label: 'Total Meja', value: stats.meja, note: 'Jumlah meja yang terdaftar', icon: MejaIcon },
-        { label: 'Jam Main', value: stats.jam_main, note: 'Sesi jam main tersedia', icon: ClockIcon },
-        { label: 'Harga Jam Main', value: stats.harga, note: 'Daftar tarif yang dikonfigurasi', icon: PriceIcon },
     ];
 
     const activities = [
@@ -123,69 +123,33 @@ export default function Dashboard({ stats = { meja: 0, jam_main: 0, harga: 0 }, 
                     })}
                 </section>
 
-                <section className="grid gap-4 lg:grid-cols-3">
-                    <div className="rounded-2xl border border-emerald-100 bg-white shadow-sm lg:col-span-2">
-                        <div className="flex items-center justify-between border-b border-emerald-100 px-5 py-4">
-                            <div>
-                                <h2 className="text-sm font-semibold text-slate-900">Aktivitas Terbaru</h2>
-                                <p className="text-xs text-slate-500">Ringkasan perubahan data terakhir</p>
-                            </div>
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                                Hari ini
-                            </span>
+                <section className="rounded-2xl border border-emerald-100 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-emerald-100 px-5 py-4">
+                        <div>
+                            <h2 className="text-sm font-semibold text-slate-900">Aktivitas Terbaru</h2>
+                            <p className="text-xs text-slate-500">Ringkasan perubahan data terakhir</p>
                         </div>
-                        <div className="divide-y divide-emerald-50">
-                            {activities.map((activity) => {
-                                const Icon = activity.icon;
-
-                                return (
-                                    <div key={activity.title} className="flex items-center gap-3 px-5 py-4">
-                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                                            <Icon />
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium text-slate-700">{activity.title}</p>
-                                            <p className="text-xs text-slate-400">{activity.note}</p>
-                                        </div>
-                                        <span className="ml-auto whitespace-nowrap text-xs text-slate-400">{activity.time}</span>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                            Hari ini
+                        </span>
                     </div>
+                    <div className="divide-y divide-emerald-50">
+                        {activities.map((activity) => {
+                            const Icon = activity.icon;
 
-                    <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-                        <h2 className="text-sm font-semibold text-slate-900">Ringkasan Sistem</h2>
-                        <p className="text-xs text-slate-500">Status singkat aplikasi</p>
-
-                        <dl className="mt-5 space-y-4">
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm text-slate-500">Status</dt>
-                                <dd className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                    Aktif
-                                </dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm text-slate-500">Versi Laravel</dt>
-                                <dd className="text-sm font-medium text-slate-700">{version}</dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm text-slate-500">Frontend</dt>
-                                <dd className="text-sm font-medium text-slate-700">Inertia + React</dd>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <dt className="text-sm text-slate-500">Tema</dt>
-                                <dd className="text-sm font-medium text-slate-700">Hijau Putih</dd>
-                            </div>
-                        </dl>
-
-                        <div className="mt-6 rounded-xl bg-emerald-50 p-4">
-                            <p className="text-xs leading-relaxed text-emerald-800">
-                                Gunakan menu di samping untuk menavigasi panel admin. Menu lain akan ditambahkan sesuai
-                                kebutuhan.
-                            </p>
-                        </div>
+                            return (
+                                <div key={activity.title} className="flex items-center gap-3 px-5 py-4">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                        <Icon />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-slate-700">{activity.title}</p>
+                                        <p className="text-xs text-slate-400">{activity.note}</p>
+                                    </div>
+                                    <span className="ml-auto whitespace-nowrap text-xs text-slate-400">{activity.time}</span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </section>
             </div>

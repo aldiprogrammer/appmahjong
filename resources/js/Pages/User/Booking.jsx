@@ -73,7 +73,6 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
         tgl_main: todayISO(),
         meja_id: '',
         jam_main_ids: [],
-        sistem_pembayaran: 'transfer',
     });
 
     const [sekarang, setSekarang] = useState(() => new Date());
@@ -408,43 +407,6 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                     {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
                 </section>
 
-                <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                    <div className="mb-3 flex items-center gap-2">
-                        <StepBadge>4</StepBadge>
-                        <h2 className="text-sm font-bold text-slate-800">Sistem Pembayaran</h2>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                        {[
-                            { value: 'transfer', label: 'Transfer', desc: 'Bank' },
-                            { value: 'qris', label: 'QRIS', desc: 'Scan QR' },
-                            { value: 'tunai', label: 'Tunai', desc: 'Di tempat' },
-                        ].map((payment) => {
-                            const active = data.sistem_pembayaran === payment.value;
-
-                            return (
-                                <button
-                                    key={payment.value}
-                                    type="button"
-                                    onClick={() => setData('sistem_pembayaran', payment.value)}
-                                    className={`rounded-xl border px-2 py-2.5 text-center transition ${active
-                                        ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
-                                        }`}
-                                >
-                                    <span className="block text-xs font-semibold">{payment.label}</span>
-                                    <span className={`block text-[10px] ${active ? 'text-emerald-100' : 'text-slate-500'}`}>
-                                        {payment.desc}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                    {errors.sistem_pembayaran && (
-                        <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.sistem_pembayaran}</p>
-                    )}
-                </section>
-
                 <section className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold uppercase text-emerald-700">
                         {pengguna?.nama_depan?.charAt(0) ?? '?'}
@@ -491,10 +453,6 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                                 {mejaTerpilih ? mejaTerpilih.nama_meja : 'Belum dipilih'}
                             </span>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <span>Pembayaran</span>
-                            <span className="font-semibold capitalize text-white">{data.sistem_pembayaran}</span>
-                        </div>
                     </div>
 
                     <div className="my-3 border-t border-white/15" />
@@ -530,12 +488,12 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                     disabled={processing || hargaTidakTersedia}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                    {processing ? 'Mengirim booking...' : 'Konfirmasi Booking'}
+                    {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}
                 </button>
 
                 <p className="text-center text-[11px] leading-relaxed text-slate-400">
-                    Booking akan berstatus <span className="font-semibold text-amber-500">menunggu</span> hingga
-                    disetujui admin.
+                    Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
+                    <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
                 </p>
             </form>
         </>

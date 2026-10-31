@@ -183,6 +183,14 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                         <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 sm:inline-flex">
                             {today}
                         </span>
+                        <Link
+                            href="/admin/logout"
+                            method="post"
+                            as="button"
+                            className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                        >
+                            Keluar
+                        </Link>
                         <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white py-1 pl-1 pr-3">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
                                 A
