@@ -68,11 +68,15 @@ function StepBadge({ children }) {
     );
 }
 
-export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots = [] }) {
+export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots = [], vouchers = [] }) {
+    const presetVoucher = new URLSearchParams(window.location.search).get('voucher') || '';
+    const voucherPresetValid = vouchers.some((voucher) => voucher.kode_voucher === presetVoucher);
+
     const { data, setData, post, processing, errors } = useForm({
         tgl_main: todayISO(),
         meja_id: '',
         jam_main_ids: [],
+        kode_voucher: voucherPresetValid ? presetVoucher : '',
     });
 
     const [sekarang, setSekarang] = useState(() => new Date());
@@ -131,6 +135,9 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
     const hargaTidakTersedia = rincian.some((item) => !item.tersedia);
     const jamError = errors.jam_main_ids || errors['jam_main_ids.0'];
     const hasErrors = Object.keys(errors).length > 0;
+    const voucherTerpilih = vouchers.find((voucher) => voucher.kode_voucher === data.kode_voucher);
+    const voucherJamKurang = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
+    const voucherJamNotify = Boolean(voucherTerpilih) && data.jam_main_ids.length > 0 && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
 
     const toggleJam = (id) => {
         const value = String(id);
@@ -190,6 +197,11 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
             </header>
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
+                {voucherJamNotify && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
+                    </div>
+                )}
                 {hasErrors && (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         <p className="font-semibold">Periksa kembali data booking.</p>
@@ -421,6 +433,60 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                     </Link>
                 </section>
 
+                {voucherPresetValid && (
+                    <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+                        <p className="text-sm font-semibold text-emerald-800">
+                            Voucher digunakan: {data.kode_voucher}
+                        </p>
+                        <p className="mt-1 text-[11px] text-emerald-700">
+                            Pilih tepat sesuai kuota jam voucher sebelum melanjutkan booking.
+                        </p>
+                        {voucherJamNotify && (
+                            <p className="mt-1.5 text-xs font-medium text-rose-600">
+                                Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
+                            </p>
+                        )}
+                    </section>
+                )}
+
+                {vouchers.length > 0 && !voucherPresetValid && (
+                    <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                        <div className="mb-3 flex items-center gap-2">
+                            <StepBadge>V</StepBadge>
+                            <h2 className="text-sm font-bold text-slate-800">Gunakan Voucher</h2>
+                        </div>
+                        <label htmlFor="kode_voucher" className="mb-1.5 block text-xs font-medium text-slate-600">
+                            Pilih voucher (opsional)
+                        </label>
+                        <select
+                            id="kode_voucher"
+                            value={data.kode_voucher}
+                            onChange={(event) => setData('kode_voucher', event.target.value)}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        >
+                            <option value="">Tanpa voucher</option>
+                            {vouchers.map((voucher) => (
+                                <option key={voucher.id} value={voucher.kode_voucher}>
+                                    {voucher.kode_voucher} - {voucher.jumah_jam ?? 0} jam gratis
+                                </option>
+                            ))}
+                        </select>
+                        {errors.kode_voucher && (
+                            <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_voucher}</p>
+                        )}
+                        <p className="mt-2 text-[11px] text-slate-500">
+                            {voucherTerpilih
+                                ? `Pilih tepat ${voucherTerpilih.jumah_jam} sesi jam untuk menggunakan voucher ini.`
+                                : 'Voucher hanya berlaku untuk jumlah sesi yang sesuai kuota jam voucher.'}
+                        </p>
+                        {voucherJamNotify && (
+                            <p className="mt-1.5 text-xs font-medium text-rose-600">
+                                Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
+                            </p>
+                        )}
+                    </section>
+                )}
+
                 <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 p-4 text-white shadow-lg shadow-emerald-200">
                     <div className="flex items-center justify-between">
                         <h2 className="text-sm font-bold">Ringkasan Booking</h2>
@@ -477,7 +543,9 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                             )}
                             <div className="flex items-end justify-between pt-1">
                                 <span className="text-xs text-emerald-100">Total bayar</span>
-                                <span className="text-xl font-bold text-white">{formatRupiah(total)}</span>
+                                <span className="text-xl font-bold text-white">
+                                    {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(total)}
+                                </span>
                             </div>
                         </div>
                     )}
@@ -485,7 +553,7 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
 
                 <button
                     type="submit"
-                    disabled={processing || hargaTidakTersedia}
+                    disabled={processing || hargaTidakTersedia || voucherJamKurang}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}

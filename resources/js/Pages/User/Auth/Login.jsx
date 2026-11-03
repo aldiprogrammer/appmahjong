@@ -58,9 +58,8 @@ export default function Login() {
             <Head title="Masuk" />
 
             <AuthLayout
-                badge="Halaman Login"
                 mode="login"
-                title="Masuk ke meja hijau"
+                title="Halaman Login"
                 subtitle="Gunakan nomor WhatsApp atau email anda yang sudah terdaftar."
                 footer={
                     <div className="text-center text-sm text-slate-500">

@@ -216,8 +216,7 @@ export default function AuthLayout({ title, subtitle, badge, mode = 'login', chi
                             <span className="text-[#e8cf94]">Dengan mudah </span>
                         </h2>
                         <p className="mt-4 max-w-sm text-sm leading-relaxed text-emerald-100/65">
-                            Buat akun anda, lalu pilih meja, atur jadwal, dan pantau status booking tanpa
-                            perlu mengulang data pemesan.
+                            Buat akun anda, lalu pilih meja, atur jadwal, dan pantau point anda disini secara realtime.
                         </p>
                     </div>
 
@@ -286,11 +285,8 @@ export default function AuthLayout({ title, subtitle, badge, mode = 'login', chi
                                     </Link>
                                 </div>
 
-                                <span className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-800 lg:inline-flex">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-[#b3261e]" />
-                                    {badge}
-                                </span>
-                                <h1 className="text-[1.5rem] font-bold leading-tight tracking-tight text-slate-900 lg:mt-4 lg:text-[1.65rem]">
+
+                                <h1 className="text-[1.5rem] font-bold leading-tight tracking-tight text-green-700 lg:mt-4 lg:text-[1.65rem]">
                                     {title}
                                 </h1>
                                 <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{subtitle}</p>

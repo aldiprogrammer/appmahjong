@@ -8,6 +8,8 @@ use App\Models\hargajammain;
 use App\Models\jam_main;
 use App\Models\Meja;
 use App\Models\Pengguna;
+use App\Models\Statusvoucher;
+use App\Models\Voucher;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
@@ -39,8 +41,10 @@ class PageController extends Controller
 
     public function booking(Request $request): Response
     {
+        $pengguna = $this->currentPengguna($request);
+
         return Inertia::render('User/Booking', [
-            'pengguna' => $this->currentPengguna($request),
+            'pengguna' => $pengguna,
             'mejas' => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja']),
             'jamMains' => jam_main::query()
                 ->where('status', 'aktif')
@@ -55,6 +59,26 @@ class PageController extends Controller
                 ->where('status_booking', '!=', '400')
                 ->where('tgl_main', '>=', Carbon::today()->toDateString())
                 ->get(['id_meja', 'tgl_main', 'jam_mulai', 'jam_selesai']),
+            'vouchers' => $pengguna
+                ? Voucher::query()
+                    ->where('kode_user', $pengguna->kode_user)
+                    ->where(function ($query) {
+                        $query->whereNull('tanggal_digunakan')->orWhere('tanggal_digunakan', '');
+                    })
+                    ->get()
+                    ->map(function (Voucher $voucher) {
+                        $statusVoucher = Statusvoucher::query()->find((int) $voucher->id_statusvoucher);
+
+                        return [
+                            'id' => $voucher->id,
+                            'kode_voucher' => $voucher->kode_voucher,
+                            'tanggal_diterima' => $voucher->tanggal_diterima,
+                            'tanggal_digunakan' => $voucher->tanggal_digunakan,
+                            'jumah_jam' => $statusVoucher?->jumah_jam,
+                        ];
+                    })
+                    ->values()
+                : [],
         ]);
     }
 
@@ -65,12 +89,36 @@ class PageController extends Controller
             'jam_main_ids' => ['required', 'array', 'min:1'],
             'jam_main_ids.*' => ['required', 'distinct', Rule::exists('jam_mains', 'id')->where('status', 'aktif')],
             'tgl_main' => ['required', 'date', 'after_or_equal:today'],
+            'kode_voucher' => ['nullable', 'string', 'max:50'],
         ]);
 
         $pengguna = $this->currentPengguna($request);
 
         if (! $pengguna) {
             return redirect()->guest(route('login'));
+        }
+
+        $voucher = null;
+
+        if (! empty($validated['kode_voucher'])) {
+            $voucher = Voucher::query()
+                ->where('kode_voucher', $validated['kode_voucher'])
+                ->where('kode_user', $pengguna->kode_user)
+                ->first();
+
+            if (! $voucher || filled($voucher->tanggal_digunakan)) {
+                throw ValidationException::withMessages([
+                    'kode_voucher' => 'Voucher tidak valid atau sudah digunakan.',
+                ]);
+            }
+
+            $statusVoucher = Statusvoucher::query()->find((int) $voucher->id_statusvoucher);
+
+            if (! $statusVoucher || count($validated['jam_main_ids']) !== (int) $statusVoucher->jumah_jam) {
+                throw ValidationException::withMessages([
+                    'kode_voucher' => 'Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan',
+                ]);
+            }
         }
 
         $meja = Meja::query()->findOrFail($validated['meja_id']);
@@ -93,7 +141,7 @@ class PageController extends Controller
             $kodePembayaran = 'PAY-'.$tanggal->format('Ymd').'-'.strtoupper(Str::random(5));
         } while (Booking::query()->where('kode_pembayaran', $kodePembayaran)->exists());
 
-        $kodeBookings = DB::transaction(function () use ($validated, $pengguna, $meja, $tanggal, $jamMains, $hargaPerJam, $kodePembayaran): array {
+        $kodeBookings = DB::transaction(function () use ($validated, $pengguna, $meja, $tanggal, $jamMains, $hargaPerJam, $kodePembayaran, $voucher): array {
             $kodeBookings = [];
 
             foreach ($validated['jam_main_ids'] as $jamMainId) {
@@ -138,6 +186,7 @@ class PageController extends Controller
                 Booking::create([
                     'kode_booking' => $kodeBooking,
                     'kode_pembayaran' => $kodePembayaran,
+                    'kode_voucher' => $voucher ? $voucher->kode_voucher : null,
                     'id_pengguna' => (string) $pengguna->id,
                     'id_meja' => $idMeja,
                     'jam_mulai' => $jamMulai,
@@ -146,14 +195,20 @@ class PageController extends Controller
                     'tgl_booking' => Carbon::now()->toDateString(),
                     'sistem_pembayaran' => '',
                     'harga' => (string) $harga->harga,
-                    'total_harga' => (string) $harga->harga_akhir,
+                    'total_harga' => $voucher ? '0' : (string) $harga->harga_akhir,
                     'bukti_pembayaran' => '',
                     'status_booking' => '0',
-                    'status_pembayaran' => 'belum_bayar',
+                    'status_pembayaran' => $voucher ? 'lunas' : 'belum_bayar',
+                    'dibayar_pada' => $voucher ? now() : null,
+                    'sistem_pembayaran' => $voucher ? 'voucher' : '',
                     'status_hapus' => '0',
                 ]);
 
                 $kodeBookings[] = $kodeBooking;
+            }
+
+            if ($voucher) {
+                $voucher->update(['tanggal_digunakan' => now()->toDateString()]);
             }
 
             return $kodeBookings;
@@ -363,6 +418,38 @@ class PageController extends Controller
         return Inertia::render('User/Profil', [
             'pengguna' => $pengguna,
             'stats' => $stats,
+        ]);
+    }
+
+    public function voucher(Request $request): Response
+    {
+        $pengguna = $this->currentPengguna($request);
+
+        $vouchers = $pengguna
+            ? Voucher::query()
+                ->where('kode_user', $pengguna->kode_user)
+                ->latest()
+                ->get()
+            : collect();
+
+        $statusVouchers = Statusvoucher::query()->get()->keyBy('id');
+
+        return Inertia::render('User/Voucher', [
+            'pengguna' => $pengguna,
+            'vouchers' => $vouchers->map(function (Voucher $voucher) use ($statusVouchers) {
+                $statusVoucher = $statusVouchers->get((int) $voucher->id_statusvoucher);
+
+                return [
+                    'id' => $voucher->id,
+                    'kode_voucher' => $voucher->kode_voucher,
+                    'tanggal_diterima' => $voucher->tanggal_diterima,
+                    'tanggal_digunakan' => $voucher->tanggal_digunakan,
+                    'status_voucher' => $statusVoucher?->status_voucher,
+                    'jumah_booking' => $statusVoucher?->jumah_booking,
+                    'jumah_jam' => $statusVoucher?->jumah_jam,
+                    'is_used' => filled($voucher->tanggal_digunakan),
+                ];
+            })->values(),
         ]);
     }
 

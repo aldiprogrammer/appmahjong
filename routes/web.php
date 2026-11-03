@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\HargaJamMainController;
 use App\Http\Controllers\Admin\JamMainController;
 use App\Http\Controllers\Admin\MejaController;
 use App\Http\Controllers\Admin\PenggunaController;
+use App\Http\Controllers\Admin\StatusVoucherController;
+use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\User\AuthController;
 use App\Http\Controllers\User\PageController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +27,7 @@ Route::middleware('pengguna.auth')->group(function () {
     Route::get('/booking/pembayaran/{kodePembayaran}', [PageController::class, 'pembayaran'])->name('booking.pembayaran');
     Route::post('/booking/pembayaran/{kodePembayaran}', [PageController::class, 'storePembayaran'])->name('booking.pembayaran.store');
     Route::get('/riwayat', [PageController::class, 'riwayat'])->name('riwayat');
+    Route::get('/voucher', [PageController::class, 'voucher'])->name('voucher');
     Route::delete('/riwayat/{booking}', [PageController::class, 'destroyRiwayat'])->name('riwayat.destroy');
     Route::get('/riwayat/{booking}/tiket', [PageController::class, 'downloadTiket'])->name('riwayat.tiket');
     Route::get('/riwayat/{booking}/download', [PageController::class, 'downloadTiket'])->name('riwayat.download');
@@ -50,5 +53,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
         Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
         Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);
+        Route::resource('status-vouchers', StatusVoucherController::class)->except(['create', 'edit', 'show']);
+        Route::get('/vouchers', [VoucherController::class, 'index'])->name('vouchers.index');
+        Route::get('/vouchers/{voucher}', [VoucherController::class, 'show'])->name('vouchers.show');
+        Route::patch('/vouchers/{voucher}/status', [VoucherController::class, 'updateStatus'])->name('vouchers.status');
+        Route::delete('/vouchers/{voucher}', [VoucherController::class, 'destroy'])->name('vouchers.destroy');
     });
 });

@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Pengguna;
+use App\Models\Statusvoucher;
+use App\Models\Voucher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,12 +61,77 @@ class BookingController extends Controller
     {
         $booking->update(['status_booking' => '200']);
 
+        $this->issueVouchers($booking);
+
         return back()->with('success', "Booking {$booking->kode_booking} berhasil disetujui.");
+    }
+
+    private function issueVouchers(Booking $booking): void
+    {
+        $pengguna = Pengguna::find($booking->id_pengguna);
+
+        if (! $pengguna) {
+            return;
+        }
+
+        $statusVouchers = Statusvoucher::query()
+            ->where('status_voucher', 'aktif')
+            ->whereNotNull('tanggal_mulai')
+            ->whereNotNull('tanggal_berakhir')
+            ->get();
+
+        foreach ($statusVouchers as $statusVoucher) {
+            $requiredBookings = (int) $statusVoucher->jumah_booking;
+
+            if ($requiredBookings <= 0) {
+                continue;
+            }
+
+            $approvedCount = Booking::query()
+                ->where('id_pengguna', $booking->id_pengguna)
+                ->where('status_booking', '200')
+                ->where('status_hapus', '!=', '1')
+                ->whereBetween('tgl_booking', [$statusVoucher->tanggal_mulai, $statusVoucher->tanggal_berakhir])
+                ->count();
+
+            $possibleVouchers = (int) floor($approvedCount / $requiredBookings);
+
+            if ($possibleVouchers <= 0) {
+                continue;
+            }
+
+            $issuedCount = Voucher::query()
+                ->where('kode_user', $pengguna->kode_user)
+                ->where('id_statusvoucher', (string) $statusVoucher->id)
+                ->count();
+
+            $newVouchers = $possibleVouchers - $issuedCount;
+
+            if ($newVouchers <= 0) {
+                continue;
+            }
+
+            for ($i = 0; $i < $newVouchers; $i++) {
+                Voucher::create([
+                    'kode_user' => $pengguna->kode_user,
+                    'kode_voucher' => 'VCH-'.Str::upper(Str::random(10)),
+                    'tanggal_diterima' => now()->toDateString(),
+                    'tanggal_digunakan' => '',
+                    'id_statusvoucher' => (string) $statusVoucher->id,
+                ]);
+            }
+        }
     }
 
     public function reject(Booking $booking): RedirectResponse
     {
         $booking->update(['status_booking' => '400']);
+
+        if (filled($booking->kode_voucher)) {
+            Voucher::query()
+                ->where('kode_voucher', $booking->kode_voucher)
+                ->update(['tanggal_digunakan' => '']);
+        }
 
         return back()->with('success', "Booking {$booking->kode_booking} berhasil ditolak.");
     }

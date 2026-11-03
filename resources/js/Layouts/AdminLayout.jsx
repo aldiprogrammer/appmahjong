@@ -59,6 +59,22 @@ function BookingIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function StatusVoucherIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6V4.75A2.25 2.25 0 0 0 14.25 2.5h-4.5A2.25 2.25 0 0 0 7.5 4.75V6m9 0H7.5m9 0v12.75A2.25 2.25 0 0 1 14.25 21h-4.5A2.25 2.25 0 0 1 7.5 18.75V6m9 6H7.5" />
+        </svg>
+    );
+}
+
+function VoucherIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6V4.75A2.25 2.25 0 0 0 14.25 2.5h-4.5A2.25 2.25 0 0 0 7.5 4.75V6m9 0H7.5m9 0v12.75A2.25 2.25 0 0 1 14.25 21h-4.5A2.25 2.25 0 0 1 7.5 18.75V6" />
+        </svg>
+    );
+}
+
 function AdminIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -92,6 +108,8 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
         { name: 'Harga Jam Main', href: '/admin/harga-jam-mains', icon: HargaIcon },
         { name: 'Booking', href: '/admin/bookings', icon: BookingIcon },
         { name: 'Pengguna', href: '/admin/penggunas', icon: PenggunaIcon },
+        { name: 'Status Voucher', href: '/admin/status-vouchers', icon: StatusVoucherIcon },
+        { name: 'Voucher', href: '/admin/vouchers', icon: VoucherIcon },
         { name: 'Akun Admin', href: '/admin/admins', icon: AdminIcon },
     ];
     const isActive = (href) => url.startsWith(href);

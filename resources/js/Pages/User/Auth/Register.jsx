@@ -62,9 +62,8 @@ export default function Register() {
             <Head title="Daftar" />
 
             <AuthLayout
-                badge="Halaman Register"
                 mode="register"
-                title="Buat akun anda"
+                title="Halaman Register"
                 subtitle="Satu akun untuk booking meja, memilih jam main, dan dapatkan point."
                 footer={
                     <div className="text-center text-sm text-slate-500">
