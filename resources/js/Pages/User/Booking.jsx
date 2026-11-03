@@ -1,4 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
@@ -136,8 +138,8 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
     const jamError = errors.jam_main_ids || errors['jam_main_ids.0'];
     const hasErrors = Object.keys(errors).length > 0;
     const voucherTerpilih = vouchers.find((voucher) => voucher.kode_voucher === data.kode_voucher);
-    const voucherJamKurang = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
-    const voucherJamNotify = Boolean(voucherTerpilih) && data.jam_main_ids.length > 0 && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
+    const voucherJamMismatch = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
+    const voucherJamMessage = 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.';
 
     const toggleJam = (id) => {
         const value = String(id);
@@ -170,6 +172,30 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
     const submit = (event) => {
         event.preventDefault();
 
+        if (voucherJamMismatch) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Durasi Voucher Belum Sesuai',
+                text: voucherJamMessage,
+                confirmButtonText: 'Periksa Jam',
+                buttonsStyling: false,
+                width: 'min(26rem, calc(100vw - 2rem))',
+                padding: '2rem 1.75rem',
+                backdrop: 'rgba(15, 23, 42, 0.58)',
+                customClass: {
+                    container: 'app-alert-container',
+                    popup: 'app-alert',
+                    title: 'app-alert-title',
+                    icon: 'app-alert-icon',
+                    htmlContainer: 'app-alert-message',
+                    actions: 'app-alert-actions',
+                    confirmButton: 'app-alert-confirm',
+                },
+            });
+
+            return;
+        }
+
         post('/booking', {
             preserveScroll: true,
         });
@@ -197,9 +223,9 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
             </header>
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
-                {voucherJamNotify && (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                        Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
+                {voucherJamMismatch && data.jam_main_ids.length > 0 && (
+                    <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {voucherJamMessage}
                     </div>
                 )}
                 {hasErrors && (
@@ -441,11 +467,6 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                         <p className="mt-1 text-[11px] text-emerald-700">
                             Pilih tepat sesuai kuota jam voucher sebelum melanjutkan booking.
                         </p>
-                        {voucherJamNotify && (
-                            <p className="mt-1.5 text-xs font-medium text-rose-600">
-                                Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
-                            </p>
-                        )}
                     </section>
                 )}
 
@@ -479,11 +500,6 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                                 ? `Pilih tepat ${voucherTerpilih.jumah_jam} sesi jam untuk menggunakan voucher ini.`
                                 : 'Voucher hanya berlaku untuk jumlah sesi yang sesuai kuota jam voucher.'}
                         </p>
-                        {voucherJamNotify && (
-                            <p className="mt-1.5 text-xs font-medium text-rose-600">
-                                Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan
-                            </p>
-                        )}
                     </section>
                 )}
 
@@ -553,7 +569,7 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
 
                 <button
                     type="submit"
-                    disabled={processing || hargaTidakTersedia || voucherJamKurang}
+                    disabled={processing || hargaTidakTersedia}
                     className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                     {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}

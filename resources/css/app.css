@@ -7,3 +7,59 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+.app-alert-container {
+    backdrop-filter: blur(5px);
+}
+
+.app-alert {
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    box-shadow: 0 24px 64px rgb(15 23 42 / 20%);
+}
+
+.app-alert-title {
+    color: #0f172a;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.app-alert-icon {
+    border-width: 3px !important;
+}
+
+.app-alert-message {
+    color: #64748b;
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+.app-alert-actions {
+    width: 100%;
+    margin-top: 1.5rem !important;
+}
+
+.app-alert-confirm {
+    min-width: 10rem;
+    border: 0;
+    border-radius: 0.875rem;
+    background: linear-gradient(135deg, #059669, #047857);
+    padding: 0.8rem 1.5rem;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 8px 18px rgb(5 150 105 / 22%);
+    transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.app-alert-confirm:hover {
+    background: linear-gradient(135deg, #047857, #065f46);
+    box-shadow: 0 10px 22px rgb(5 150 105 / 28%);
+    transform: translateY(-1px);
+}
+
+.app-alert-confirm:focus-visible {
+    outline: 3px solid rgb(16 185 129 / 35%);
+    outline-offset: 3px;
+}

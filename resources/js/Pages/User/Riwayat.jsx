@@ -114,9 +114,35 @@ export default function Riwayat({ pengguna, bookings }) {
     const { flash } = usePage().props;
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [showBookingSuccess, setShowBookingSuccess] = useState(false);
+    const bookingSuccessMessage = 'Bookingan Anda berhasil dilakukan. Silakan menunggu persetujuan dari admin kami.';
     const total = bookings.length;
     const disetujui = bookings.filter((booking) => booking.status_booking === '200').length;
     const menunggu = bookings.filter((booking) => !['200', '400'].includes(booking.status_booking)).length;
+
+    useEffect(() => {
+        if (!flash?.booking_success) {
+            return;
+        }
+
+        setShowBookingSuccess(true);
+    }, [flash?.booking_success]);
+
+    useEffect(() => {
+        if (!showBookingSuccess) {
+            return;
+        }
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setShowBookingSuccess(false);
+            }
+        };
+
+        window.addEventListener('keydown', handleEscape);
+
+        return () => window.removeEventListener('keydown', handleEscape);
+    }, [showBookingSuccess]);
 
     useEffect(() => {
         if (!deleteTarget) {
@@ -174,7 +200,7 @@ export default function Riwayat({ pengguna, bookings }) {
             </header>
 
             <div className="relative -mt-7 space-y-3 px-5 pb-8">
-                {flash?.success && (
+                {flash?.success && !flash?.booking_success && (
                     <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-800 shadow-sm">
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
@@ -364,6 +390,41 @@ export default function Riwayat({ pengguna, bookings }) {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {showBookingSuccess && (
+                <div
+                    className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+                    onClick={() => setShowBookingSuccess(false)}
+                >
+                    <section
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="booking-success-title"
+                        aria-describedby="booking-success-message"
+                        className="w-full max-w-sm rounded-3xl border border-emerald-100 bg-white p-6 text-center shadow-2xl shadow-slate-950/20 sm:p-8"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/60">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 4.5 4.5 10.5-10.5" />
+                            </svg>
+                        </div>
+                        <h2 id="booking-success-title" className="mt-5 text-lg font-bold tracking-tight text-slate-900">
+                            Booking Berhasil
+                        </h2>
+                        <p id="booking-success-message" className="mt-2 text-sm leading-relaxed text-slate-600">
+                            {bookingSuccessMessage}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setShowBookingSuccess(false)}
+                            className="mt-6 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                        >
+                            Mengerti
+                        </button>
+                    </section>
                 </div>
             )}
         </>

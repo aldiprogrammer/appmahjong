@@ -32,7 +32,7 @@ export default function Voucher({ pengguna, vouchers = [] }) {
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
                         Belum ada voucher. Voucher akan muncul setelah booking disetujui.
                     </div>
-                ) : (
+                ) : ( 
                     vouchers.map((voucher) => (
                         <div
                             key={voucher.id}

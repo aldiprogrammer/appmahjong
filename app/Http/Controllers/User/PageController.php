@@ -116,7 +116,7 @@ class PageController extends Controller
 
             if (! $statusVoucher || count($validated['jam_main_ids']) !== (int) $statusVoucher->jumah_jam) {
                 throw ValidationException::withMessages([
-                    'kode_voucher' => 'Jam yang anda pilih kurang atau lebih dari jam main yang sudah di tentukan',
+                    'kode_voucher' => 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.',
                 ]);
             }
         }
@@ -327,7 +327,8 @@ class PageController extends Controller
 
         return redirect()
             ->route('riwayat')
-            ->with('success', $pesan);
+            ->with('success', $pesan)
+            ->with('booking_success', true);
     }
 
     public function riwayat(Request $request): Response

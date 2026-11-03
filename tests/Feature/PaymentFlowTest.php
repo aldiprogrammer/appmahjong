@@ -7,10 +7,13 @@ use App\Models\hargajammain;
 use App\Models\jam_main;
 use App\Models\Meja;
 use App\Models\Pengguna;
+use App\Models\Statusvoucher;
+use App\Models\Voucher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class PaymentFlowTest extends TestCase
@@ -36,6 +39,50 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('0', $booking->status_booking);
     }
 
+    public function test_booking_with_voucher_rejects_fewer_selected_hours(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $voucher = $this->buatVoucher($pengguna, 2);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->from(route('booking'))
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jam->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_voucher' => $voucher->kode_voucher,
+            ]);
+
+        $response->assertRedirect(route('booking'));
+        $response->assertSessionHasErrors([
+            'kode_voucher' => 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.',
+        ]);
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_booking_with_voucher_rejects_more_selected_hours(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $jamKetiga = jam_main::create(['jam_mulai' => '12:00', 'jam_selesai' => '13:00', 'status' => 'aktif']);
+        $voucher = $this->buatVoucher($pengguna, 2);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->from(route('booking'))
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id, (string) $jamKetiga->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_voucher' => $voucher->kode_voucher,
+            ]);
+
+        $response->assertRedirect(route('booking'));
+        $response->assertSessionHasErrors([
+            'kode_voucher' => 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.',
+        ]);
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
     public function test_transfer_upload_marks_all_pembayaran_sessions_waiting_verification(): void
     {
         Storage::fake('public');
@@ -58,6 +105,7 @@ class PaymentFlowTest extends TestCase
         ]);
 
         $response->assertRedirect(route('riwayat'));
+        $response->assertSessionHas('booking_success', true);
 
         $bookings = Booking::query()->where('kode_pembayaran', $kodePembayaran)->get();
 
@@ -81,7 +129,8 @@ class PaymentFlowTest extends TestCase
 
         $this->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
             'sistem_pembayaran' => 'tunai',
-        ])->assertRedirect(route('riwayat'));
+        ])->assertRedirect(route('riwayat'))
+            ->assertSessionHas('booking_success', true);
 
         $booking->refresh();
 
@@ -145,6 +194,116 @@ class PaymentFlowTest extends TestCase
         $this->assertNotNull($booking->dibayar_pada);
     }
 
+    public function test_admin_deleted_booking_hides_it_and_releases_the_time_slot(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $bookingData = [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ];
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), $bookingData);
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->withSession(['admin_id' => 1])
+            ->delete(route('admin.bookings.destroy', $booking))
+            ->assertRedirect();
+
+        $booking->refresh();
+        $this->assertSame('1', $booking->status_hapus);
+
+        $this->withSession(['admin_id' => 1])
+            ->get(route('admin.bookings.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Booking/Index')
+                ->has('bookings.data', 0));
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), $bookingData);
+
+        $bookings = Booking::query()->where('tgl_main', $tanggal->toDateString())->get();
+        $newBooking = Booking::query()->where('status_hapus', '0')->firstOrFail();
+
+        $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
+        $this->assertCount(2, $bookings);
+        $this->assertSame('0', $newBooking->status_hapus);
+    }
+
+    public function test_reapproving_voucher_booking_marks_voucher_as_used_again(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $voucher = $this->buatVoucher($pengguna, 1);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jam->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_voucher' => $voucher->kode_voucher,
+            ]);
+
+        $booking = Booking::query()->firstOrFail();
+        $adminSession = ['admin_id' => 1];
+
+        $this->withSession($adminSession)
+            ->patch(route('admin.bookings.reject', $booking))
+            ->assertRedirect();
+
+        $voucher->refresh();
+        $this->assertSame('', $voucher->tanggal_digunakan);
+
+        $this->withSession($adminSession)
+            ->patch(route('admin.bookings.approve', $booking))
+            ->assertRedirect();
+
+        $booking->refresh();
+        $voucher->refresh();
+
+        $this->assertSame('200', $booking->status_booking);
+        $this->assertSame(Carbon::today()->toDateString(), $voucher->tanggal_digunakan);
+    }
+
+    public function test_deleting_voucher_booking_rejects_it_and_allows_voucher_to_be_used_again(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $voucher = $this->buatVoucher($pengguna, 1);
+        $bookingData = [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_voucher' => $voucher->kode_voucher,
+        ];
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), $bookingData);
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->withSession(['admin_id' => 1])
+            ->delete(route('admin.bookings.destroy', $booking))
+            ->assertRedirect();
+
+        $booking->refresh();
+        $voucher->refresh();
+
+        $this->assertSame('400', $booking->status_booking);
+        $this->assertSame('1', $booking->status_hapus);
+        $this->assertSame('', $voucher->tanggal_digunakan);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), $bookingData);
+
+        $newBooking = Booking::query()->where('status_hapus', '0')->firstOrFail();
+        $voucher->refresh();
+
+        $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
+        $this->assertSame($voucher->kode_voucher, $newBooking->kode_voucher);
+        $this->assertSame(Carbon::today()->toDateString(), $voucher->tanggal_digunakan);
+    }
+
     /**
      * @return array{0: Pengguna, 1: Meja, 2: jam_main, 3: Carbon}
      */
@@ -179,6 +338,24 @@ class PaymentFlowTest extends TestCase
             'harga' => '50000',
             'diskon' => '0',
             'harga_akhir' => '50000',
+        ]);
+    }
+
+    private function buatVoucher(Pengguna $pengguna, int $jumlahJam): Voucher
+    {
+        $statusVoucher = Statusvoucher::create([
+            'status_voucher' => 'Voucher Tes',
+            'jumah_booking' => '1',
+            'jumah_jam' => (string) $jumlahJam,
+        ]);
+
+        return Voucher::create([
+            'kode_user' => $pengguna->kode_user,
+            'kode_voucher' => 'VC-TEST-001',
+            'tanggal_diterima' => Carbon::today()->toDateString(),
+            'tanggal_digunakan' => '',
+            'id_statusvoucher' => (string) $statusVoucher->id,
+            'status' => 'aktif',
         ]);
     }
 }

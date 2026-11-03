@@ -9,6 +9,7 @@ use App\Models\Statusvoucher;
 use App\Models\Voucher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -60,6 +61,12 @@ class BookingController extends Controller
     public function approve(Booking $booking): RedirectResponse
     {
         $booking->update(['status_booking' => '200']);
+
+        if (filled($booking->kode_voucher)) {
+            Voucher::query()
+                ->where('kode_voucher', $booking->kode_voucher)
+                ->update(['tanggal_digunakan' => now()->toDateString()]);
+        }
 
         $this->issueVouchers($booking);
 
@@ -152,7 +159,18 @@ class BookingController extends Controller
 
     public function destroy(Booking $booking): RedirectResponse
     {
-        $booking->update(['status_hapus' => '1']);
+        DB::transaction(function () use ($booking): void {
+            $booking->update([
+                'status_booking' => '400',
+                'status_hapus' => '1',
+            ]);
+
+            if (filled($booking->kode_voucher)) {
+                Voucher::query()
+                    ->where('kode_voucher', $booking->kode_voucher)
+                    ->update(['tanggal_digunakan' => '']);
+            }
+        });
 
         return back()->with('success', "Booking {$booking->kode_booking} berhasil dihapus dari daftar.");
     }
