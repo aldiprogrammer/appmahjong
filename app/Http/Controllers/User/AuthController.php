@@ -7,7 +7,6 @@ use App\Models\Pengguna;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -29,17 +28,13 @@ class AuthController extends Controller
         $validated = $request->validate([
             'nama_depan' => ['required', 'string', 'max:50'],
             'nama_balakang' => ['nullable', 'string', 'max:50'],
-            'email' => ['required', 'email', 'max:50', Rule::unique('penggunas', 'email')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('penggunas', 'email')],
             'nowa' => ['required', 'string', 'max:20', Rule::unique('penggunas', 'nowa')],
             'password' => ['required', 'string', 'min:8', 'max:72', 'confirmed'],
         ]);
 
-        do {
-            $kodeUser = 'PG-' . strtoupper(Str::random(6));
-        } while (Pengguna::query()->where('kode_user', $kodeUser)->exists());
-
         $pengguna = Pengguna::create([
-            'kode_user' => $kodeUser,
+            'kode_user' => Pengguna::buatKodeUserUnik(),
             'nama_depan' => $validated['nama_depan'],
             'nama_balakang' => $validated['nama_balakang'] ?? '',
             'email' => $validated['email'],
@@ -68,7 +63,7 @@ class AuthController extends Controller
     public function login(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'login' => ['required', 'string', 'max:50'],
+            'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
         ]);
 
@@ -78,7 +73,7 @@ class AuthController extends Controller
             ->latest()
             ->first();
 
-        if (! $pengguna || ! Hash::check($validated['password'], $pengguna->password)) {
+        if (! $pengguna || ! $pengguna->password || ! Hash::check($validated['password'], $pengguna->password)) {
             throw ValidationException::withMessages([
                 'login' => 'Nomor WhatsApp/email atau password salah.',
             ]);

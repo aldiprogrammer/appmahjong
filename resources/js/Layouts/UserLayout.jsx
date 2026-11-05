@@ -41,7 +41,7 @@ function VoucherIcon({ className = 'h-5 w-5' }) {
 }
 
 const menus = [
-    { name: 'Home', href: '/', icon: HomeIcon },
+    { name: 'Home', href: '/home', icon: HomeIcon },
     { name: 'Booking', href: '/booking', icon: BookingIcon },
     { name: 'Voucher', href: '/voucher', icon: VoucherIcon },
     { name: 'Riwayat', href: '/riwayat', icon: RiwayatIcon },

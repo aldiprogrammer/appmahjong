@@ -24,6 +24,19 @@ use Inertia\Response;
 
 class PageController extends Controller
 {
+    public function landing(Request $request): Response
+    {
+        return Inertia::render('User/Landing', [
+            'pengguna' => $this->currentPengguna($request),
+            'mejas' => Meja::query()->orderBy('nama_meja')->take(4)->get(['id', 'kode_meja', 'nama_meja']),
+            'hargas' => hargajammain::query()
+                ->orderBy('hari')
+                ->orderBy('harga')
+                ->take(4)
+                ->get(),
+        ]);
+    }
+
     public function home(Request $request): Response
     {
         $pengguna = $this->currentPengguna($request);
@@ -45,22 +58,26 @@ class PageController extends Controller
 
         return Inertia::render('User/Booking', [
             'pengguna' => $pengguna,
-            'mejas' => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja']),
-            'jamMains' => jam_main::query()
+            'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja'])),
+            'jamMains' => Inertia::defer(fn () => jam_main::query()
                 ->where('status', 'aktif')
                 ->orderBy('jam_mulai')
-                ->get(['id', 'jam_mulai', 'jam_selesai', 'status']),
-            'hargas' => hargajammain::query()
+                ->get(['id', 'jam_mulai', 'jam_selesai', 'status'])),
+            'hargas' => Inertia::defer(fn () => hargajammain::query()
                 ->orderBy('hari')
                 ->orderBy('harga')
-                ->get(['id', 'jam_main_id', 'hari', 'harga', 'diskon', 'harga_akhir']),
-            'bookedSlots' => Booking::query()
+                ->get(['id', 'jam_main_id', 'hari', 'harga', 'diskon', 'harga_akhir'])),
+            'bookedSlots' => Inertia::defer(fn () => Booking::query()
                 ->where('status_hapus', '!=', '1')
                 ->where('status_booking', '!=', '400')
                 ->where('tgl_main', '>=', Carbon::today()->toDateString())
-                ->get(['id_meja', 'tgl_main', 'jam_mulai', 'jam_selesai']),
-            'vouchers' => $pengguna
-                ? Voucher::query()
+                ->get(['id_meja', 'tgl_main', 'jam_mulai', 'jam_selesai'])),
+            'vouchers' => Inertia::defer(function () use ($pengguna) {
+                if (! $pengguna) {
+                    return [];
+                }
+
+                return Voucher::query()
                     ->where('kode_user', $pengguna->kode_user)
                     ->where(function ($query) {
                         $query->whereNull('tanggal_digunakan')->orWhere('tanggal_digunakan', '');
@@ -77,8 +94,8 @@ class PageController extends Controller
                             'jumah_jam' => $statusVoucher?->jumah_jam,
                         ];
                     })
-                    ->values()
-                : [],
+                    ->values();
+            }),
         ]);
     }
 
@@ -335,17 +352,27 @@ class PageController extends Controller
     {
         $pengguna = $this->currentPengguna($request);
 
-        $bookings = $pengguna
-            ? Booking::query()
+        // Kolom tgl_main disimpan sebagai string Y-m-d, jadi cukup exact-match.
+        $tglMain = $request->query('tgl_main');
+        $filterTglMain = is_string($tglMain) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $tglMain) ? $tglMain : null;
+
+        $bookings = Inertia::defer(function () use ($pengguna, $filterTglMain) {
+            if (! $pengguna) {
+                return [];
+            }
+
+            return Booking::query()
                 ->where('id_pengguna', (string) $pengguna->id)
                 ->where('status_hapus', '!=', '1')
+                ->when($filterTglMain, fn ($query) => $query->where('tgl_main', $filterTglMain))
                 ->latest()
-                ->get()
-            : collect();
+                ->get();
+        });
 
         return Inertia::render('User/Riwayat', [
             'pengguna' => $pengguna,
             'bookings' => $bookings,
+            'filterTglMain' => $filterTglMain,
         ]);
     }
 
@@ -420,6 +447,23 @@ class PageController extends Controller
             'pengguna' => $pengguna,
             'stats' => $stats,
         ]);
+    }
+
+    public function updateNowa(Request $request): RedirectResponse
+    {
+        $pengguna = $this->currentPengguna($request);
+
+        if (! $pengguna) {
+            return redirect()->route('login');
+        }
+
+        $validated = $request->validate([
+            'nowa' => ['required', 'string', 'max:20', Rule::unique('penggunas', 'nowa')->ignore($pengguna->id)],
+        ]);
+
+        $pengguna->update(['nowa' => $validated['nowa']]);
+
+        return back()->with('success', 'Nomor WhatsApp berhasil disimpan.');
     }
 
     public function voucher(Request $request): Response

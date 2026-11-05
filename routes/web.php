@@ -11,15 +11,20 @@ use App\Http\Controllers\Admin\PenggunaController;
 use App\Http\Controllers\Admin\StatusVoucherController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\User\AuthController;
+use App\Http\Controllers\User\GoogleAuthController;
 use App\Http\Controllers\User\PageController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [PageController::class, 'home'])->name('home');
+Route::get('/', [PageController::class, 'landing'])->name('landing');
+Route::get('/home', [PageController::class, 'home'])->name('home');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register'])->name('register.store');
+
+Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 
 Route::middleware('pengguna.auth')->group(function () {
     Route::get('/booking', [PageController::class, 'booking'])->name('booking');
@@ -32,6 +37,7 @@ Route::middleware('pengguna.auth')->group(function () {
     Route::get('/riwayat/{booking}/tiket', [PageController::class, 'downloadTiket'])->name('riwayat.tiket');
     Route::get('/riwayat/{booking}/download', [PageController::class, 'downloadTiket'])->name('riwayat.download');
     Route::get('/profil', [PageController::class, 'profil'])->name('profil');
+    Route::post('/profil/whatsapp', [PageController::class, 'updateNowa'])->name('profil.nowa');
     Route::post('/profil/keluar', [AuthController::class, 'logout'])->name('profil.logout');
 });
 

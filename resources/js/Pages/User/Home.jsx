@@ -95,9 +95,18 @@ export default function Home({ pengguna, mejas, hargas }) {
                             <Link
                                 href="/profil"
                                 aria-label="Buka profil"
-                                className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25 transition hover:bg-white/25"
+                                className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25 transition hover:bg-white/25"
                             >
-                                {inisial}
+                                {pengguna?.avatar ? (
+                                    <img
+                                        src={pengguna.avatar}
+                                        alt={nama}
+                                        referrerPolicy="no-referrer"
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    inisial
+                                )}
                             </Link>
                             <div className="leading-tight">
                                 <p className="text-base font-semibold">{nama}</p>

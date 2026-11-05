@@ -30,9 +30,9 @@ export default function Voucher({ pengguna, vouchers = [] }) {
             <main className="relative -mt-7 space-y-4 px-5 pb-8">
                 {vouchers.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
-                        Belum ada voucher. Voucher akan muncul setelah booking disetujui.
+                        Belum ada voucher. Voucher akan muncul jika akun anda memenuhi syarat.
                     </div>
-                ) : ( 
+                ) : (
                     vouchers.map((voucher) => (
                         <div
                             key={voucher.id}
@@ -44,11 +44,10 @@ export default function Voucher({ pengguna, vouchers = [] }) {
                                     <p className="mt-1 text-base font-bold text-emerald-700">{voucher.kode_voucher}</p>
                                 </div>
                                 <span
-                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-                                        voucher.is_used
-                                            ? 'bg-slate-100 text-slate-600 ring-slate-200'
-                                            : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-                                    }`}
+                                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${voucher.is_used
+                                        ? 'bg-slate-100 text-slate-600 ring-slate-200'
+                                        : 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                                        }`}
                                 >
                                     <span className={`h-1.5 w-1.5 rounded-full ${voucher.is_used ? 'bg-slate-400' : 'bg-emerald-500'}`} />
                                     {voucher.is_used ? 'Sudah Digunakan' : 'Belum Digunakan'}
@@ -89,7 +88,7 @@ export default function Voucher({ pengguna, vouchers = [] }) {
                 )}
 
                 <div className="rounded-2xl border border-emerald-100 bg-white p-4 text-xs text-slate-500">
-                    Booking untuk <span className="font-semibold text-slate-700">{namaPengguna || '-'}</span>. Pilih voucher di halaman booking sebelum membuat booking.
+                    Hello <span className="font-semibold text-slate-700">{namaPengguna || '-'}</span>. Pilih voucher di halaman booking sebelum membuat booking.
                 </div>
             </main>
         </>

@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
@@ -69,10 +69,28 @@ function ShieldIcon() {
 }
 
 export default function Profil({ pengguna, stats }) {
+    const { flash } = usePage().props;
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
+    const {
+        data: nowaData,
+        setData: setNowaData,
+        post: postNowa,
+        processing: savingNowa,
+        errors: nowaErrors,
+        reset: resetNowa,
+    } = useForm({ nowa: '' });
     const meta = statusMeta(pengguna?.status);
     const initial = pengguna?.nama_depan?.charAt(0)?.toUpperCase() ?? '?';
+
+    const simpanNowa = (event) => {
+        event.preventDefault();
+
+        postNowa('/profil/whatsapp', {
+            preserveScroll: true,
+            onSuccess: () => resetNowa(),
+        });
+    };
 
     const logout = () => {
         setLoggingOut(true);
@@ -96,9 +114,18 @@ export default function Profil({ pengguna, stats }) {
             <header className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-emerald-600 to-emerald-800 px-5 pb-16 pt-6 text-white">
                 <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10" />
                 <div className="relative flex flex-col items-center text-center">
-                    <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/15 text-2xl font-bold ring-4 ring-white/20">
-                        {initial}
-                    </span>
+                    {pengguna?.avatar ? (
+                        <img
+                            src={pengguna.avatar}
+                            alt={namaPengguna(pengguna)}
+                            referrerPolicy="no-referrer"
+                            className="h-20 w-20 rounded-full object-cover ring-4 ring-white/20"
+                        />
+                    ) : (
+                        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-white/15 text-2xl font-bold ring-4 ring-white/20">
+                            {initial}
+                        </span>
+                    )}
                     <h1 className="mt-3 text-lg font-bold">{namaPengguna(pengguna)}</h1>
                     <p className="mt-0.5 text-xs text-emerald-100">
                         {pengguna ? pengguna.kode_user || '-' : 'Belum ada sesi aktif'}
@@ -125,6 +152,56 @@ export default function Profil({ pengguna, stats }) {
                         </div>
                     ))}
                 </div>
+
+                {flash?.success && (
+                    <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        </svg>
+                        <span className="font-medium leading-relaxed">{flash.success}</span>
+                    </div>
+                )}
+
+                {pengguna && !pengguna.nowa && (
+                    <section className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm">
+                        <div className="flex items-start gap-3 px-4 pt-4">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                                <PhoneIcon />
+                            </span>
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-800">Lengkapi Nomor WhatsApp</h2>
+                                <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                                    Akun kamu belum memiliki nomor WhatsApp. Isi sekarang agar kami bisa menghubungi
+                                    kamu terkait booking dan pembayaran.
+                                </p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={simpanNowa} className="mt-3 space-y-2 px-4 pb-4">
+                            <input
+                                type="tel"
+                                inputMode="tel"
+                                value={nowaData.nowa}
+                                onChange={(event) => setNowaData('nowa', event.target.value)}
+                                placeholder="08xxxxxxxxxx"
+                                autoComplete="tel"
+                                required
+                                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10 ${nowaErrors.nowa ? 'border-rose-300 bg-rose-50/50' : 'border-amber-200 bg-white'
+                                    }`}
+                            />
+                            {nowaErrors.nowa && (
+                                <p className="text-xs font-medium text-rose-600">{nowaErrors.nowa}</p>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={savingNowa}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {savingNowa ? 'Menyimpan...' : 'Simpan Nomor WhatsApp'}
+                            </button>
+                        </form>
+                    </section>
+                )}
 
                 {pengguna ? (
                     <>

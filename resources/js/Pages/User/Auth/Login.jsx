@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthLayout from '../../../Layouts/AuthLayout';
 
@@ -35,9 +35,21 @@ function LockIcon() {
     );
 }
 
+function GoogleIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+            <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z" />
+        </svg>
+    );
+}
+
 const labelClass = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500';
 
 export default function Login() {
+    const { flash } = usePage().props;
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors } = useForm({
         login: '',
@@ -73,7 +85,30 @@ export default function Login() {
                     </div>
                 }
             >
+                <a
+                    href="/auth/google"
+                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                    <GoogleIcon />
+                    Masuk dengan Google
+                </a>
+
+                <div className="my-4 flex items-center gap-3">
+                    <span className="h-px flex-1 bg-slate-200" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">atau</span>
+                    <span className="h-px flex-1 bg-slate-200" />
+                </div>
+
                 <form onSubmit={submit} className="space-y-4">
+                    {flash?.error && (
+                        <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                            </svg>
+                            <span className="font-medium leading-relaxed">{flash.error}</span>
+                        </div>
+                    )}
+
                     {errors.login && (
                         <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
                             <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

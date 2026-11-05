@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
@@ -110,15 +110,70 @@ function TicketIcon({ className = 'h-10 w-10' }) {
     );
 }
 
-export default function Riwayat({ pengguna, bookings }) {
+function RiwayatSkeletonCard() {
+    return (
+        <article className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+            <div className="flex items-center justify-between gap-2 border-b border-dashed border-emerald-100 px-4 py-3">
+                <div className="space-y-1.5">
+                    <div className="h-3.5 w-28 rounded bg-slate-200" />
+                    <div className="h-2.5 w-24 rounded bg-slate-100" />
+                </div>
+                <div className="h-5 w-20 rounded-full bg-emerald-100" />
+            </div>
+
+            <div className="space-y-2.5 px-4 py-3">
+                <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-emerald-50" />
+                    <div className="space-y-1.5">
+                        <div className="h-3 w-32 rounded bg-slate-100" />
+                        <div className="h-2.5 w-20 rounded bg-slate-100" />
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-emerald-50" />
+                    <div className="space-y-1.5">
+                        <div className="h-3 w-24 rounded bg-slate-100" />
+                        <div className="h-2.5 w-16 rounded bg-slate-100" />
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 bg-emerald-50/60 px-4 py-2.5">
+                <div className="space-y-1.5">
+                    <div className="h-2.5 w-14 rounded bg-slate-200" />
+                    <div className="h-3 w-20 rounded bg-slate-200" />
+                </div>
+                <div className="h-7 w-28 rounded-xl bg-emerald-100" />
+            </div>
+        </article>
+    );
+}
+
+function RiwayatSkeleton({ count = 3 }) {
+    return (
+        <div aria-busy="true" aria-label="Memuat riwayat booking" className="space-y-3">
+            {Array.from({ length: count }).map((_, index) => (
+                <div key={index} className="animate-pulse">
+                    <RiwayatSkeletonCard />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
     const { flash } = usePage().props;
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [showBookingSuccess, setShowBookingSuccess] = useState(false);
+    const [filterTgl, setFilterTgl] = useState(filterTglMain ?? '');
     const bookingSuccessMessage = 'Bookingan Anda berhasil dilakukan. Silakan menunggu persetujuan dari admin kami.';
-    const total = bookings.length;
-    const disetujui = bookings.filter((booking) => booking.status_booking === '200').length;
-    const menunggu = bookings.filter((booking) => !['200', '400'].includes(booking.status_booking)).length;
+    // bookings belum dimuat (deferred) saat render awal — jaga agar aman.
+    const daftarBooking = Array.isArray(bookings) ? bookings : [];
+    const bookingsDimuat = Array.isArray(bookings);
+    const total = daftarBooking.length;
+    const disetujui = daftarBooking.filter((booking) => booking.status_booking === '200').length;
+    const menunggu = daftarBooking.filter((booking) => !['200', '400'].includes(booking.status_booking)).length;
 
     useEffect(() => {
         if (!flash?.booking_success) {
@@ -174,6 +229,16 @@ export default function Riwayat({ pengguna, bookings }) {
         });
     };
 
+    const applyFilter = (value) => {
+        setFilterTgl(value);
+
+        router.get('/riwayat', value ? { tgl_main: value } : {}, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
     return (
         <>
             <Head title="Riwayat Booking" />
@@ -191,7 +256,11 @@ export default function Riwayat({ pengguna, bookings }) {
                             { label: 'Menunggu', value: menunggu },
                         ].map((item) => (
                             <div key={item.label} className="rounded-xl bg-white/10 py-2 ring-1 ring-white/15">
-                                <p className="text-base font-bold">{item.value}</p>
+                                {bookingsDimuat ? (
+                                    <p className="text-base font-bold">{item.value}</p>
+                                ) : (
+                                    <span className="mx-auto block h-4 w-6 animate-pulse rounded bg-white/25" />
+                                )}
                                 <p className="text-[10px] text-emerald-100">{item.label}</p>
                             </div>
                         ))}
@@ -200,6 +269,30 @@ export default function Riwayat({ pengguna, bookings }) {
             </header>
 
             <div className="relative -mt-7 space-y-3 px-5 pb-8">
+                <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                        <label htmlFor="filter-tgl-main" className="text-[11px] font-semibold text-slate-700">
+                            Cari berdasarkan tanggal main
+                        </label>
+                        {filterTgl && (
+                            <button
+                                type="button"
+                                onClick={() => applyFilter('')}
+                                className="rounded-lg px-2 py-1 text-[10px] font-bold text-emerald-600 transition hover:bg-emerald-50"
+                            >
+                                Tampilkan semua
+                            </button>
+                        )}
+                    </div>
+                    <input
+                        id="filter-tgl-main"
+                        type="date"
+                        value={filterTgl}
+                        onChange={(event) => applyFilter(event.target.value)}
+                        className="mt-2 w-full rounded-xl border border-emerald-200 bg-emerald-50/50 px-3 py-2 text-xs font-medium text-slate-700 outline-none transition focus:border-emerald-400 focus:bg-white"
+                    />
+                </div>
+
                 {flash?.success && !flash?.booking_success && (
                     <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-emerald-800 shadow-sm">
                         <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
@@ -217,23 +310,50 @@ export default function Riwayat({ pengguna, bookings }) {
                     </div>
                 )}
 
+                <Deferred data="bookings" fallback={<RiwayatSkeleton />}>
+                    {({ reloading }) => (
+                        <div
+                            className={`space-y-3 transition-opacity duration-300 ${
+                                reloading ? 'opacity-50' : ''
+                            }`}
+                        >
                 {!pengguna || bookings.length === 0 ? (
                     <div className="flex flex-col items-center rounded-2xl border border-emerald-100 bg-white px-6 py-12 text-center shadow-sm">
                         <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
                             <TicketIcon />
                         </span>
-                        <h2 className="mt-4 text-sm font-bold text-slate-800">
-                            {pengguna ? 'Belum ada booking' : 'Kamu belum booking'}
-                        </h2>
-                        <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
-                            Booking meja pertamamu sekarang dan lihat status persetujuannya di halaman ini.
-                        </p>
-                        <Link
-                            href="/booking"
-                            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
-                        >
-                            Booking Sekarang
-                        </Link>
+                        {pengguna && filterTglMain ? (
+                            <>
+                                <h2 className="mt-4 text-sm font-bold text-slate-800">Tidak ada hasil</h2>
+                                <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+                                    Tidak ada booking dengan tanggal main{' '}
+                                    <span className="font-semibold text-slate-700">{formatDate(filterTglMain)}</span>.
+                                    Coba tanggal lain atau tampilkan semua booking.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => applyFilter('')}
+                                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                                >
+                                    Tampilkan Semua Booking
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <h2 className="mt-4 text-sm font-bold text-slate-800">
+                                    {pengguna ? 'Belum ada booking' : 'Kamu belum booking'}
+                                </h2>
+                                <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+                                    Booking meja pertamamu sekarang dan lihat status persetujuannya di halaman ini.
+                                </p>
+                                <Link
+                                    href="/booking"
+                                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+                                >
+                                    Booking Sekarang
+                                </Link>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <>
@@ -351,6 +471,9 @@ export default function Riwayat({ pengguna, bookings }) {
                         </Link>
                     </>
                 )}
+                        </div>
+                    )}
+                </Deferred>
             </div>
 
             {deleteTarget && (

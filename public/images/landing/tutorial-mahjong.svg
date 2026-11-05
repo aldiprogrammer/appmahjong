@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 560" width="800" height="560" role="img" aria-label="Ilustrasi tutorial belajar mahjong">
+    <defs>
+        <radialGradient id="felt2" cx="50%" cy="42%" r="75%">
+            <stop offset="0%" stop-color="#22955f"/>
+            <stop offset="55%" stop-color="#146b45"/>
+            <stop offset="100%" stop-color="#0a3f29"/>
+        </radialGradient>
+        <linearGradient id="ivory2" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fffdf6"/>
+            <stop offset="100%" stop-color="#e7dfc7"/>
+        </linearGradient>
+        <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#f7c99b"/>
+            <stop offset="100%" stop-color="#e8a97a"/>
+        </linearGradient>
+        <pattern id="dots2" width="16" height="16" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="#ffffff" opacity="0.07"/>
+        </pattern>
+        <radialGradient id="vignette2" cx="50%" cy="42%" r="75%">
+            <stop offset="60%" stop-color="#042417" stop-opacity="0"/>
+            <stop offset="100%" stop-color="#042417" stop-opacity="0.45"/>
+        </radialGradient>
+        <filter id="soft2" x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#042417" flood-opacity="0.45"/>
+        </filter>
+    </defs>
+
+    <rect width="800" height="560" fill="url(#felt2)"/>
+    <rect width="800" height="560" fill="url(#dots2)"/>
+
+    <!-- tumpukan ubin (dinding) di belakang -->
+    <g filter="url(#soft2)">
+        <g>
+            <rect x="60" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="100" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="140" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="180" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="220" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="260" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="300" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="340" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="380" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="420" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="460" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="500" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="540" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="580" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="620" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="660" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="700" y="96" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+        </g>
+        <g>
+            <rect x="60" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="100" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="140" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="180" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="220" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="260" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="300" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="340" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="380" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="420" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="460" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="500" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="540" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="580" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="620" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="660" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+            <rect x="700" y="152" width="34" height="50" rx="5" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="1"/>
+        </g>
+    </g>
+
+    <!-- ubin yang sedang diambil, miring di udara -->
+    <g filter="url(#soft2)" transform="translate(392 232) rotate(-8)">
+        <rect width="52" height="76" rx="9" fill="#fffdf6" stroke="#c9c0a6" stroke-width="2"/>
+        <text x="26" y="56" font-size="42" font-family="Georgia, 'Times New Roman', serif" font-weight="700" fill="#c0392b" text-anchor="middle">中</text>
+    </g>
+    <g stroke="#a7f3d0" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="1 12" opacity="0.9">
+        <path d="M420 208 q40 -46 96 -60"/>
+    </g>
+
+    <!-- kipas 13 ubin di tangan pemain -->
+    <g filter="url(#soft2)">
+        <!-- tiles fanned -->
+        <g>
+            <g transform="rotate(-32 300 560)"><rect x="212" y="248" width="58" height="84" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="241" y="308" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#c0392b" text-anchor="middle">中</text></g>
+            <g transform="rotate(-24 300 560)"><rect x="248" y="240" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><circle cx="277" cy="268" r="5.5" fill="#157a4f"/><circle cx="277" cy="288" r="5.5" fill="#157a4f"/><circle cx="277" cy="308" r="5.5" fill="#157a4f"/></g>
+            <g transform="rotate(-16 300 560)"><rect x="288" y="236" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="317" y="296" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#2c6fa8" text-anchor="middle">東</text></g>
+            <g transform="rotate(-8 300 560)"><rect x="328" y="234" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="357" y="294" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#c0392b" text-anchor="middle">萬</text></g>
+            <g transform="rotate(0 300 560)"><rect x="368" y="232" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="397" y="292" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#157a4f" text-anchor="middle">發</text></g>
+            <g transform="rotate(8 300 560)"><rect x="408" y="234" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><circle cx="437" cy="266" r="5.5" fill="#c0392b"/><circle cx="437" cy="286" r="5.5" fill="#c0392b"/><circle cx="437" cy="306" r="5.5" fill="#c0392b"/></g>
+            <g transform="rotate(16 300 560)"><rect x="448" y="236" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="477" y="296" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#2c6fa8" text-anchor="middle">北</text></g>
+            <g transform="rotate(24 300 560)"><rect x="488" y="240" width="58" height="86" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="517" y="300" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#c0392b" text-anchor="middle">萬</text></g>
+            <g transform="rotate(32 300 560)"><rect x="528" y="248" width="58" height="84" rx="9" fill="url(#ivory2)" stroke="#c9c0a6" stroke-width="2"/><text x="557" y="308" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#157a4f" text-anchor="middle">發</text></g>
+        </g>
+
+        <!-- tangan (buku jari) -->
+        <g fill="url(#skin)" stroke="#d18f5f" stroke-width="2">
+            <path d="M250 340 q50 -36 104 -30 q44 6 74 26 q18 12 6 26 q-12 14 -34 8 l-64 -12 q-46 -6 -86 -18 Z"/>
+            <ellipse cx="286" cy="352" rx="42" ry="26" transform="rotate(-14 286 352)"/>
+        </g>
+        <g fill="#e8a97a" opacity="0.4">
+            <ellipse cx="316" cy="330" rx="4" ry="7" transform="rotate(-16 316 330)"/>
+            <ellipse cx="344" cy="326" rx="4" ry="7" transform="rotate(-8 344 326)"/>
+            <ellipse cx="372" cy="324" rx="4" ry="7"/>
+        </g>
+    </g>
+
+    <!-- ubin buangan di meja -->
+    <g filter="url(#soft2)">
+        <g transform="translate(96 430) rotate(-10)">
+            <rect width="50" height="72" rx="8" fill="#fffdf6" stroke="#c9c0a6" stroke-width="2"/>
+            <text x="25" y="52" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#2c6fa8" text-anchor="middle">西</text>
+        </g>
+        <g transform="translate(610 452) rotate(12)">
+            <rect width="50" height="72" rx="8" fill="#fffdf6" stroke="#c9c0a6" stroke-width="2"/>
+            <circle cx="17" cy="22" r="5" fill="#c0392b"/><circle cx="33" cy="22" r="5" fill="#c0392b"/>
+            <circle cx="25" cy="36" r="5" fill="#c0392b"/>
+            <circle cx="17" cy="50" r="5" fill="#c0392b"/><circle cx="33" cy="50" r="5" fill="#c0392b"/>
+        </g>
+        <g transform="translate(690 436) rotate(-6)">
+            <rect width="50" height="72" rx="8" fill="#fffdf6" stroke="#c9c0a6" stroke-width="2"/>
+            <text x="25" y="52" font-size="34" font-family="Georgia, serif" font-weight="700" fill="#c0392b" text-anchor="middle">萬</text>
+        </g>
+    </g>
+
+    <rect width="800" height="560" fill="url(#vignette2)"/>
+</svg>

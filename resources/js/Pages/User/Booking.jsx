@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Deferred, Head, Link, useForm } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
@@ -70,7 +70,59 @@ function StepBadge({ children }) {
     );
 }
 
-export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots = [], vouchers = [] }) {
+function BookingSkeleton() {
+    return (
+        <div aria-busy="true" aria-label="Memuat form booking" className="space-y-4">
+            <section className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-full bg-emerald-100" />
+                    <div className="h-3 w-24 rounded bg-slate-200" />
+                </div>
+                <div className="h-11 rounded-xl bg-slate-100" />
+            </section>
+
+            {Array.from({ length: 2 }).map((_, index) => (
+                <section
+                    key={index}
+                    className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
+                >
+                    <div className="mb-3 flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-full bg-emerald-100" />
+                        <div className="h-3 w-28 rounded bg-slate-200" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                        {Array.from({ length: index + 2 }).map((__, itemIndex) => (
+                            <div key={itemIndex} className="h-16 rounded-xl bg-slate-100" />
+                        ))}
+                    </div>
+                </section>
+            ))}
+
+            <section className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100" />
+                    <div className="flex-1 space-y-1.5">
+                        <div className="h-2.5 w-20 rounded bg-slate-100" />
+                        <div className="h-3 w-32 rounded bg-slate-200" />
+                    </div>
+                </div>
+            </section>
+
+            <section className="animate-pulse rounded-2xl bg-emerald-100 p-4 shadow-sm">
+                <div className="space-y-2">
+                    <div className="h-3 w-32 rounded bg-emerald-200/70" />
+                    <div className="h-3 w-24 rounded bg-emerald-200/70" />
+                    <div className="mt-4 h-6 w-full rounded bg-emerald-200/70" />
+                </div>
+            </section>
+
+            <div className="h-12 w-full rounded-2xl bg-emerald-200/80" />
+        </div>
+    );
+}
+
+// mejas/jamMains/hargas/bookedSlots/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
+export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = [], bookedSlots = [], vouchers = [] }) {
     const presetVoucher = new URLSearchParams(window.location.search).get('voucher') || '';
     const voucherPresetValid = vouchers.some((voucher) => voucher.kode_voucher === presetVoucher);
 
@@ -88,6 +140,13 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
 
         return () => clearInterval(timer);
     }, []);
+
+    // Voucher preset dari URL diisi ulang setelah data voucher deferred selesai dimuat.
+    useEffect(() => {
+        if (presetVoucher && voucherPresetValid && !data.kode_voucher) {
+            setData('kode_voucher', presetVoucher);
+        }
+    }, [presetVoucher, voucherPresetValid, data.kode_voucher, setData]);
 
     const tanggalSekarang = [
         sekarang.getFullYear(),
@@ -209,7 +268,7 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
                 <div className="relative flex items-center gap-3">
                     <Link
-                        href="/"
+                        href="/home"
                         className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"
                         aria-label="Kembali ke home"
                     >
@@ -223,6 +282,12 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
             </header>
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
+                <Deferred
+                    data={['mejas', 'jamMains', 'hargas', 'bookedSlots', 'vouchers']}
+                    fallback={<BookingSkeleton />}
+                >
+                    {({ reloading }) => (
+                        <div className={`space-y-4 transition-opacity duration-300 ${reloading ? 'opacity-50' : ''}`}>
                 {voucherJamMismatch && data.jam_main_ids.length > 0 && (
                     <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {voucherJamMessage}
@@ -579,6 +644,9 @@ export default function Booking({ pengguna, mejas, jamMains, hargas, bookedSlots
                     Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
                     <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
                 </p>
+                        </div>
+                    )}
+                </Deferred>
             </form>
         </>
     );

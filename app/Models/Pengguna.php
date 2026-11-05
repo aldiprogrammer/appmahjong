@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Pengguna extends Model
 {
@@ -13,10 +14,24 @@ class Pengguna extends Model
         'email',
         'nowa',
         'password',
+        'google_id',
+        'avatar',
         'status',
     ];
 
     protected $hidden = [
         'password',
     ];
+
+    /**
+     * Buat kode pengguna unik dengan format PG-XXXXXX.
+     */
+    public static function buatKodeUserUnik(): string
+    {
+        do {
+            $kodeUser = 'PG-'.strtoupper(Str::random(6));
+        } while (self::query()->where('kode_user', $kodeUser)->exists());
+
+        return $kodeUser;
+    }
 }
