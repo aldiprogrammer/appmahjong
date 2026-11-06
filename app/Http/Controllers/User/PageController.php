@@ -308,28 +308,23 @@ class PageController extends Controller
         }
 
         $validated = $request->validate([
-            'sistem_pembayaran' => ['required', Rule::in(['transfer', 'qris', 'tunai'])],
+            'sistem_pembayaran' => ['required', Rule::in(['transfer'])],
             'bukti_pembayaran' => [
-                Rule::requiredIf(in_array($request->input('sistem_pembayaran'), ['transfer', 'qris'], true)),
-                'nullable',
+                'required',
                 'image',
                 'mimes:jpg,jpeg,png',
                 'max:2048',
             ],
         ], [
-            'bukti_pembayaran.required' => 'Bukti pembayaran wajib diunggah untuk metode transfer atau QRIS.',
+            'sistem_pembayaran.in' => 'Metode pembayaran tidak valid.',
+            'bukti_pembayaran.required' => 'Bukti pembayaran wajib diunggah.',
             'bukti_pembayaran.image' => 'Bukti pembayaran harus berupa gambar.',
             'bukti_pembayaran.mimes' => 'Bukti pembayaran harus berformat JPG, JPEG, atau PNG.',
             'bukti_pembayaran.max' => 'Ukuran bukti pembayaran maksimal 2 MB.',
         ]);
 
-        $buktiPembayaran = $request->hasFile('bukti_pembayaran')
-            ? app(BuktiPembayaranService::class)->simpan($request->file('bukti_pembayaran'))
-            : null;
-
-        $statusPembayaran = $validated['sistem_pembayaran'] === 'tunai'
-            ? 'bayar_di_tempat'
-            : 'menunggu_verifikasi';
+        $buktiPembayaran = app(BuktiPembayaranService::class)->simpan($request->file('bukti_pembayaran'));
+        $statusPembayaran = 'menunggu_verifikasi';
 
         // File bukti lama dihapus saat diganti agar tidak menumpuk di storage.
         if ($buktiPembayaran && ($buktiLama = $bookings->first()->bukti_pembayaran)) {
@@ -344,9 +339,7 @@ class PageController extends Controller
                 'status_pembayaran' => $statusPembayaran,
             ]);
 
-        $pesan = $validated['sistem_pembayaran'] === 'tunai'
-            ? 'Pembayaran tunai dipilih. Silakan bayar di tempat saat bermain.'
-            : 'Bukti pembayaran terkirim. Menunggu verifikasi admin.';
+        $pesan = 'Bukti pembayaran terkirim. Menunggu verifikasi admin.';
 
         return redirect()
             ->route('riwayat')

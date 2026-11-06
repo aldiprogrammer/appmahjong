@@ -119,7 +119,7 @@ class PaymentFlowTest extends TestCase
         );
     }
 
-    public function test_cash_payment_marks_pembayaran_pay_at_venue(): void
+    public function test_cash_payment_is_no_longer_accepted(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
@@ -133,13 +133,12 @@ class PaymentFlowTest extends TestCase
 
         $this->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
             'sistem_pembayaran' => 'tunai',
-        ])->assertRedirect(route('riwayat'))
-            ->assertSessionHas('booking_success', true);
+        ])->assertSessionHasErrors(['sistem_pembayaran']);
 
         $booking->refresh();
 
-        $this->assertSame('bayar_di_tempat', $booking->status_pembayaran);
-        $this->assertSame('tunai', $booking->sistem_pembayaran);
+        $this->assertSame('belum_bayar', $booking->status_pembayaran);
+        $this->assertEmpty($booking->sistem_pembayaran);
     }
 
     public function test_user_cannot_view_another_user_pembayaran(): void

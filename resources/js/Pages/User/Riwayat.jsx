@@ -110,6 +110,22 @@ function TicketIcon({ className = 'h-10 w-10' }) {
     );
 }
 
+function PlusIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+    );
+}
+
+function ArrowRightIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+        </svg>
+    );
+}
+
 function RiwayatSkeletonCard() {
     return (
         <article className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
@@ -518,9 +534,20 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
 
                         <Link
                             href="/booking"
-                            className="flex w-full items-center justify-center rounded-2xl border border-emerald-200 bg-white px-5 py-3 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50"
+                            className="group flex items-center gap-3 rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 px-4 py-3.5 text-white shadow-lg shadow-emerald-200 transition duration-200 hover:-translate-y-0.5 hover:from-emerald-700 hover:to-emerald-900 hover:shadow-xl hover:shadow-emerald-200 active:translate-y-0 active:scale-[0.99]"
                         >
-                            Buat Booking Baru
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 transition group-hover:bg-white/25">
+                                <PlusIcon />
+                            </span>
+                            <span className="min-w-0 flex-1 text-left">
+                                <span className="block text-sm font-bold">Buat Booking Baru</span>
+                                <span className="block text-[11px] text-emerald-100">
+                                    Pilih tanggal, meja, dan jam main favoritmu
+                                </span>
+                            </span>
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/20 transition group-hover:translate-x-0.5 group-hover:bg-white/25">
+                                <ArrowRightIcon />
+                            </span>
                         </Link>
                     </>
                 )}

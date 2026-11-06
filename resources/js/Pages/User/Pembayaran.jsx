@@ -68,7 +68,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     const lunas = pembayaran.status_pembayaran === 'lunas';
 
     const { data, setData, post, processing, errors } = useForm({
-        sistem_pembayaran: pembayaran.sistem_pembayaran || 'transfer',
+        sistem_pembayaran: 'transfer',
         bukti_pembayaran: null,
     });
 
@@ -85,7 +85,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
         return () => URL.revokeObjectURL(url);
     }, [data.bukti_pembayaran]);
 
-    const buktiWajib = ['transfer', 'qris'].includes(data.sistem_pembayaran);
+    const buktiWajib = data.sistem_pembayaran === 'transfer';
     const buktiTersedia = Boolean(data.bukti_pembayaran) || Boolean(pembayaran.bukti_pembayaran_url);
     const buktiKurang = buktiWajib && !buktiTersedia;
 
@@ -103,6 +103,33 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     };
 
     const bank = pengaturanPembayaran?.bank ?? {};
+    const [nomorTersalin, setNomorTersalin] = useState(false);
+
+    const salinNomorRekening = async () => {
+        const nomor = bank.account_number ?? '';
+
+        if (!nomor) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(nomor);
+        } catch {
+            // Fallback lama bila clipboard API tidak tersedia (konteks non-HTTPS).
+            const area = document.createElement('textarea');
+
+            area.value = nomor;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            area.remove();
+        }
+
+        setNomorTersalin(true);
+        setTimeout(() => setNomorTersalin(false), 2000);
+    };
+
+    const bankTerisi = Boolean(bank.name || bank.account_number || bank.account_holder);
 
     return (
         <>
@@ -222,81 +249,109 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
 
                         {pembayaran.status_pembayaran === 'bayar_di_tempat' && (
                             <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-700">
-                                Metode tunai dipilih. Silakan bayar langsung di tempat saat bermain, atau ubah ke
-                                transfer/QRIS di bawah ini.
+                                Pembayaran tunai tidak lagi tersedia. Silakan transfer ke rekening di bawah ini
+                                dan unggah bukti pembayarannya.
                             </div>
                         )}
 
                         <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                             <h2 className="mb-3 text-sm font-bold text-slate-800">Metode Pembayaran</h2>
 
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { value: 'transfer', label: 'Transfer', desc: 'Bank' },
-                                    { value: 'qris', label: 'QRIS', desc: 'Scan QR' },
-                                    { value: 'tunai', label: 'Tunai', desc: 'Di tempat' },
-                                ].map((payment) => {
-                                    const active = data.sistem_pembayaran === payment.value;
-
-                                    return (
-                                        <button
-                                            key={payment.value}
-                                            type="button"
-                                            onClick={() => setData('sistem_pembayaran', payment.value)}
-                                            className={`rounded-xl border px-2 py-2.5 text-center transition ${active
-                                                ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                                                : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
-                                                }`}
-                                        >
-                                            <span className="block text-xs font-semibold">{payment.label}</span>
-                                            <span className={`block text-[10px] ${active ? 'text-emerald-100' : 'text-slate-500'}`}>
-                                                {payment.desc}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setData('sistem_pembayaran', 'transfer')}
+                                className="flex w-full items-center gap-3 rounded-xl border border-emerald-600 bg-emerald-600 px-3 py-2.5 text-left text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h18M14.25 3 21 9.75M3 16.5h18M9.75 21 3 14.25" />
+                                    </svg>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-bold">Transfer Bank</span>
+                                    <span className="block text-[10px] text-emerald-100">
+                                        Transfer ke rekening resmi di bawah ini
+                                    </span>
+                                </span>
+                                <CheckIcon className="h-5 w-5 shrink-0" />
+                            </button>
 
                             {errors.sistem_pembayaran && (
                                 <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.sistem_pembayaran}</p>
                             )}
 
                             {data.sistem_pembayaran === 'transfer' && (
-                                <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2.5 text-xs text-slate-600">
-                                    <p className="font-semibold text-slate-800">
-                                        {bank.name} · {bank.account_number}
-                                    </p>
-                                    <p className="text-[11px]">a.n. {bank.account_holder}</p>
-                                    <p className="mt-1 text-[11px] text-emerald-700">
-                                        Transfer sesuai total {formatRupiah(pembayaran.total)}.
-                                    </p>
-                                </div>
-                            )}
+                                bankTerisi ? (
+                                    <div className="mt-3 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white shadow-sm">
+                                        <div className="flex items-center gap-3 border-b border-emerald-100/80 px-4 py-3">
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-black text-white shadow-sm">
+                                                {(bank.name || 'B').charAt(0).toUpperCase()}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Bank tujuan</p>
+                                                <p className="truncate text-sm font-bold text-slate-800">{bank.name || 'Bank'}</p>
+                                            </div>
+                                            <span className="ml-auto shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-700">
+                                                Rekening resmi
+                                            </span>
+                                        </div>
 
-                            {data.sistem_pembayaran === 'qris' && (
-                                <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-3 text-center text-xs text-slate-600">
-                                    {pengaturanPembayaran?.qris_image ? (
-                                        <img
-                                            src={pengaturanPembayaran.qris_image}
-                                            alt="QRIS pembayaran"
-                                            className="mx-auto h-40 w-auto rounded-lg bg-white object-contain p-2 shadow-sm"
-                                        />
-                                    ) : (
-                                        <p className="text-[11px] leading-relaxed">
-                                            Scan QRIS yang tersedia di tempat, lalu unggah bukti pembayarannya.
-                                        </p>
-                                    )}
-                                    <p className="mt-2 text-[11px] font-semibold text-emerald-700">
-                                        Total {formatRupiah(pembayaran.total)}
-                                    </p>
-                                </div>
-                            )}
+                                        <div className="px-4 py-3.5">
+                                            <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Nomor rekening</p>
+                                            <div className="mt-1 flex items-center justify-between gap-3">
+                                                <p className="font-mono text-xl font-black tracking-wider text-slate-900">
+                                                    {bank.account_number || '-'}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={salinNomorRekening}
+                                                    disabled={!bank.account_number}
+                                                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold transition ${nomorTersalin
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                                                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                                                >
+                                                    {nomorTersalin ? (
+                                                        <>
+                                                            <CheckIcon className="h-3.5 w-3.5" />
+                                                            Tersalin
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                                                            </svg>
+                                                            Salin
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
 
-                            {data.sistem_pembayaran === 'tunai' && (
-                                <p className="mt-3 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2.5 text-[11px] leading-relaxed text-sky-700">
-                                    Bayar tunai sebesar {formatRupiah(pembayaran.total)} di tempat saat bermain.
-                                    Tidak perlu mengunggah bukti.
-                                </p>
+                                            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-emerald-50/70 px-3 py-2.5">
+                                                <div>
+                                                    <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Atas nama</p>
+                                                    <p className="text-sm font-bold text-emerald-800">{bank.account_holder || '-'}</p>
+                                                </div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="currentColor" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Z" />
+                                                </svg>
+                                            </div>
+
+                                            <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9 5.25a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V14.25Z" />
+                                                </svg>
+                                                Transfer <span className="font-bold">{formatRupiah(pembayaran.total)}</span> sesuai
+                                                nominal agar verifikasi cepat.
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-3 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-3 text-[11px] leading-relaxed text-slate-600">
+                                        Informasi rekening bank akan segera tersedia. Sementara, hubungi admin untuk
+                                        nomor rekening, lalu unggah bukti pembayarannya di bawah.
+                                    </div>
+                                )
                             )}
                         </section>
 
@@ -374,11 +429,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                             disabled={processing || !setuju || buktiKurang}
                             className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                            {processing
-                                ? 'Mengirim pembayaran...'
-                                : data.sistem_pembayaran === 'tunai'
-                                    ? 'Pilih Bayar di Tempat'
-                                    : 'Kirim Bukti Pembayaran'}
+                            {processing ? 'Mengirim pembayaran...' : 'Kirim Bukti Pembayaran'}
                         </button>
                     </form>
                 )}

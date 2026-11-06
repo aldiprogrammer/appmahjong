@@ -237,85 +237,106 @@ export default function Landing({ pengguna, mejas, hargas }) {
                     )}
                 </header>
 
-                {/* Home / Hero */}
-                <section
-                    id="home"
-                    className="relative overflow-hidden bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 pt-32 text-white"
-                >
-                    <div className="pointer-events-none absolute -left-16 top-40 h-56 w-56 rounded-full bg-lime-300/10 blur-3xl" />
-                    <div className="pointer-events-none absolute -right-16 top-20 h-64 w-64 rounded-full bg-emerald-400/15 blur-3xl" />
-                    <div className="pointer-events-none absolute right-10 top-40 hidden opacity-25 lg:block">
-                        <MahjongTile label="中" tone="text-rose-600" className="-rotate-12" />
+                {/* Home / Hero — full-screen bleed, foto meja mahjong transparan penuh */}
+                <section id="home" className="relative flex min-h-[100svh] items-center overflow-hidden text-white">
+                    {/* Latar foto meja mahjong penuh layar */}
+                    <img
+                        src="/images/landing/hero.webp"
+                        alt=""
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 h-full w-full scale-100 object-cover animate-[hero-kenburns_24s_ease-in-out_infinite_alternate]"
+                    />
+
+                    {/* Overlay gradasi transparan agar teks tetap terbaca */}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-emerald-950/85 via-emerald-950/55 to-emerald-950/90" />
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(6,78,59,0.35)_55%,rgba(2,44,34,0.75)_100%)]" />
+                    <div
+                        className="pointer-events-none absolute -left-20 top-1/3 h-72 w-72 rounded-full bg-lime-300/15 blur-3xl animate-[hero-glow_8s_ease-in-out_infinite]"
+                    />
+                    <div
+                        className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl animate-[hero-glow_10s_ease-in-out_1.5s_infinite]"
+                    />
+
+                    {/* Ubin mahjong melayang dekoratif */}
+                    <div className="pointer-events-none absolute right-[8%] top-28 hidden lg:block" style={{ '--hero-rot': '12deg' }}>
+                        <MahjongTile label="中" tone="text-rose-600" className="animate-[hero-float_7s_ease-in-out_infinite] opacity-90 drop-shadow-2xl" />
                     </div>
-                    <div className="pointer-events-none absolute right-24 top-72 hidden opacity-25 lg:block">
-                        <MahjongTile label="發" tone="text-emerald-600" className="rotate-6" />
+                    <div className="pointer-events-none absolute right-[16%] bottom-40 hidden lg:block" style={{ '--hero-rot': '-10deg' }}>
+                        <MahjongTile label="發" tone="text-emerald-600" className="animate-[hero-float_9s_ease-in-out_1s_infinite] opacity-90 drop-shadow-2xl" />
+                    </div>
+                    <div className="pointer-events-none absolute left-[6%] bottom-24 hidden lg:block" style={{ '--hero-rot': '6deg' }}>
+                        <MahjongTile label="東" tone="text-sky-600" className="animate-[hero-float_8s_ease-in-out_0.5s_infinite] opacity-90 drop-shadow-2xl" />
                     </div>
 
-                    <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 pb-24 sm:px-6 lg:grid-cols-2">
-                        <div>
-                            {/* <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-widest ring-1 ring-white/20">
-                                <span className="h-1.5 w-1.5 rounded-full bg-lime-300" />
+                    <div className="relative mx-auto w-full max-w-6xl px-4 pb-28 pt-36 sm:px-6">
+                        <div className="mx-auto max-w-3xl text-center">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-lime-200 backdrop-blur-md">
+                                <span className="h-1.5 w-1.5 rounded-full bg-lime-300 animate-pulse" />
                                 Booking Mudah, Main Nyaman
-                            </span> */}
-                            <h1 className="mt-5 text-4xl font-black leading-tight sm:text-5xl">
+                            </span>
+
+                            <h1 className="mt-6 text-5xl font-black leading-[1.05] tracking-tight drop-shadow-[0_4px_24px_rgba(2,44,34,0.8)] sm:text-6xl lg:text-7xl">
                                 Serunya Main
                                 <br />
-                                <span className="bg-gradient-to-r from-lime-300 to-emerald-300 bg-clip-text text-transparent">
+                                <span className="bg-gradient-to-r from-lime-300 via-lime-200 to-emerald-300 bg-clip-text text-transparent">
                                     Mahjong Bareng
                                 </span>
                             </h1>
-                            <p className="mt-4 max-w-md text-sm leading-relaxed text-emerald-100 sm:text-base">
+
+                            <p className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-emerald-50/90 drop-shadow sm:text-base">
                                 Tempat nongkrong dan bermain mahjong paling asyik. Pilih meja favorit,
                                 tentukan jamnya, dan booking langsung dari HP-mu tanpa ribet.
                             </p>
-                            <div className="mt-7 flex flex-wrap items-center gap-3">
+
+                            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
                                 <Link
                                     href="/booking"
-                                    className="inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3 text-sm font-black text-emerald-950 shadow-lg shadow-emerald-950/40 transition hover:bg-lime-200"
+                                    className="group relative inline-flex items-center gap-2 rounded-full bg-lime-300 px-8 py-3.5 text-sm font-black text-emerald-950 shadow-[0_10px_40px_rgba(163,230,53,0.35)] transition hover:-translate-y-0.5 hover:bg-lime-200 hover:shadow-[0_14px_48px_rgba(163,230,53,0.5)]"
                                 >
                                     Booking Sekarang
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 transition group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                     </svg>
                                 </Link>
                                 <a
                                     href="#tutorial"
                                     onClick={(event) => handleAnchor(event, 'tutorial')}
-                                    className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/5 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+                                    className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-8 py-3.5 text-sm font-bold text-white backdrop-blur-md transition hover:bg-white/20"
                                 >
                                     Belajar Main Dulu
                                 </a>
                             </div>
 
-                            <dl className="mt-10 grid max-w-md grid-cols-3 gap-3 text-center">
+                            <dl className="mx-auto mt-11 grid max-w-lg grid-cols-3 gap-3 sm:gap-4">
                                 {[
                                     { value: `${mejas.length}+`, label: 'Meja tersedia' },
                                     { value: '24', label: 'Jam / hari' },
                                     { value: '2-4', label: 'Pemain per meja' },
                                 ].map((stat) => (
-                                    <div key={stat.label} className="rounded-2xl bg-white/5 px-3 py-4 ring-1 ring-white/10">
-                                        <dt className="text-xl font-black text-lime-300">{stat.value}</dt>
-                                        <dd className="mt-1 text-[11px] font-medium text-emerald-200">{stat.label}</dd>
+                                    <div
+                                        key={stat.label}
+                                        className="rounded-2xl border border-white/15 bg-white/10 px-3 py-4 shadow-lg shadow-emerald-950/30 backdrop-blur-md transition hover:bg-white/15"
+                                    >
+                                        <dt className="text-xl font-black text-lime-300 sm:text-2xl">{stat.value}</dt>
+                                        <dd className="mt-1 text-[11px] font-medium text-emerald-100">{stat.label}</dd>
                                     </div>
                                 ))}
                             </dl>
                         </div>
-
-                        <div className="relative">
-                            <div className="relative overflow-hidden rounded-[2rem] ring-1 ring-white/15 shadow-2xl shadow-emerald-950/60">
-                                <img
-                                    src="/images/landing/hero.webp"
-                                    alt="Meja mahjong dengan permukaan hijau dan ubin tersusun"
-                                    className="aspect-[16/10] w-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/50 via-transparent to-transparent" />
-
-                            </div>
-                            {/* <div className="pointer-events-none absolute -left-5 -top-6 -rotate-6 opacity-90">
-                                <MahjongTile label="東" tone="text-sky-600" />
-                            </div> */}
-                        </div>
                     </div>
+
+                    {/* Petunjuk scroll ke bawah */}
+                    <a
+                        href="#tentang"
+                        onClick={(event) => handleAnchor(event, 'tentang')}
+                        aria-label="Gulir ke bawah"
+                        className="absolute bottom-6 left-1/2 hidden -translate-x-1/2 flex-col items-center gap-1 text-emerald-100/70 transition hover:text-white sm:flex"
+                    >
+                        <span className="text-[10px] font-bold uppercase tracking-[0.25em]">Scroll</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 animate-bounce" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                        </svg>
+                    </a>
                 </section>
 
                 {/* Tentang */}
