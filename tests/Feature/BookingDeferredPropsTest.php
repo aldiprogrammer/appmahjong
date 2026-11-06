@@ -36,10 +36,6 @@ class BookingDeferredPropsTest extends TestCase
             ->withSession(['pengguna_id' => $pengguna->id])
             ->get('/booking', $this->inertiaHeaders());
 
-        if (! $response->isOk()) {
-            dump($response->status(), $response->headers->all(), substr((string) $response->getContent(), 0, 500));
-        }
-
         $response->assertOk();
 
         $page = $response->json();

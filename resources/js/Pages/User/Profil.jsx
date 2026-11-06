@@ -1,5 +1,5 @@
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { Deferred, Head, Link, router, usePage, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
 function namaPengguna(pengguna) {
@@ -68,7 +68,75 @@ function ShieldIcon() {
     );
 }
 
-export default function Profil({ pengguna, stats }) {
+function StatsSkeleton() {
+    return (
+        <div
+            aria-busy="true"
+            aria-label="Memuat statistik"
+            className="grid grid-cols-3 divide-x divide-emerald-100 rounded-2xl border border-emerald-100 bg-white py-3.5 shadow-sm"
+        >
+            {['Booking', 'Disetujui', 'Menunggu'].map((label) => (
+                <div key={label} className="animate-pulse px-2 text-center">
+                    <div className="mx-auto h-5 w-8 rounded bg-slate-200" />
+                    <div className="mx-auto mt-1.5 h-2.5 w-12 rounded bg-slate-100" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function DeferredTimeoutError({ onReload }) {
+    return (
+        <div
+            role="status"
+            className="flex flex-col items-center rounded-2xl border border-amber-200 bg-white px-6 py-10 text-center shadow-sm"
+        >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                </svg>
+            </span>
+            <h2 className="mt-3 text-sm font-bold text-slate-800">Data belum termuat</h2>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+                Memuat data memakan waktu lebih lama dari biasanya. Coba muat ulang.
+            </p>
+            <button
+                type="button"
+                onClick={onReload}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+                Coba Lagi
+            </button>
+        </div>
+    );
+}
+
+export default function Profil({ pengguna, stats = { total: 0, disetujui: 0, menunggu: 0 } }) {
+    // stats sengaja di-default agar aman saat deferred (belum dimuat).
+    const statsDimuat = usePage().props.stats !== undefined;
+
+    const [deferredStuck, setDeferredStuck] = useState(false);
+    const [deferredRetry, setDeferredRetry] = useState(0);
+
+    useEffect(() => {
+        if (statsDimuat) {
+            setDeferredStuck(false);
+
+            return;
+        }
+
+        // Jangan biarkan halaman macet selamanya saat request deferred gagal senyap.
+        const timer = setTimeout(() => setDeferredStuck(true), 10000);
+
+        return () => clearTimeout(timer);
+    }, [statsDimuat, deferredRetry]);
+
+    const retryDeferred = () => {
+        setDeferredStuck(false);
+        setDeferredRetry((count) => count + 1);
+        router.reload({ only: ['stats'], preserveScroll: true });
+    };
+
     const { flash } = usePage().props;
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
@@ -140,18 +208,24 @@ export default function Profil({ pengguna, stats }) {
             </header>
 
             <div className="relative -mt-9 space-y-4 px-5 pb-8">
-                <div className="grid grid-cols-3 divide-x divide-emerald-100 rounded-2xl border border-emerald-100 bg-white py-3.5 shadow-sm">
-                    {[
-                        { label: 'Booking', value: stats.total },
-                        { label: 'Disetujui', value: stats.disetujui },
-                        { label: 'Menunggu', value: stats.menunggu },
-                    ].map((item) => (
-                        <div key={item.label} className="px-2 text-center">
-                            <p className="text-lg font-bold text-emerald-700">{item.value}</p>
-                            <p className="mt-0.5 text-[10px] font-medium text-slate-500">{item.label}</p>
-                        </div>
-                    ))}
-                </div>
+                <Deferred
+                    data={['stats']}
+                    // fallback wajib truthy di @inertiajs/react (throw jika falsy) — pakai skeleton, bukan null.
+                    fallback={deferredStuck ? <DeferredTimeoutError onReload={retryDeferred} /> : <StatsSkeleton />}
+                >
+                    <div className="grid grid-cols-3 divide-x divide-emerald-100 rounded-2xl border border-emerald-100 bg-white py-3.5 shadow-sm">
+                        {[
+                            { label: 'Booking', value: stats.total },
+                            { label: 'Disetujui', value: stats.disetujui },
+                            { label: 'Menunggu', value: stats.menunggu },
+                        ].map((item) => (
+                            <div key={item.label} className="px-2 text-center">
+                                <p className="text-lg font-bold text-emerald-700">{item.value}</p>
+                                <p className="mt-0.5 text-[10px] font-medium text-slate-500">{item.label}</p>
+                            </div>
+                        ))}
+                    </div>
+                </Deferred>
 
                 {flash?.success && (
                     <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">

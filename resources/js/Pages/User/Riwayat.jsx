@@ -161,6 +161,32 @@ function RiwayatSkeleton({ count = 3 }) {
     );
 }
 
+function DeferredTimeoutError({ onReload }) {
+    return (
+        <div
+            role="status"
+            className="flex flex-col items-center rounded-2xl border border-amber-200 bg-white px-6 py-10 text-center shadow-sm"
+        >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                </svg>
+            </span>
+            <h2 className="mt-3 text-sm font-bold text-slate-800">Data belum termuat</h2>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+                Memuat data memakan waktu lebih lama dari biasanya. Coba muat ulang.
+            </p>
+            <button
+                type="button"
+                onClick={onReload}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+                Coba Lagi
+            </button>
+        </div>
+    );
+}
+
 export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
     const { flash } = usePage().props;
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -239,6 +265,28 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
         });
     };
 
+    const [deferredStuck, setDeferredStuck] = useState(false);
+    const [deferredRetry, setDeferredRetry] = useState(0);
+
+    useEffect(() => {
+        if (bookingsDimuat) {
+            setDeferredStuck(false);
+
+            return;
+        }
+
+        // Jangan biarkan skeleton macet selamanya saat request deferred gagal senyap.
+        const timer = setTimeout(() => setDeferredStuck(true), 10000);
+
+        return () => clearTimeout(timer);
+    }, [bookingsDimuat, deferredRetry]);
+
+    const retryDeferred = () => {
+        setDeferredStuck(false);
+        setDeferredRetry((count) => count + 1);
+        router.reload({ only: ['bookings'], preserveScroll: true });
+    };
+
     return (
         <>
             <Head title="Riwayat Booking" />
@@ -310,7 +358,10 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                     </div>
                 )}
 
-                <Deferred data="bookings" fallback={<RiwayatSkeleton />}>
+                <Deferred
+                    data="bookings"
+                    fallback={deferredStuck ? <DeferredTimeoutError onReload={retryDeferred} /> : <RiwayatSkeleton />}
+                >
                     {({ reloading }) => (
                         <div
                             className={`space-y-3 transition-opacity duration-300 ${
@@ -409,8 +460,10 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                                             className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2 transition hover:bg-emerald-50"
                                         >
                                             <img
-                                                src={booking.bukti_pembayaran_url}
+                                                src={booking.bukti_pembayaran_thumb_url || booking.bukti_pembayaran_url}
                                                 alt="Bukti pembayaran"
+                                                loading="lazy"
+                                                decoding="async"
                                                 className="h-10 w-10 rounded-lg object-cover"
                                             />
                                             <span className="text-[11px] font-semibold text-emerald-700">

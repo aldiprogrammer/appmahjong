@@ -9,6 +9,7 @@ use App\Models\Meja;
 use App\Models\Pengguna;
 use App\Models\Statusvoucher;
 use App\Models\Voucher;
+use App\Services\BuktiPembayaranService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -113,6 +114,9 @@ class PaymentFlowTest extends TestCase
         $this->assertTrue($bookings->every(fn (Booking $booking) => $booking->status_pembayaran === 'menunggu_verifikasi'));
         $this->assertTrue($bookings->every(fn (Booking $booking) => $booking->sistem_pembayaran === 'transfer'));
         Storage::disk('public')->assertExists($bookings->first()->bukti_pembayaran);
+        Storage::disk('public')->assertExists(
+            app(BuktiPembayaranService::class)->pathThumbnail($bookings->first()->bukti_pembayaran),
+        );
     }
 
     public function test_cash_payment_marks_pembayaran_pay_at_venue(): void

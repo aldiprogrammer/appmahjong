@@ -10,6 +10,7 @@ use App\Models\Meja;
 use App\Models\Pengguna;
 use App\Models\Statusvoucher;
 use App\Models\Voucher;
+use App\Services\BuktiPembayaranService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\RedirectResponse;
@@ -323,12 +324,17 @@ class PageController extends Controller
         ]);
 
         $buktiPembayaran = $request->hasFile('bukti_pembayaran')
-            ? $request->file('bukti_pembayaran')->store('bukti-pembayaran', 'public')
+            ? app(BuktiPembayaranService::class)->simpan($request->file('bukti_pembayaran'))
             : null;
 
         $statusPembayaran = $validated['sistem_pembayaran'] === 'tunai'
             ? 'bayar_di_tempat'
             : 'menunggu_verifikasi';
+
+        // File bukti lama dihapus saat diganti agar tidak menumpuk di storage.
+        if ($buktiPembayaran && ($buktiLama = $bookings->first()->bukti_pembayaran)) {
+            app(BuktiPembayaranService::class)->hapus($buktiLama);
+        }
 
         Booking::query()
             ->whereIn('id', $bookings->pluck('id'))
@@ -425,27 +431,27 @@ class PageController extends Controller
     {
         $pengguna = $this->currentPengguna($request);
 
-        $stats = [
-            'total' => 0,
-            'disetujui' => 0,
-            'menunggu' => 0,
-        ];
-
-        if ($pengguna) {
-            $query = Booking::query()
-                ->where('id_pengguna', (string) $pengguna->id)
-                ->where('status_hapus', '!=', '1');
-
-            $stats = [
-                'total' => (clone $query)->count(),
-                'disetujui' => (clone $query)->where('status_booking', '200')->count(),
-                'menunggu' => (clone $query)->whereNotIn('status_booking', ['200', '400'])->count(),
-            ];
-        }
-
         return Inertia::render('User/Profil', [
             'pengguna' => $pengguna,
-            'stats' => $stats,
+            'stats' => Inertia::defer(function () use ($pengguna) {
+                if (! $pengguna) {
+                    return [
+                        'total' => 0,
+                        'disetujui' => 0,
+                        'menunggu' => 0,
+                    ];
+                }
+
+                $query = Booking::query()
+                    ->where('id_pengguna', (string) $pengguna->id)
+                    ->where('status_hapus', '!=', '1');
+
+                return [
+                    'total' => (clone $query)->count(),
+                    'disetujui' => (clone $query)->where('status_booking', '200')->count(),
+                    'menunggu' => (clone $query)->whereNotIn('status_booking', ['200', '400'])->count(),
+                ];
+            }),
         ]);
     }
 
@@ -470,31 +476,32 @@ class PageController extends Controller
     {
         $pengguna = $this->currentPengguna($request);
 
-        $vouchers = $pengguna
-            ? Voucher::query()
-                ->where('kode_user', $pengguna->kode_user)
-                ->latest()
-                ->get()
-            : collect();
-
-        $statusVouchers = Statusvoucher::query()->get()->keyBy('id');
-
         return Inertia::render('User/Voucher', [
             'pengguna' => $pengguna,
-            'vouchers' => $vouchers->map(function (Voucher $voucher) use ($statusVouchers) {
-                $statusVoucher = $statusVouchers->get((int) $voucher->id_statusvoucher);
+            'vouchers' => Inertia::defer(function () use ($pengguna) {
+                $statusVouchers = Statusvoucher::query()->get()->keyBy('id');
 
-                return [
-                    'id' => $voucher->id,
-                    'kode_voucher' => $voucher->kode_voucher,
-                    'tanggal_diterima' => $voucher->tanggal_diterima,
-                    'tanggal_digunakan' => $voucher->tanggal_digunakan,
-                    'status_voucher' => $statusVoucher?->status_voucher,
-                    'jumah_booking' => $statusVoucher?->jumah_booking,
-                    'jumah_jam' => $statusVoucher?->jumah_jam,
-                    'is_used' => filled($voucher->tanggal_digunakan),
-                ];
-            })->values(),
+                return $pengguna
+                    ? Voucher::query()
+                        ->where('kode_user', $pengguna->kode_user)
+                        ->latest()
+                        ->get()
+                        ->map(function (Voucher $voucher) use ($statusVouchers) {
+                            $statusVoucher = $statusVouchers->get((int) $voucher->id_statusvoucher);
+
+                            return [
+                                'id' => $voucher->id,
+                                'kode_voucher' => $voucher->kode_voucher,
+                                'tanggal_diterima' => $voucher->tanggal_diterima,
+                                'tanggal_digunakan' => $voucher->tanggal_digunakan,
+                                'status_voucher' => $statusVoucher?->status_voucher,
+                                'jumah_booking' => $statusVoucher?->jumah_booking,
+                                'jumah_jam' => $statusVoucher?->jumah_jam,
+                                'is_used' => filled($voucher->tanggal_digunakan),
+                            ];
+                        })->values()
+                    : collect();
+            }),
         ]);
     }
 

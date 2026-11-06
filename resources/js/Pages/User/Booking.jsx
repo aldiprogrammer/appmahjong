@@ -1,4 +1,4 @@
-import { Deferred, Head, Link, useForm } from '@inertiajs/react';
+import { Deferred, Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
@@ -70,59 +70,75 @@ function StepBadge({ children }) {
     );
 }
 
+function DeferredTimeoutError({ onReload }) {
+    return (
+        <div
+            role="status"
+            className="flex flex-col items-center rounded-2xl border border-amber-200 bg-white px-6 py-10 text-center shadow-sm"
+        >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                </svg>
+            </span>
+            <h2 className="mt-3 text-sm font-bold text-slate-800">Data belum termuat</h2>
+            <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
+                Memuat data memakan waktu lebih lama dari biasanya. Coba muat ulang.
+            </p>
+            <button
+                type="button"
+                onClick={onReload}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700"
+            >
+                Coba Lagi
+            </button>
+        </div>
+    );
+}
+
 function BookingSkeleton() {
     return (
-        <div aria-busy="true" aria-label="Memuat form booking" className="space-y-4">
-            <section className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-full bg-emerald-100" />
-                    <div className="h-3 w-24 rounded bg-slate-200" />
-                </div>
-                <div className="h-11 rounded-xl bg-slate-100" />
-            </section>
-
-            {Array.from({ length: 2 }).map((_, index) => (
-                <section
-                    key={index}
-                    className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm"
-                >
+        <div aria-busy="true" aria-label="Memuat data booking" className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center gap-2">
                         <div className="h-6 w-6 rounded-full bg-emerald-100" />
-                        <div className="h-3 w-28 rounded bg-slate-200" />
+                        <div className="h-3.5 w-28 rounded bg-slate-200" />
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                        {Array.from({ length: index + 2 }).map((__, itemIndex) => (
-                            <div key={itemIndex} className="h-16 rounded-xl bg-slate-100" />
-                        ))}
-                    </div>
-                </section>
+                    {index === 0 ? (
+                        <div className="h-10 w-full rounded-xl bg-slate-100" />
+                    ) : index === 1 ? (
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <div className="h-30 rounded-2xl bg-slate-100" />
+                            <div className="h-30 rounded-2xl bg-slate-100" />
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="h-14 rounded-xl bg-slate-100" />
+                            <div className="h-14 rounded-xl bg-slate-100" />
+                        </div>
+                    )}
+                </div>
             ))}
 
-            <section className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-emerald-100" />
-                    <div className="flex-1 space-y-1.5">
-                        <div className="h-2.5 w-20 rounded bg-slate-100" />
-                        <div className="h-3 w-32 rounded bg-slate-200" />
-                    </div>
+            <div className="animate-pulse overflow-hidden rounded-2xl bg-emerald-50 p-4">
+                <div className="h-3.5 w-36 rounded bg-emerald-100" />
+                <div className="mt-3 space-y-2">
+                    <div className="h-2.5 w-full rounded bg-emerald-100/70" />
+                    <div className="h-2.5 w-2/3 rounded bg-emerald-100/70" />
                 </div>
-            </section>
-
-            <section className="animate-pulse rounded-2xl bg-emerald-100 p-4 shadow-sm">
-                <div className="space-y-2">
-                    <div className="h-3 w-32 rounded bg-emerald-200/70" />
-                    <div className="h-3 w-24 rounded bg-emerald-200/70" />
-                    <div className="mt-4 h-6 w-full rounded bg-emerald-200/70" />
-                </div>
-            </section>
-
-            <div className="h-12 w-full rounded-2xl bg-emerald-200/80" />
+            </div>
         </div>
     );
 }
 
 // mejas/jamMains/hargas/bookedSlots/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
 export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = [], bookedSlots = [], vouchers = [] }) {
+    // Default destrukturisasi menyembunyikan undefined, cek status deferred via page props.
+    const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'vouchers'];
+    const pageProps = usePage().props;
+    const bookingDataDimuat = deferredKeys.every((key) => pageProps[key] !== undefined);
+
     const presetVoucher = new URLSearchParams(window.location.search).get('voucher') || '';
     const voucherPresetValid = vouchers.some((voucher) => voucher.kode_voucher === presetVoucher);
 
@@ -147,6 +163,28 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
             setData('kode_voucher', presetVoucher);
         }
     }, [presetVoucher, voucherPresetValid, data.kode_voucher, setData]);
+
+    const [deferredStuck, setDeferredStuck] = useState(false);
+    const [deferredRetry, setDeferredRetry] = useState(0);
+
+    useEffect(() => {
+        if (bookingDataDimuat) {
+            setDeferredStuck(false);
+
+            return;
+        }
+
+        // Jangan biarkan halaman macet selamanya saat request deferred gagal senyap.
+        const timer = setTimeout(() => setDeferredStuck(true), 10000);
+
+        return () => clearTimeout(timer);
+    }, [bookingDataDimuat, deferredRetry]);
+
+    const retryDeferred = () => {
+        setDeferredStuck(false);
+        setDeferredRetry((count) => count + 1);
+        router.reload({ only: deferredKeys, preserveScroll: true });
+    };
 
     const tanggalSekarang = [
         sekarang.getFullYear(),
@@ -283,11 +321,11 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
                 <Deferred
-                    data={['mejas', 'jamMains', 'hargas', 'bookedSlots', 'vouchers']}
-                    fallback={<BookingSkeleton />}
+                    data={deferredKeys}
+                    // fallback wajib truthy di @inertiajs/react (throw jika falsy) — pakai skeleton, bukan null.
+                    fallback={deferredStuck ? <DeferredTimeoutError onReload={retryDeferred} /> : <BookingSkeleton />}
                 >
-                    {({ reloading }) => (
-                        <div className={`space-y-4 transition-opacity duration-300 ${reloading ? 'opacity-50' : ''}`}>
+                    <div className="space-y-4">
                 {voucherJamMismatch && data.jam_main_ids.length > 0 && (
                     <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                         {voucherJamMessage}
@@ -644,8 +682,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                     Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
                     <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
                 </p>
-                        </div>
-                    )}
+                    </div>
                 </Deferred>
             </form>
         </>

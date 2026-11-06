@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use App\Services\BuktiPembayaranService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Booking extends Model
 {
     protected $appends = [
         'bukti_pembayaran_url',
+        'bukti_pembayaran_thumb_url',
     ];
 
     protected $fillable = [
@@ -50,6 +53,29 @@ class Booking extends Model
             fn (): ?string => $this->bukti_pembayaran
                 ? asset('storage/'.$this->bukti_pembayaran)
                 : null,
+        );
+    }
+
+    /**
+     * URL thumbnail untuk daftar (list). Fallback ke gambar utama bila thumbnail
+     * belum ada (booking lama sebelum fitur kompres aktif).
+     */
+    protected function buktiPembayaranThumbUrl(): Attribute
+    {
+        return Attribute::get(
+            function (): ?string {
+                if (! $this->bukti_pembayaran) {
+                    return null;
+                }
+
+                $thumbnail = app(BuktiPembayaranService::class)->pathThumbnail($this->bukti_pembayaran);
+
+                if ($thumbnail && Storage::disk('public')->exists($thumbnail)) {
+                    return asset('storage/'.$thumbnail);
+                }
+
+                return asset('storage/'.$this->bukti_pembayaran);
+            },
         );
     }
 }

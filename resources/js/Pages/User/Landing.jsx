@@ -16,45 +16,88 @@ function scrollToSection(event, id) {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function MejaTableIcon({ className = 'h-5 w-5' }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8h18M5 8v9m14-9v9M3 8l1.5-3h15L21 8M9.5 17v2.25m5-2.25V19.25" />
-        </svg>
-    );
-}
-
-function HargaTagIcon({ className = 'h-5 w-5' }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
-        </svg>
-    );
-}
-
-function SuasanaIcon({ className = 'h-5 w-5' }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9m0-18c4.97 0 9 4.03 9 9a7.5 7.5 0 0 1-7.5 7.5 3.75 3.75 0 0 1-3.75-3.75 3 3 0 0 1 3-3 2.25 2.25 0 0 0 2.25-2.25A2.25 2.25 0 0 0 12 6a1.875 1.875 0 0 1 0-3Z" />
-        </svg>
-    );
-}
-
-function BookingIcon({ className = 'h-5 w-5' }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-        </svg>
-    );
-}
-
 const menuSections = [
     { label: 'Home', id: 'home' },
     { label: 'Tentang', id: 'tentang' },
     { label: 'Tutorial', id: 'tutorial' },
     { label: 'Lokasi', id: 'lokasi' },
 ];
+
+// ID video YouTube untuk section Tutorial — ganti di sini saja, ambil dari
+// URL video YouTube, contoh: https://youtu.be/<ID> atau watch?v=<ID>.
+const videoIdTutorial = 'SOsLu3EY9B4';
+
+/**
+ * Embed YouTube gaya click-to-load: thumbnail dimuat dulu, iframe YouTube
+ * hanya dibuat setelah tombol putar diklik supaya landing page tetap ringan.
+ */
+function VideoTutorialYoutube({ videoId }) {
+    const [putarVideo, setPutarVideo] = useState(false);
+    const [sumberPoster, setSumberPoster] = useState(`https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`);
+
+    const posterTersedia = sumberPoster !== null;
+
+    const gagalMuatPoster = () => {
+        if (sumberPoster?.includes('maxresdefault')) {
+            setSumberPoster(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
+
+            return;
+        }
+
+        setSumberPoster(null);
+    };
+
+    return (
+        <div
+            className={`relative aspect-video overflow-hidden shadow-2xl shadow-emerald-950/50 ring-1 ring-white/15 rounded-[2rem] ${posterTersedia ? '' : 'bg-gradient-to-br from-emerald-800 to-emerald-950'}`}
+        >
+            {putarVideo ? (
+                <iframe
+                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0`}
+                    title="Video tutorial mahjong"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    className="absolute inset-0 h-full w-full"
+                />
+            ) : (
+                <button
+                    type="button"
+                    onClick={() => setPutarVideo(true)}
+                    aria-label="Putar video tutorial mahjong"
+                    className="group absolute inset-0 h-full w-full"
+                >
+                    {posterTersedia && (
+                        <img
+                            src={sumberPoster}
+                            alt="Poster video tutorial mahjong"
+                            onError={gagalMuatPoster}
+                            className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
+                    )}
+                    <span
+                        className={`absolute inset-0 ${posterTersedia
+                            ? 'bg-gradient-to-t from-emerald-950/70 via-emerald-950/10 to-transparent'
+                            : 'opacity-0 group-hover:opacity-100 bg-emerald-50/5 transition'} transition`}
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center">
+                        <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white/95 shadow-2xl transition duration-300 group-hover:scale-110">
+                            <span className="absolute inset-0 animate-ping rounded-full bg-white/25" />
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="ml-1 h-7 w-7 fill-emerald-700" aria-hidden="true">
+                                <path d="M8 5.14v13.72L19 12 8 5.14Z" />
+                            </svg>
+                        </span>
+                    </span>
+                    <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-lime-300 backdrop-blur">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                        Video Tutorial
+                    </span>
+                </button>
+            )}
+        </div>
+    );
+}
 
 export default function Landing({ pengguna, mejas, hargas }) {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -311,28 +354,24 @@ export default function Landing({ pengguna, mejas, hargas }) {
 
                                 <ul className="mt-7 grid gap-3 sm:grid-cols-2">
                                     {[
-                                        { icon: MejaTableIcon, tone: 'text-emerald-600', bg: 'bg-emerald-50', title: 'Meja Premium', desc: 'Felt hijau lembut dan ubin gading yang nyaman di tangan.' },
-                                        { icon: HargaTagIcon, tone: 'text-sky-600', bg: 'bg-sky-50', title: 'Harga Bersahabat', desc: 'Tarif per jam jelas dan terjangkau setiap hari.' },
-                                        { icon: SuasanaIcon, tone: 'text-rose-600', bg: 'bg-rose-50', title: 'Suasana Santai', desc: 'Ruangan sejuk, bersih, cocok buat nongkrong lama.' },
-                                        { icon: BookingIcon, tone: 'text-emerald-700', bg: 'bg-lime-50', title: 'Booking Online', desc: 'Pilih meja dan jam main langsung dari HP-mu.' },
-                                    ].map((item) => {
-                                        const Icon = item.icon;
-
-                                        return (
-                                            <li
-                                                key={item.title}
-                                                className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+                                        { tile: '', tone: 'text-emerald-600', bg: 'bg-emerald-50', title: 'Meja Premium', desc: 'Felt hijau lembut dan ubin gading yang nyaman di tangan.' },
+                                        { tile: '', tone: 'text-sky-600', bg: 'bg-sky-50', title: 'Harga Bersahabat', desc: 'Tarif per jam jelas dan terjangkau setiap hari.' },
+                                        { tile: '', tone: 'text-rose-600', bg: 'bg-rose-50', title: 'Suasana Santai', desc: 'Ruangan sejuk, bersih, cocok buat nongkrong lama.' },
+                                        { tile: '', tone: 'text-emerald-700', bg: 'bg-lime-50', title: 'Booking Online', desc: 'Pilih meja dan jam main langsung dari HP-mu.' },
+                                    ].map((item) => (
+                                        <li
+                                            key={item.title}
+                                            className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm transition hover:border-emerald-300 hover:shadow-md"
+                                        >
+                                            <span
+                                                className={`flex h-9 w-9 items-center justify-center rounded-lg text-base font-black ${item.bg} ${item.tone}`}
                                             >
-                                                <span
-                                                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${item.bg} ${item.tone}`}
-                                                >
-                                                    <Icon />
-                                                </span>
-                                                <p className="mt-2.5 text-sm font-bold text-slate-800">{item.title}</p>
-                                                <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.desc}</p>
-                                            </li>
-                                        );
-                                    })}
+                                                {item.tile}
+                                            </span>
+                                            <p className="mt-2.5 text-sm font-bold text-slate-800">{item.title}</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.desc}</p>
+                                        </li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>
@@ -353,13 +392,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                         </div>
 
                         <div className="mt-12 grid items-center gap-10 lg:grid-cols-2">
-                            <div className="overflow-hidden rounded-[2rem] ring-1 ring-white/15 shadow-2xl shadow-emerald-950/50">
-                                <img
-                                    src="/images/landing/hero.webp"
-                                    alt="Ilustrasi cara menyusun dan mengambil ubin mahjong"
-                                    className="aspect-[10/7] w-full object-cover"
-                                />
-                            </div>
+                            <VideoTutorialYoutube videoId={videoIdTutorial} />
 
                             <ol className="space-y-4">
                                 {[
@@ -369,11 +402,11 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     },
                                     {
                                         title: 'Susun dinding ubin',
-                                        desc: 'Tiap pemain menyusun 2 lapis ubin membentuk dinding persegi di tengah meja — ini jadi  gudang ubin anda selama permainan.',
+                                        desc: 'Tiap pemain menyusun 2 lapis ubin membentuk dinding persegi di tengah meja, ini jadi  gudang ubin anda selama permainan.',
                                     },
                                     {
                                         title: 'Ambil & buang ubin',
-                                        desc: 'Bergiliran searah jarum jam: tarik satu ubin dari dinding ubin anda, coba bentuk kombinasi, lalu buang satu ubin yang tak terpakai.',
+                                        desc: 'Bergiliran searah jarum jam, tarik satu ubin dari dinding ubin anda, coba bentuk kombinasi, lalu buang satu ubin yang tak terpakai.',
                                     },
                                     {
                                         title: 'Raih kombinasi menang',
@@ -529,7 +562,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">Kontak</p>
                                             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                                                WhatsApp: +62 812-0000-0000<br />
+                                                WhatsApp: +62    812-0000-0000<br />
 
                                             </p>
                                         </div>
