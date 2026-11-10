@@ -1,4 +1,6 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
@@ -60,12 +62,38 @@ function CheckIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+function TrashIcon({ className = 'h-3.5 w-3.5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+        </svg>
+    );
+}
+
+function ClockIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z" />
+        </svg>
+    );
+}
+
+function TableIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M5 10v8m14-8v8M7 21h10M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4" />
+        </svg>
+    );
+}
+
 export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     const { flash } = usePage().props;
     const [previewBukti, setPreviewBukti] = useState(null);
     const [setuju, setSetuju] = useState(false);
     const meta = statusMeta(pembayaran.status_pembayaran);
     const lunas = pembayaran.status_pembayaran === 'lunas';
+    const [menghapusId, setMenghapusId] = useState(null);
+    const bisaHapusSesi = !lunas && pembayaran.status_pembayaran !== 'menunggu_verifikasi';
 
     const { data, setData, post, processing, errors } = useForm({
         sistem_pembayaran: 'transfer',
@@ -91,6 +119,42 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
 
     const handleBuktiChange = (event) => {
         setData('bukti_pembayaran', event.target.files?.[0] ?? null);
+    };
+
+    const hapusSesi = async (booking) => {
+        const konfirmasi = await Swal.fire({
+            icon: 'warning',
+            title: 'Hapus sesi ini?',
+            text: `Sesi ${booking.jam_mulai} - ${booking.jam_selesai} (${formatDate(booking.tgl_main)}) akan dihapus dan total bayar dihitung ulang.`,
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal',
+            buttonsStyling: false,
+            width: 'min(26rem, calc(100vw - 2rem))',
+            padding: '2rem 1.75rem',
+            backdrop: 'rgba(15, 23, 42, 0.58)',
+            customClass: {
+                container: 'app-alert-container',
+                popup: 'app-alert',
+                title: 'app-alert-title',
+                icon: 'app-alert-icon',
+                htmlContainer: 'app-alert-message',
+                actions: 'app-alert-actions',
+                confirmButton: 'app-alert-confirm',
+                cancelButton: 'app-alert-cancel',
+            },
+        });
+
+        if (!konfirmasi.isConfirmed) {
+            return;
+        }
+
+        setMenghapusId(booking.id);
+
+        router.delete(`/booking/pembayaran/${pembayaran.kode_pembayaran}/sesi/${booking.id}`, {
+            preserveScroll: true,
+            onFinish: () => setMenghapusId(null),
+        });
     };
 
     const submit = (event) => {
@@ -196,16 +260,47 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                 <div className="min-w-0">
                                     <p className="text-[10px] font-semibold text-emerald-700">{booking.kode_booking}</p>
                                     <p className="text-xs font-semibold text-slate-800">{formatDate(booking.tgl_main)}</p>
-                                    <p className="text-[11px] text-slate-500">
-                                        {booking.jam_mulai} - {booking.jam_selesai} · Meja {booking.id_meja}
-                                    </p>
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {booking.jam_mulai} - {booking.jam_selesai}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+                                            <TableIcon className="h-3 w-3" />
+                                            Meja {booking.id_meja || '-'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="shrink-0 text-xs font-bold text-emerald-700">
-                                    {formatRupiah(booking.total_harga)}
-                                </span>
+                                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                    <span className="text-xs font-bold text-emerald-700">
+                                        {formatRupiah(booking.total_harga)}
+                                    </span>
+                                    {bisaHapusSesi && (
+                                        <button
+                                            type="button"
+                                            onClick={() => hapusSesi(booking)}
+                                            disabled={menghapusId !== null}
+                                            aria-label={`Hapus sesi ${booking.jam_mulai} - ${booking.jam_selesai}`}
+                                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2 py-1 text-[10px] font-bold text-rose-600 shadow-sm transition hover:bg-rose-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <TrashIcon className="h-3 w-3" />
+                                            {menghapusId === booking.id ? 'Menghapus...' : 'Hapus'}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
+
+                    {bisaHapusSesi && (
+                        <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[10px] leading-relaxed text-amber-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9 5.25a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V14.25Z" />
+                            </svg>
+                            Hapus sesi yang tidak jadi dipakai. Total bayar otomatis menyesuaikan. Jika semua sesi
+                            dihapus, booking dibatalkan.
+                        </p>
+                    )}
                 </section>
 
                 {lunas ? (

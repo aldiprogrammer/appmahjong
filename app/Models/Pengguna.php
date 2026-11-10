@@ -17,7 +17,15 @@ class Pengguna extends Model
         'google_id',
         'avatar',
         'status',
+        'points',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'points' => 'integer',
+        ];
+    }
 
     protected $hidden = [
         'password',

@@ -223,10 +223,10 @@ function BookingSkeleton() {
     );
 }
 
-// mejas/jamMains/hargas/bookedSlots/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
-export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = [], bookedSlots = [], vouchers = [] }) {
+// mejas/jamMains/hargas/bookedSlots/settingBookingRooms/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
+export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [] }) {
     // Default destrukturisasi menyembunyikan undefined, cek status deferred via page props.
-    const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'vouchers'];
+    const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers'];
     const pageProps = usePage().props;
     const bookingDataDimuat = deferredKeys.every((key) => pageProps[key] !== undefined);
 
@@ -238,6 +238,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
         meja_id: '',
         jam_main_ids: [],
         kode_voucher: voucherPresetValid ? presetVoucher : '',
+        tipe_booking: '',
     });
 
     const [step, setStep] = useState(1);
@@ -330,8 +331,68 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
     const voucherJamMismatch = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
     const voucherJamMessage = 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.';
 
+    const tampilkanPeringatanDurasiVoucher = () => {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Durasi Voucher Belum Sesuai',
+            text: voucherJamMessage,
+            confirmButtonText: 'Periksa Jam',
+            buttonsStyling: false,
+            width: 'min(26rem, calc(100vw - 2rem))',
+            padding: '2rem 1.75rem',
+            backdrop: 'rgba(15, 23, 42, 0.58)',
+            customClass: {
+                container: 'app-alert-container',
+                popup: 'app-alert',
+                title: 'app-alert-title',
+                icon: 'app-alert-icon',
+                htmlContainer: 'app-alert-message',
+                actions: 'app-alert-actions',
+                confirmButton: 'app-alert-confirm',
+            },
+        });
+    };
+
+    const settingAktif = settingBookingRooms[0] ?? null;
+    const jumlahUser = Math.max(1, Number(settingAktif?.jumlah_user) || 1);
+    const hargaDibagi = String(settingAktif?.pembayaran ?? '').toLowerCase() === 'all';
+    const opsiBooking = settingAktif
+        ? [
+            {
+                value: 'public',
+                label: 'Public Booking',
+                description: hargaDibagi
+                    ? `Anda dapat mencari teman bermain anda secara random disini`
+                    : 'Anda dapat mencari teman bermain anda secara random disini',
+            },
+            {
+                value: 'private',
+                label: 'Private Booking',
+                description: 'Anda dapat bermain dengan teman-teman anda',
+            },
+        ]
+        : [];
+    const opsiBookingKey = opsiBooking.map((opsi) => opsi.value).join(',');
+    const tipeBookingTerpilih = opsiBooking.find((opsi) => opsi.value === data.tipe_booking);
+    const totalDibayar = data.tipe_booking === 'public' && hargaDibagi
+        ? rincian.reduce((jumlah, item) => jumlah + Math.round(item.total / jumlahUser), 0)
+        : total;
+
     const step1Lengkap = Boolean(data.tgl_main && data.meja_id);
-    const step2Lengkap = data.jam_main_ids.length > 0;
+    const step2Lengkap = data.jam_main_ids.length > 0 && (opsiBooking.length === 0 || Boolean(data.tipe_booking));
+
+    // Sinkronkan pilihan tipe booking dengan setting aktif yang tersedia.
+    useEffect(() => {
+        if (!bookingDataDimuat) {
+            return;
+        }
+
+        const values = opsiBookingKey === '' ? [] : opsiBookingKey.split(',');
+
+        if (data.tipe_booking && !values.includes(data.tipe_booking)) {
+            setData('tipe_booking', '');
+        }
+    }, [bookingDataDimuat, opsiBookingKey, data.tipe_booking, setData]);
 
     const bisaKeStep = (target) => {
         if (target <= step) {
@@ -354,6 +415,13 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
             return;
         }
 
+        // Voucher dengan durasi belum sesuai harus diselesaikan dulu di langkah 2.
+        if (target === 3 && voucherJamMismatch) {
+            tampilkanPeringatanDurasiVoucher();
+
+            return;
+        }
+
         setStep(target);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -366,7 +434,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
 
         if (errors.tgl_main || errors.meja_id) {
             setStep(1);
-        } else if (errors.jam_main_ids || errors['jam_main_ids.0'] || errors.kode_voucher) {
+        } else if (errors.jam_main_ids || errors['jam_main_ids.0'] || errors.kode_voucher || errors.tipe_booking) {
             setStep(2);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,25 +479,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
         }
 
         if (voucherJamMismatch) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Durasi Voucher Belum Sesuai',
-                text: voucherJamMessage,
-                confirmButtonText: 'Periksa Jam',
-                buttonsStyling: false,
-                width: 'min(26rem, calc(100vw - 2rem))',
-                padding: '2rem 1.75rem',
-                backdrop: 'rgba(15, 23, 42, 0.58)',
-                customClass: {
-                    container: 'app-alert-container',
-                    popup: 'app-alert',
-                    title: 'app-alert-title',
-                    icon: 'app-alert-icon',
-                    htmlContainer: 'app-alert-message',
-                    actions: 'app-alert-actions',
-                    confirmButton: 'app-alert-confirm',
-                },
-            });
+            tampilkanPeringatanDurasiVoucher();
 
             return;
         }
@@ -599,7 +649,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                     <div className="mb-3 flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2">
                                             <StepBadge>2</StepBadge>
-                                            <h2 className="text-sm font-bold text-slate-800"> Pilih Jam Main</h2>
+                                            <h2 className="text-sm font-bold text-slate-800"> Pilih   Jam Main</h2>
                                         </div>
                                         {data.jam_main_ids.length > 0 && (
                                             <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
@@ -717,6 +767,58 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                     {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
                                 </section>
 
+                                {opsiBooking.length > 0 && (
+                                    <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                                        <div className="mb-3 flex items-center gap-2">
+                                            <StepBadge>B</StepBadge>
+                                            <h2 className="text-sm font-bold text-slate-800">Tipe Booking</h2>
+                                        </div>
+                                        <p className="mb-2 text-[11px] text-slate-500">
+                                            Pilih tipe booking sesuai aturan pembayaran yang sedang aktif.
+                                        </p>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            {opsiBooking.map((opsi) => {
+                                                const active = data.tipe_booking === opsi.value;
+
+                                                return (
+                                                    <button
+                                                        key={opsi.value}
+                                                        type="button"
+                                                        onClick={() => setData('tipe_booking', opsi.value)}
+                                                        aria-pressed={active}
+                                                        className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${active
+                                                            ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                                                            : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                                                            }`}
+                                                    >
+                                                        <span
+                                                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+                                                                }`}
+                                                        >
+                                                            {active ? <CheckIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                                                        </span>
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block text-xs font-semibold">{opsi.label}</span>
+                                                            <span className={`mt-0.5 block text-[10px] ${active ? 'text-emerald-50' : 'text-slate-500'}`}>
+                                                                {opsi.description}
+                                                            </span>
+                                                            {total > 0 && (
+                                                                <span className={`mt-1 block text-[11px] font-bold ${active ? 'text-white' : 'text-emerald-700'}`}>
+                                                                    {formatRupiah(opsi.value === 'public' && hargaDibagi ? totalDibayar : total)}
+                                                                    {opsi.value === 'public' && hargaDibagi ? ' / user' : ''}
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        {errors.tipe_booking && (
+                                            <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tipe_booking}</p>
+                                        )}
+                                    </section>
+                                )}
+
                                 {voucherPresetValid && (
                                     <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
                                         <p className="text-sm font-semibold text-emerald-800">
@@ -731,7 +833,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                 {vouchers.length > 0 && !voucherPresetValid && (
                                     <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                                         <div className="mb-3 flex items-center gap-2">
-                                            <StepBadge>V</StepBadge>
+                                            {/* <StepBadge>V</StepBadge> */}
                                             <h2 className="text-sm font-bold text-slate-800">Gunakan Voucher</h2>
                                         </div>
                                         <label htmlFor="kode_voucher" className="mb-1.5 block text-xs font-medium text-slate-600">
@@ -811,6 +913,12 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                                 {mejaTerpilih ? mejaTerpilih.nama_meja : 'Belum dipilih'}
                                             </span>
                                         </div>
+                                        {tipeBookingTerpilih && (
+                                            <div className="flex items-center justify-between">
+                                                <span>Tipe booking</span>
+                                                <span className="font-semibold text-white">{tipeBookingTerpilih.label}</span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="my-3 border-t border-white/15" />
@@ -834,11 +942,18 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                                 </div>
                                             )}
                                             <div className="flex items-end justify-between pt-1">
-                                                <span className="text-xs text-emerald-100">Total bayar</span>
+                                                <span className="text-xs text-emerald-100">
+                                                    {data.tipe_booking === 'public' && hargaDibagi ? 'Total bayar / user' : 'Total bayar'}
+                                                </span>
                                                 <span className="text-xl font-bold text-white">
-                                                    {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(total)}
+                                                    {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(totalDibayar)}
                                                 </span>
                                             </div>
+                                            {data.tipe_booking === 'public' && hargaDibagi && !data.kode_voucher && jumlahUser > 1 && (
+                                                <p className="text-[10px] text-emerald-100">
+                                                    Harga {formatRupiah(total)} dibagi {jumlahUser} user.
+                                                </p>
+                                            )}
                                         </div>
                                     )}
 
@@ -887,7 +1002,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                     disabled={step === 1 ? !step1Lengkap : !step2Lengkap}
                                     className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {step === 1 ? 'Lanjut Pilih Jam' : 'Lanjut ke Pembayaran'}
+                                    {step === 1 ? 'Lanjut Pilih Jam Main' : 'Lanjut ke Pembayaran'}
                                 </button>
                             ) : (
                                 <button
@@ -907,7 +1022,9 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                         )}
                         {step === 2 && !step2Lengkap && (
                             <p className="text-center text-[11px] text-slate-400">
-                                Pilih minimal satu jam main untuk melanjutkan.
+                                {data.jam_main_ids.length === 0
+                                    ? 'Pilih minimal satu jam main untuk melanjutkan.'
+                                    : 'Pilih tipe booking untuk melanjutkan.'}
                             </p>
                         )}
 

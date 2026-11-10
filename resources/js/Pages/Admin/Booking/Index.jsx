@@ -321,6 +321,31 @@ export default function Index({ bookings, filters }) {
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <p className="font-semibold text-slate-800">{booking.kode_booking}</p>
+                                                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                                                            {booking.tipe_booking === 'public' || booking.kode_room ? (
+                                                                <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
+                                                                    Public Room
+                                                                </span>
+                                                            ) : booking.tipe_booking === 'private' ? (
+                                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">
+                                                                    Private
+                                                                </span>
+                                                            ) : (
+                                                                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+                                                                    Reguler
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {booking.kode_room && (
+                                                            <>
+                                                                <p className="mt-1 text-[10px] font-semibold text-sky-600">
+                                                                    {booking.kode_room}
+                                                                </p>
+                                                                <p className="text-[10px] text-slate-500">
+                                                                    Pembuka: <span className="font-semibold text-slate-700">{booking.pembuka_room || '-'}</span>
+                                                                </p>
+                                                            </>
+                                                        )}
                                                     </td>
                                                     <td className="px-5 py-3.5 text-slate-600">
                                                         {formatDate(booking.tgl_booking)}

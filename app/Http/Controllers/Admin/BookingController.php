@@ -33,6 +33,8 @@ class BookingController extends Controller
                         ->orWhere('tgl_main', 'like', "%{$search}%")
                         ->orWhere('tgl_booking', 'like', "%{$search}%")
                         ->orWhere('sistem_pembayaran', 'like', "%{$search}%")
+                        ->orWhere('tipe_booking', 'like', "%{$search}%")
+                        ->orWhere('kode_room', 'like', "%{$search}%")
                         ->orWhereHas('pengguna', function ($query) use ($search) {
                             $query->where('nama_depan', 'like', "%{$search}%")
                                 ->orWhere('nama_balakang', 'like', "%{$search}%");
@@ -48,6 +50,19 @@ class BookingController extends Controller
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
+        $namaPembuka = Booking::namaPembukaRoom(
+            $bookings->getCollection()->pluck('kode_room')->filter()->unique()->values()->all(),
+        );
+
+        $bookings->getCollection()->transform(function (Booking $booking) use ($namaPembuka): Booking {
+            $booking->setAttribute(
+                'pembuka_room',
+                $booking->kode_room ? ($namaPembuka[$booking->kode_room] ?? '-') : null,
+            );
+
+            return $booking;
+        });
 
         return Inertia::render('Admin/Booking/Index', [
             'bookings' => $bookings,

@@ -305,13 +305,13 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
 
     return (
         <>
-            <Head title="Riwayat Booking" />
+            <Head title="Riwayat" />
 
             <header className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-emerald-600 to-emerald-800 px-5 pb-12 pt-6 text-white">
                 <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10" />
                 <div className="relative">
-                    <h1 className="text-lg font-bold">Riwayat Booking</h1>
-                    <p className="mt-0.5 text-xs text-emerald-100">Semua booking yang kamu buat</p>
+                    <h1 className="text-lg font-bold">Riwayat</h1>
+                    <p className="mt-0.5 text-xs text-emerald-100">Booking meja dan pesanan makananmu</p>
 
                     <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                         {[
@@ -333,6 +333,21 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
             </header>
 
             <div className="relative -mt-7 space-y-3 px-5 pb-8">
+                <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-emerald-100 bg-white p-1.5 shadow-sm">
+                    <Link
+                        href="/riwayat"
+                        className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 px-3 py-2.5 text-[11px] font-bold text-white shadow-md shadow-emerald-600/25"
+                    >
+                        Booking Meja
+                    </Link>
+                    <Link
+                        href="/riwayat/pesanan"
+                        className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-50"
+                    >
+                        Pesanan Makanan
+                    </Link>
+                </div>
+
                 <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
                         <label htmlFor="filter-tgl-main" className="text-[11px] font-semibold text-slate-700">
@@ -431,9 +446,21 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                             >
                                 <div className="flex items-center justify-between gap-2 border-b border-dashed border-emerald-100 px-4 py-3">
                                     <div>
-                                        <p className="text-sm font-bold text-slate-800">{booking.kode_booking}</p>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <p className="text-sm font-bold text-slate-800">{booking.kode_booking}</p>
+                                            {booking.tipe_booking === 'public' || booking.kode_room ? (
+                                                <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
+                                                    Room
+                                                </span>
+                                            ) : booking.tipe_booking === 'private' ? (
+                                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">
+                                                    Private
+                                                </span>
+                                            ) : null}
+                                        </div>
                                         <p className="mt-0.5 text-[10px] text-slate-400">
                                             Dipesan {formatDate(booking.tgl_booking)}
+                                            {booking.kode_room ? ` · ${booking.kode_room}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
@@ -463,6 +490,16 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                                             <p className="text-[10px] capitalize text-slate-500">
                                                 Pembayaran {booking.sistem_pembayaran || 'belum dipilih'}
                                             </p>
+                                            {booking.kode_room && (
+                                                <>
+                                                    <p className="text-[10px] font-semibold text-sky-600">
+                                                        Public Room · {booking.kode_room}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500">
+                                                        Pembuka room: <span className="font-semibold text-slate-700">{booking.pembuka_room || '-'}</span>
+                                                    </p>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

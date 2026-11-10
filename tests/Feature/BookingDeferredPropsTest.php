@@ -14,7 +14,7 @@ class BookingDeferredPropsTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const DATA_KEYS = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'vouchers'];
+    private const DATA_KEYS = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers'];
 
     private function inertiaHeaders(): array
     {

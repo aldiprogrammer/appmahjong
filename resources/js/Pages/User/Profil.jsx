@@ -68,8 +68,15 @@ function ShieldIcon() {
     );
 }
 
-function StatsSkeleton() {
+function StarIcon({ className = 'h-5 w-5' }) {
     return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+        </svg>
+    );
+}
+
+function StatsSkeleton() {    return (
         <div
             aria-busy="true"
             aria-label="Memuat statistik"
@@ -111,7 +118,7 @@ function DeferredTimeoutError({ onReload }) {
     );
 }
 
-export default function Profil({ pengguna, stats = { total: 0, disetujui: 0, menunggu: 0 } }) {
+export default function Profil({ pengguna, points = 0, stats = { total: 0, disetujui: 0, menunggu: 0 } }) {
     // stats sengaja di-default agar aman saat deferred (belum dimuat).
     const statsDimuat = usePage().props.stats !== undefined;
 
@@ -226,6 +233,30 @@ export default function Profil({ pengguna, stats = { total: 0, disetujui: 0, men
                         ))}
                     </div>
                 </Deferred>
+
+                {pengguna && (
+                    <Link
+                        href="/point"
+                        className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3.5 shadow-sm transition hover:border-emerald-200 hover:shadow-md"
+                    >
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-sm">
+                            <StarIcon className="h-5 w-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-sm font-bold text-slate-800">Point Mahjong</h2>
+                            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
+                                Scan susunan kartu dan kumpulkan point dari winning hand.
+                            </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                            <p className="text-lg font-black leading-none text-emerald-700">{points}</p>
+                            <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">Point</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-slate-300" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                        </svg>
+                    </Link>
+                )}
 
                 {flash?.success && (
                     <div className="flex items-start gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700">

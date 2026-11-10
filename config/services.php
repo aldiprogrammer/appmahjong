@@ -41,4 +41,20 @@ return [
         ],
     ],
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+    ],
+
+    'mahjong_ai' => [
+        /*
+         * Deteksi kartu mahjong memakai OpenAI Vision (endpoint chat/completions).
+         * Model harus mendukung input gambar, mis. gpt-4o-mini atau gpt-4.1-mini.
+         */
+        'model' => env('MAHJONG_OPENAI_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')),
+        'detail' => env('MAHJONG_OPENAI_IMAGE_DETAIL', 'high'),
+        'timeout' => (int) env('MAHJONG_OPENAI_TIMEOUT', 60),
+    ],
+
 ];

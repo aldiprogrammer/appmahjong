@@ -19,6 +19,10 @@ class Booking extends Model
         'kode_booking',
         'kode_pembayaran',
         'kode_voucher',
+        'tipe_booking',
+        'kode_room',
+        'kapasitas_user',
+        'mode_pembayaran',
         'id_pengguna',
         'id_meja',
         'jam_mulai',
@@ -45,6 +49,35 @@ class Booking extends Model
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(Pengguna::class, 'id_pengguna');
+    }
+
+    /**
+     * Nama pembuka room untuk tiap kode room (booking paling awal pada room tersebut).
+     *
+     * @param  array<int, string>  $kodeRooms
+     * @return array<string, string>
+     */
+    public static function namaPembukaRoom(array $kodeRooms): array
+    {
+        if ($kodeRooms === []) {
+            return [];
+        }
+
+        return static::query()
+            ->whereIn('kode_room', $kodeRooms)
+            ->where('status_hapus', '!=', '1')
+            ->with('pengguna:id,nama_depan,nama_balakang')
+            ->orderBy('id')
+            ->get()
+            ->unique('kode_room')
+            ->mapWithKeys(function (Booking $booking): array {
+                $nama = $booking->pengguna
+                    ? trim($booking->pengguna->nama_depan.' '.$booking->pengguna->nama_balakang)
+                    : '-';
+
+                return [$booking->kode_room => $nama];
+            })
+            ->all();
     }
 
     protected function buktiPembayaranUrl(): Attribute

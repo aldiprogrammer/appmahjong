@@ -65,6 +65,50 @@ function SnackIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function AturanIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-2.625M9 11.25h6M9 15h6" />
+        </svg>
+    );
+}
+
+function VoucherMenuIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 8.25A2.25 2.25 0 0 1 6 6h12a2.25 2.25 0 0 1 2.25 2.25v1.5a2.25 2.25 0 0 0 0 4.5v1.5A2.25 2.25 0 0 1 18 18H6a2.25 2.25 0 0 1-2.25-2.25v-1.5a2.25 2.25 0 0 0 0-4.5v-1.5Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2 2.5" d="M14.25 8.25v7.5" />
+        </svg>
+    );
+}
+
+const menuCepat = [
+    {
+        label: 'Pesan',
+        note: 'Makanan & minuman',
+        href: '/pesan',
+        icon: FoodIcon,
+        bg: 'from-amber-400 to-orange-500',
+        shadow: 'shadow-orange-500/30',
+    },
+    {
+        label: 'Aturan',
+        note: 'Tata tertib main',
+        href: '/aturan',
+        icon: AturanIcon,
+        bg: 'from-sky-400 to-blue-500',
+        shadow: 'shadow-sky-500/30',
+    },
+    {
+        label: 'Voucher',
+        note: 'Promo & diskon',
+        href: '/voucher',
+        icon: VoucherMenuIcon,
+        bg: 'from-rose-400 to-pink-500',
+        shadow: 'shadow-rose-500/30',
+    },
+];
+
 function MahjongTile({ label, tone, className = '' }) {
     return (
         <span
@@ -215,6 +259,30 @@ export default function Home({ pengguna, mejas, hargas }) {
                             <MahjongTile label="發" tone="text-emerald-600" className="z-10 rotate-3" />
                         </div>
                     </div>
+                </section>
+
+                <section className="grid grid-cols-3 gap-2.5">
+                    {menuCepat.map((menu) => {
+                        const Icon = menu.icon;
+
+                        return (
+                            <Link
+                                key={menu.label}
+                                href={menu.href}
+                                className="group flex flex-col items-center gap-2 rounded-2xl border border-emerald-100 bg-white px-2 py-3.5 text-center shadow-sm transition duration-200 active:scale-95 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+                            >
+                                <span
+                                    className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${menu.bg} text-white shadow-lg ${menu.shadow} transition duration-200 group-hover:scale-105`}
+                                >
+                                    <Icon className="h-6 w-6" />
+                                </span>
+                                <span className="leading-tight">
+                                    <span className="block text-xs font-bold text-slate-800">{menu.label}</span>
+                                    <span className="mt-0.5 block text-[10px] leading-snug text-slate-500">{menu.note}</span>
+                                </span>
+                            </Link>
+                        );
+                    })}
                 </section>
 
                 <Link

@@ -43,6 +43,30 @@ function HargaIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function KategoriMenuIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75A1.5 1.5 0 0 1 5.25 5.25h4.19a1.5 1.5 0 0 1 1.06.44l1.31 1.31h7.94a1.5 1.5 0 0 1 1.5 1.5v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V6.75Z" />
+        </svg>
+    );
+}
+
+function MenuMakananIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 4.5v6a2.25 2.25 0 0 0 2.25 2.25h.75v6.75M7.5 4.5v6m-3-6v6m6.75-6h3.75A2.25 2.25 0 0 1 17.25 6.75v0A2.25 2.25 0 0 1 15 9H11.25V4.5Zm0 4.5v10.5" />
+        </svg>
+    );
+}
+
+function KasirIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M4.5 8.25v10.125A1.875 1.875 0 0 0 6.375 20.25h11.25a1.875 1.875 0 0 0 1.875-1.875V8.25M9 12.75h6M6.75 3.75h10.5a1.5 1.5 0 0 1 1.5 1.5v3H5.25v-3a1.5 1.5 0 0 1 1.5-1.5Z" />
+        </svg>
+    );
+}
+
 function PenggunaIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -75,6 +99,14 @@ function VoucherIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function SettingRoomIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m5.25-6h6.75m-6.75 0a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0m-3.75 0h3.75" />
+        </svg>
+    );
+}
+
 function AdminIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -103,11 +135,15 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
 
     const menus = [
         { name: 'Dashboard', href: '/admin/dashboard', icon: DashboardIcon },
+        { name: 'Kasir', href: '/admin/kasir', icon: KasirIcon },
         { name: 'Meja', href: '/admin/mejas', icon: MejaIcon },
         { name: 'Jam Main', href: '/admin/jam-mains', icon: JamMainIcon },
         { name: 'Harga Jam Main', href: '/admin/harga-jam-mains', icon: HargaIcon },
+        { name: 'Kategori Menu', href: '/admin/kategori-menus', icon: KategoriMenuIcon },
+        { name: 'Menu', href: '/admin/menus', icon: MenuMakananIcon },
         { name: 'Booking', href: '/admin/bookings', icon: BookingIcon },
         { name: 'Pengguna', href: '/admin/penggunas', icon: PenggunaIcon },
+        { name: 'Setting Room Booking', href: '/admin/setting-booking-rooms', icon: SettingRoomIcon },
         { name: 'Status Voucher', href: '/admin/status-vouchers', icon: StatusVoucherIcon },
         { name: 'Voucher', href: '/admin/vouchers', icon: VoucherIcon },
         { name: 'Akun Admin', href: '/admin/admins', icon: AdminIcon },
