@@ -314,6 +314,92 @@ class PointScanTest extends TestCase
         $this->assertStringContainsString('tidak dapat dibaca', (string) session('success'));
     }
 
+    public function test_scan_berpindah_ke_model_cadangan_saat_model_utama_kena_limit(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-utama',
+            'services.gemini.fallback_models' => ['gemini-cadangan'],
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/v1beta/models/gemini-utama:generateContent' => Http::response([
+                'error' => [
+                    'code' => 429,
+                    'status' => 'RESOURCE_EXHAUSTED',
+                    'message' => 'Quota exceeded.',
+                ],
+            ], 429),
+            'gemini.test/v1beta/models/gemini-cadangan:generateContent' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [[
+                            'text' => json_encode(['tiles' => self::WINNING_TILES]),
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertTrue($scan->is_winning_hand);
+        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $scan->points);
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://gemini.test/v1beta/models/gemini-cadangan:generateContent');
+    }
+
+    public function test_pesan_kuota_muncul_saat_semua_model_kena_limit(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-utama',
+            'services.gemini.fallback_models' => ['gemini-cadangan'],
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/*' => Http::response([
+                'error' => [
+                    'code' => 429,
+                    'status' => 'RESOURCE_EXHAUSTED',
+                    'message' => 'Quota exceeded.',
+                    'details' => [[
+                        '@type' => 'type.googleapis.com/google.rpc.RetryInfo',
+                        'retryDelay' => '3600s',
+                    ]],
+                ],
+            ], 429),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertSame([], $scan->tiles);
+        $this->assertStringContainsString('Kuota gratis', (string) session('success'));
+        $this->assertStringContainsString('60 menit', (string) session('success'));
+    }
+
     /**
      * @param  array<int, string>  $tiles
      */

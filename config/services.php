@@ -56,6 +56,14 @@ return [
         'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         'model' => env('GEMINI_MODEL', 'gemini-3.8-flash'),
         /*
+         * Kuota gratis Gemini dihitung per model. Bila model utama kena 429/503,
+         * detector otomatis mencoba model cadangan berikutnya.
+         */
+        'fallback_models' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('GEMINI_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-3.5-flash-lite')),
+        ))),
+        /*
          * Gemini 3.x adalah model "thinking": sebagian besar token dipakai untuk
          * penalaran internal sebelum JSON dihasilkan. Batas kecil (mis. 400)
          * membuat JSON terpotong sehingga kartu tidak terdeteksi.

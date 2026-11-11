@@ -57,16 +57,39 @@ class GeminiMahjongDetector
             return [];
         }
 
-        try {
-            $response = $this->kirimPermintaan($gambar);
+        $payloadGambar = $gambar;
+        $modelTerpakai = null;
+        $response = null;
+        $modelTerakhir = null;
 
-            if ($response->failed()) {
+        try {
+            foreach ($this->daftarModel() as $model) {
+                $modelTerakhir = $model;
+                $response = $this->kirimPermintaan($payloadGambar, $model);
+
+                if (! $response->failed()) {
+                    $modelTerpakai = $model;
+
+                    break;
+                }
+
                 Log::warning('Deteksi mahjong Gemini gagal.', [
+                    'model' => $model,
                     'status' => $response->status(),
                     'body' => mb_substr($response->body(), 0, 500),
                 ]);
 
-                $this->pesan = 'Layanan AI sedang tidak bisa dihubungi. Tambahkan kartu secara manual.';
+                /*
+                 * Model bisa habis kuota (429), sedang sibuk (503), atau sudah
+                 * tidak tersedia (404). Coba model berikutnya bila ada.
+                 */
+                if (! in_array($response->status(), [404, 429, 500, 503], true)) {
+                    break;
+                }
+            }
+
+            if ($response === null || $response->failed()) {
+                $this->pesan = $this->pesanKegagalan($response, $modelTerakhir);
 
                 return [];
             }
@@ -76,6 +99,7 @@ class GeminiMahjongDetector
 
             if ($tiles === null) {
                 Log::warning('Deteksi mahjong Gemini: balasan tidak bisa dibaca.', [
+                    'model' => $modelTerpakai,
                     'finish_reason' => $payload['candidates'][0]['finishReason'] ?? null,
                     'usage' => $payload['usageMetadata'] ?? null,
                     'body' => mb_substr($response->body(), 0, 500),
@@ -101,12 +125,76 @@ class GeminiMahjongDetector
     }
 
     /**
+     * Daftar model yang dicoba berurutan. Model pertama adalah GEMINI_MODEL,
+     * sisanya berasal dari GEMINI_FALLBACK_MODELS.
+     *
+     * @return array<int, string>
+     */
+    private function daftarModel(): array
+    {
+        $daftar = [];
+
+        $utama = trim((string) config('services.gemini.model'));
+
+        if ($utama !== '') {
+            $daftar[] = $utama;
+        }
+
+        $cadangan = config('services.gemini.fallback_models', []);
+
+        if (is_string($cadangan)) {
+            $cadangan = explode(',', $cadangan);
+        }
+
+        foreach ((array) $cadangan as $model) {
+            $model = trim((string) $model);
+
+            if ($model !== '') {
+                $daftar[] = $model;
+            }
+        }
+
+        return array_values(array_unique($daftar));
+    }
+
+    /**
+     * Pesan yang ramah untuk pengguna, termasuk info kuota bila terkena 429.
+     */
+    private function pesanKegagalan(?Response $response, ?string $model): string
+    {
+        if ($response?->status() === 429) {
+            $retry = $response->json('error.details') ?? [];
+            $detik = null;
+
+            foreach ((array) $retry as $detail) {
+                if (is_array($detail) && isset($detail['retryDelay'])) {
+                    $detik = (int) filter_var($detail['retryDelay'], FILTER_SANITIZE_NUMBER_INT);
+                }
+            }
+
+            $kapan = $detik !== null && $detik > 0
+                ? 'sekitar '.max(1, (int) ceil($detik / 60)).' menit lagi'
+                : 'besok';
+
+            return 'Kuota gratis AI sudah habis. Coba lagi '.$kapan.' atau aktifkan billing di Google AI Studio. Sementara itu kartu bisa ditambahkan manual.';
+        }
+
+        if ($response?->status() === 503) {
+            return 'Layanan AI sedang sibuk. Coba lagi beberapa saat atau tambahkan kartu secara manual.';
+        }
+
+        if ($response?->status() === 404) {
+            return 'Model AI ('.$model.') tidak tersedia untuk API key ini. Periksa GEMINI_MODEL lalu tambahkan kartu secara manual.';
+        }
+
+        return 'Layanan AI sedang tidak bisa dihubungi. Tambahkan kartu secara manual.';
+    }
+
+    /**
      * @param  array{mime: string, data: string}  $gambar
      */
-    private function kirimPermintaan(array $gambar): Response
+    private function kirimPermintaan(array $gambar, string $model): Response
     {
-        $model = (string) config('services.gemini.model', 'gemini-3.8-flash');
-
         $payload = [
             'contents' => [
                 [
