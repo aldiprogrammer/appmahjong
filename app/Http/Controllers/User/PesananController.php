@@ -21,6 +21,7 @@ class PesananController extends Controller
         $validated = $request->validate([
             'atas_nama' => ['required', 'string', 'max:100'],
             'nomor_meja' => ['required', 'string', 'max:20'],
+            'tipe_pesanan' => ['nullable', 'string', Rule::in(Pesanan::TIPE_VALID)],
             'catatan' => ['nullable', 'string', 'max:255'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.id' => ['required', 'integer', 'exists:menus,id'],
@@ -31,6 +32,7 @@ class PesananController extends Controller
             'atas_nama.max' => 'Nama pemesan maksimal 100 karakter.',
             'nomor_meja.required' => 'Nomor meja wajib diisi.',
             'nomor_meja.max' => 'Nomor meja maksimal 20 karakter.',
+            'tipe_pesanan.in' => 'Tipe pesanan harus Dine In atau Take Away.',
             'catatan.max' => 'Catatan maksimal 255 karakter.',
             'items.required' => 'Keranjang masih kosong.',
             'items.min' => 'Pilih minimal satu menu.',
@@ -96,6 +98,7 @@ class PesananController extends Controller
                 'kode_pesanan' => Pesanan::buatKodePesanan(),
                 'id_pengguna' => $pengguna ? (string) $pengguna->id : null,
                 'nomor_meja' => trim($validated['nomor_meja']),
+                'tipe_pesanan' => $validated['tipe_pesanan'] ?? Pesanan::TIPE_DINE_IN,
                 'nama_pemesan' => trim($validated['atas_nama']),
                 'catatan' => $validated['catatan'] ?? null,
                 'total' => $total,

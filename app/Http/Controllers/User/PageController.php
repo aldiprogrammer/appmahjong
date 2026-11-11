@@ -16,6 +16,7 @@ use App\Models\Voucher;
 use App\Services\BuktiPembayaranService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -58,6 +59,23 @@ class PageController extends Controller
 
     public function pesan(Request $request): Response
     {
+        $kodeMeja = trim((string) $request->query('meja', ''));
+        $mejaAwal = null;
+
+        if ($kodeMeja !== '') {
+            $meja = Meja::query()
+                ->whereRaw('LOWER(kode_meja) = ?', [Str::lower($kodeMeja)])
+                ->first(['id', 'kode_meja', 'nama_meja']);
+
+            if ($meja) {
+                $mejaAwal = [
+                    'id' => $meja->id,
+                    'kode_meja' => $meja->kode_meja,
+                    'nama_meja' => $meja->nama_meja,
+                ];
+            }
+        }
+
         $kategoriMenus = Kategorimenu::query()
             ->whereHas('menus', fn ($query) => $query->where('status', 'aktif'))
             ->orderBy('kategori')
@@ -84,6 +102,41 @@ class PageController extends Controller
             'pengguna' => $this->currentPengguna($request),
             'kategoriMenus' => $kategoriMenus,
             'menus' => $menus,
+            'mejaAwal' => $mejaAwal,
+        ]);
+    }
+
+    public function cariMeja(Request $request): JsonResponse
+    {
+        $kode = trim((string) $request->query('kode', ''));
+
+        if ($kode === '') {
+            return response()->json([
+                'found' => false,
+                'message' => 'Kode meja tidak boleh kosong.',
+            ]);
+        }
+
+        $meja = Meja::query()
+            ->whereRaw('LOWER(kode_meja) = ?', [Str::lower($kode)])
+            ->first(['id', 'kode_meja', 'nama_meja']);
+
+        if (! $meja) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Kode meja tidak ditemukan. Pastikan QR code yang dipindai benar.',
+            ]);
+        }
+
+        return response()->json([
+            'found' => true,
+            'meja' => [
+                'id' => $meja->id,
+                'kode_meja' => $meja->kode_meja,
+                'nama_meja' => $meja->nama_meja,
+            ],
+            'pesan_url' => route('pesan', ['meja' => $meja->kode_meja]),
+            'point_url' => route('point'),
         ]);
     }
 

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [PageController::class, 'landing'])->name('landing');
 Route::get('/home', [PageController::class, 'home'])->name('home');
 Route::get('/pesan', [PageController::class, 'pesan'])->name('pesan');
+Route::get('/meja/cari', [PageController::class, 'cariMeja'])->name('meja.cari');
 Route::post('/pesan', [PesananController::class, 'store'])->name('pesan.store');
 Route::get('/aturan', [PageController::class, 'aturan'])->name('aturan');
 
@@ -72,6 +73,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
         Route::get('/kasir/notifikasi', [KasirController::class, 'notifikasi'])->name('kasir.notifikasi');
         Route::patch('/kasir/{pesanan}/status', [KasirController::class, 'updateStatus'])->name('kasir.status');
+        Route::get('mejas/qr-code/semua', [MejaController::class, 'downloadAllQrCodes'])->name('mejas.qr-code.semua');
+        Route::get('mejas/{meja}/qr-code/gambar', [MejaController::class, 'qrCodeImage'])->name('mejas.qr-code.gambar');
+        Route::get('mejas/{meja}/qr-code', [MejaController::class, 'downloadQrCode'])->name('mejas.qr-code');
         Route::resource('mejas', MejaController::class)->except(['create', 'edit', 'show']);
         Route::resource('jam-mains', JamMainController::class)->except(['create', 'edit', 'show']);
         Route::resource('harga-jam-mains', HargaJamMainController::class)->except(['create', 'edit', 'show']);

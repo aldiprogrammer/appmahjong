@@ -267,6 +267,14 @@ export default function RiwayatPesanan({ pesanans, ringkasan, filters }) {
                                             </span>
                                             <span className="text-slate-300">•</span>
                                             <span className="font-semibold text-slate-700">Meja {pesanan.nomor_meja}</span>
+                                            <span className="text-slate-300">•</span>
+                                            <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${
+                                                pesanan.tipe_pesanan === 'take_away'
+                                                    ? 'bg-rose-50 text-rose-700 ring-rose-200'
+                                                    : 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                            }`}>
+                                                {pesanan.tipe_pesanan === 'take_away' ? 'Take Away' : 'Dine In'}
+                                            </span>
                                         </p>
                                     </div>
                                     <StatusBadge status={pesanan.status} />

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Kategorimenu;
+use App\Models\Meja;
 use App\Models\Menu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -82,6 +83,58 @@ class PesanPageTest extends TestCase
                 ->component('User/Pesan')
                 ->has('kategoriMenus', 0)
                 ->has('menus', 0)
+            );
+    }
+
+    public function test_pencarian_meja_menemukan_kode_yang_terdaftar(): void
+    {
+        $meja = Meja::create(['kode_meja' => 'MJ-01', 'nama_meja' => 'Meja 1']);
+
+        $this->getJson('/meja/cari?kode=mj-01')
+            ->assertOk()
+            ->assertJson([
+                'found' => true,
+                'meja' => [
+                    'id' => $meja->id,
+                    'kode_meja' => 'MJ-01',
+                    'nama_meja' => 'Meja 1',
+                ],
+            ])
+            ->assertJsonPath('point_url', route('point'))
+            ->assertJsonPath('pesan_url', route('pesan', ['meja' => 'MJ-01']));
+    }
+
+    public function test_pencarian_meja_mengembalikan_tidak_ditemukan_untuk_kode_asing(): void
+    {
+        Meja::create(['kode_meja' => 'MJ-01', 'nama_meja' => 'Meja 1']);
+
+        $this->getJson('/meja/cari?kode=MJ-99')
+            ->assertOk()
+            ->assertJson(['found' => false])
+            ->assertJsonPath('message', 'Kode meja tidak ditemukan. Pastikan QR code yang dipindai benar.');
+    }
+
+    public function test_halaman_pesan_mengisi_nomor_meja_dari_kode_qr(): void
+    {
+        $meja = Meja::create(['kode_meja' => 'MJ-02', 'nama_meja' => 'Meja 2']);
+
+        $this->get('/pesan?meja=MJ-02')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pesan')
+                ->where('mejaAwal.id', $meja->id)
+                ->where('mejaAwal.kode_meja', 'MJ-02')
+                ->where('mejaAwal.nama_meja', 'Meja 2')
+            );
+    }
+
+    public function test_halaman_pesan_mengabaikan_kode_meja_yang_tidak_dikenal(): void
+    {
+        $this->get('/pesan?meja=TIDAK-ADA')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pesan')
+                ->where('mejaAwal', null)
             );
     }
 }

@@ -102,6 +102,7 @@ function buatStrukEscPos(pesanan) {
 
     tulis(barisKiriKanan('Kode', pesanan.kode_pesanan));
     tulis(barisKiriKanan('Meja', pesanan.nomor_meja));
+    tulis(barisKiriKanan('Tipe', pesanan.tipe_pesanan === 'take_away' ? 'Take Away' : 'Dine In'));
 
     if (pesanan.nama_pemesan) {
         tulis(barisKiriKanan('Nama', pesanan.nama_pemesan));
@@ -716,6 +717,7 @@ export default function Index({ pesanans, ringkasan, filters }) {
                                     <li key={pesanan.id} className="truncate">
                                         <span className="font-semibold">{pesanan.kode_pesanan}</span>
                                         {' · '}Meja {pesanan.nomor_meja}
+                                        {pesanan.tipe_pesanan === 'take_away' ? ' · Take Away' : ' · Dine In'}
                                         {pesanan.nama_pemesan ? ` · ${pesanan.nama_pemesan}` : ''}
                                     </li>
                                 ))}
@@ -868,6 +870,13 @@ export default function Index({ pesanans, ringkasan, filters }) {
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <span className="font-mono text-sm font-bold text-slate-900">{pesanan.kode_pesanan}</span>
+                                                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
+                                                        pesanan.tipe_pesanan === 'take_away'
+                                                            ? 'bg-rose-50 text-rose-700 ring-rose-200'
+                                                            : 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                                    }`}>
+                                                        {pesanan.tipe_pesanan === 'take_away' ? 'Take Away' : 'Dine In'}
+                                                    </span>
                                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${style.badge}`}>
                                                         <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
                                                         {style.label}

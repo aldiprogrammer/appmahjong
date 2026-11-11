@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import ScanMejaButton from './ScanMejaButton';
 
 function HomeIcon({ className = 'h-5 w-5' }) {
     return (
@@ -68,8 +69,12 @@ export default function UserLayout({ children }) {
                 <main className="flex-1">{children}</main>
 
                 <nav className="sticky bottom-0 z-40 border-t border-emerald-100/70 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_-18px_rgba(6,78,59,0.28)] backdrop-blur-md sm:rounded-b-[2rem]">
-                    <div className="grid grid-cols-6 gap-1">
-                        {menus.map((menu) => {
+                    <div className="grid grid-cols-7 items-end gap-1">
+                        {[...menus.slice(0, 3), null, ...menus.slice(3)].map((menu) => {
+                            if (menu === null) {
+                                return <ScanMejaButton key="scan" />;
+                            }
+
                             const Icon = menu.icon;
                             const active = isActive(menu.href);
 
@@ -81,7 +86,7 @@ export default function UserLayout({ children }) {
                                         }`}
                                 >
                                     <span
-                                        className={`relative flex h-10 w-14 items-center justify-center rounded-2xl transition-all duration-200 ${active
+                                        className={`relative flex h-10 w-10 items-center justify-center rounded-2xl transition-all duration-200 ${active
                                                 ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/35'
                                                 : 'text-slate-400 group-hover:bg-emerald-50 group-hover:text-emerald-600'
                                             }`}

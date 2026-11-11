@@ -124,7 +124,7 @@ function iconKategori(nama = '') {
     return GridIcon;
 }
 
-export default function Pesan({ pengguna, kategoriMenus = [], menus = [] }) {
+export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAwal = null }) {
     const { flash } = usePage().props;
     const [kategori, setKategori] = useState('semua');
     const [pencarian, setPencarian] = useState('');
@@ -139,7 +139,8 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [] }) {
         atas_nama: pengguna
             ? `${pengguna.nama_depan ?? ''} ${pengguna.nama_balakang ?? ''}`.trim()
             : '',
-        nomor_meja: '',
+        nomor_meja: mejaAwal?.kode_meja ?? '',
+        tipe_pesanan: 'dine_in',
         catatan: '',
         items: [],
     });
@@ -584,6 +585,42 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [] }) {
                                 </ul>
 
                                 <div>
+                                    <span className="mb-1.5 block text-xs font-semibold text-slate-700">
+                                        Tipe Pesanan <span className="text-rose-500">*</span>
+                                    </span>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                            { value: 'dine_in', label: 'Dine In', desc: 'Makan di tempat' },
+                                            { value: 'take_away', label: 'Take Away', desc: 'Dibungkus' },
+                                        ].map((tipe) => {
+                                            const terpilih = data.tipe_pesanan === tipe.value;
+
+                                            return (
+                                                <button
+                                                    key={tipe.value}
+                                                    type="button"
+                                                    onClick={() => setData('tipe_pesanan', tipe.value)}
+                                                    aria-pressed={terpilih}
+                                                    className={`rounded-xl border px-3 py-3 text-left transition active:scale-95 ${
+                                                        terpilih
+                                                            ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/30'
+                                                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/60'
+                                                    }`}
+                                                >
+                                                    <span className={`block text-xs font-bold ${terpilih ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                                        {tipe.label}
+                                                    </span>
+                                                    <span className="mt-0.5 block text-[10px] text-slate-500">{tipe.desc}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {errors.tipe_pesanan && (
+                                        <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tipe_pesanan}</p>
+                                    )}
+                                </div>
+
+                                <div>
                                     <label htmlFor="atas_nama" className="mb-1.5 block text-xs font-semibold text-slate-700">
                                         Atas Nama <span className="text-rose-500">*</span>
                                     </label>
@@ -620,6 +657,12 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [] }) {
                                             }`}
                                     />
                                     {errors.nomor_meja && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.nomor_meja}</p>}
+                                    {mejaAwal && data.nomor_meja === mejaAwal.kode_meja && (
+                                        <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                            Terisi otomatis dari QR {mejaAwal.nama_meja}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>

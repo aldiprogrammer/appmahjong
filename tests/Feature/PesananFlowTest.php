@@ -48,6 +48,7 @@ class PesananFlowTest extends TestCase
         $this->assertSame('Tanpa sambal', $pesanan->catatan);
         $this->assertSame(50000, $pesanan->total);
         $this->assertSame('baru', $pesanan->status);
+        $this->assertSame(Pesanan::TIPE_DINE_IN, $pesanan->tipe_pesanan);
         $this->assertStringStartsWith('PSN-', $pesanan->kode_pesanan);
 
         $this->assertDatabaseHas('pesanan_details', [
@@ -58,6 +59,38 @@ class PesananFlowTest extends TestCase
             'jumlah' => 2,
             'subtotal' => 50000,
         ]);
+    }
+
+    public function test_pesanan_take_away_tersimpan_dengan_tipe_take_away(): void
+    {
+        $menu = $this->buatMenu();
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '12',
+            'tipe_pesanan' => Pesanan::TIPE_TAKE_AWAY,
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ])->assertRedirect();
+
+        $this->assertSame(Pesanan::TIPE_TAKE_AWAY, Pesanan::query()->firstOrFail()->tipe_pesanan);
+    }
+
+    public function test_tipe_pesanan_tidak_valid_ditolak(): void
+    {
+        $menu = $this->buatMenu();
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '12',
+            'tipe_pesanan' => 'delivery',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 1],
+            ],
+        ])->assertSessionHasErrors('tipe_pesanan');
+
+        $this->assertSame(0, Pesanan::query()->count());
     }
 
     public function test_total_pesanan_dihitung_dari_harga_menu_di_database(): void

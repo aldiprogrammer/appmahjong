@@ -35,10 +35,12 @@ export default function Index({ mejas, filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
+    const [errorMessage, setErrorMessage] = useState(flash?.error ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [formOpen, setFormOpen] = useState(false);
     const [editingMeja, setEditingMeja] = useState(null);
+    const [qrTarget, setQrTarget] = useState(null);
     const kodeInputRef = useRef(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
@@ -51,6 +53,10 @@ export default function Index({ mejas, filters }) {
     }, [flash?.success]);
 
     useEffect(() => {
+        setErrorMessage(flash?.error ?? null);
+    }, [flash?.error]);
+
+    useEffect(() => {
         if (!formOpen) {
             return;
         }
@@ -61,7 +67,7 @@ export default function Index({ mejas, filters }) {
     }, [formOpen]);
 
     useEffect(() => {
-        if (!formOpen && !deleteTarget) {
+        if (!formOpen && !deleteTarget && !qrTarget) {
             return;
         }
 
@@ -73,12 +79,13 @@ export default function Index({ mejas, filters }) {
             setFormOpen(false);
             setEditingMeja(null);
             setDeleteTarget(null);
+            setQrTarget(null);
         };
 
         window.addEventListener('keydown', handleEscape);
 
         return () => window.removeEventListener('keydown', handleEscape);
-    }, [formOpen, deleteTarget, processing, deleting]);
+    }, [formOpen, deleteTarget, qrTarget, processing, deleting]);
 
     const submitSearch = (event) => {
         event.preventDefault();
@@ -180,21 +187,53 @@ export default function Index({ mejas, filters }) {
                     </div>
                 )}
 
+                {errorMessage && (
+                    <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                            </svg>
+                        </span>
+                        <p className="font-medium">{errorMessage}</p>
+                        <button
+                            type="button"
+                            onClick={() => setErrorMessage(null)}
+                            className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-lg text-rose-600 transition hover:bg-rose-100"
+                            aria-label="Tutup notifikasi"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Data Meja</h1>
                         <p className="text-sm text-slate-500">Kelola daftar meja mahjong yang tersedia.</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Tambah Meja
-                    </button>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <a
+                            href="/admin/mejas/qr-code/semua"
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h5v5H3v-5Zm13 0h5v5h-5v-5ZM3 14.5h5v5H3v-5Zm9.5 0h2v2h-2v-2Zm3 0h2v2h-2v-2Zm-3 3h2v2h-2v-2Zm3 0h2v2h-2v-2Zm3 0h2v2h-2v-2Zm0-3h2v2h-2v-2Z" />
+                            </svg>
+                            Download Semua QR
+                        </a>
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Tambah Meja
+                        </button>
+                    </div>
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
@@ -290,6 +329,16 @@ export default function Index({ mejas, filters }) {
                                                 <td className="px-5 py-3.5 text-slate-500">{formatDate(meja.created_at)}</td>
                                                 <td className="px-5 py-3.5">
                                                     <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setQrTarget(meja)}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h4.5v4.5h-4.5V4.5Zm12 0h4.5v4.5h-4.5V4.5Zm-12 10.5h4.5v4.5h-4.5V15Zm9.75-3h3v3h-3v-3Zm3.75 3h.75v.75H17.25V15Zm-3 3h3v.75h-3V18Zm3.75.75h.75V21H18v-2.25Zm-4.5-.75h.75V21h-.75v-2.25Z" />
+                                                            </svg>
+                                                            QR
+                                                        </button>
                                                         <button
                                                             type="button"
                                                             onClick={() => openEditModal(meja)}
@@ -445,6 +494,71 @@ export default function Index({ mejas, filters }) {
                                 )}
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {qrTarget && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            setQrTarget(null);
+                        }
+                    }}
+                >
+                    <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+                            <div>
+                                <h2 className="text-base font-semibold text-slate-900">QR Code Meja</h2>
+                                <p className="mt-0.5 text-sm text-slate-500">
+                                    {qrTarget.nama_meja} &middot; {qrTarget.kode_meja}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setQrTarget(null)}
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                aria-label="Tutup modal"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-6 text-center">
+                            <div className="mx-auto inline-flex rounded-2xl border-2 border-emerald-600 bg-white p-4">
+                                <img
+                                    src={`/admin/mejas/${qrTarget.id}/qr-code/gambar`}
+                                    alt={`QR Code ${qrTarget.kode_meja}`}
+                                    className="h-48 w-48"
+                                />
+                            </div>
+                            <p className="mt-4 inline-flex rounded-lg bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                {qrTarget.kode_meja}
+                            </p>
+                            <p className="mt-2 text-xs text-slate-500">
+                                QR code diambil dari kode meja. Cetak dan tempelkan pada meja.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 px-6 py-4 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setQrTarget(null)}
+                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                Tutup
+                            </button>
+                            <a
+                                href={`/admin/mejas/${qrTarget.id}/qr-code`}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                Download PDF
+                            </a>
                         </div>
                     </div>
                 </div>

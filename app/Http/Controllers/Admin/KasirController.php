@@ -60,7 +60,7 @@ class KasirController extends Controller
             ->where('status', Pesanan::STATUS_BARU)
             ->latest('id')
             ->take(10)
-            ->get(['id', 'kode_pesanan', 'nomor_meja', 'nama_pemesan']);
+            ->get(['id', 'kode_pesanan', 'nomor_meja', 'tipe_pesanan', 'nama_pemesan']);
 
         return response()->json([
             'jumlah_baru' => Pesanan::query()->where('status', Pesanan::STATUS_BARU)->count(),

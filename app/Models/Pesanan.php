@@ -24,10 +24,20 @@ class Pesanan extends Model
         self::STATUS_DIBATALKAN,
     ];
 
+    public const TIPE_DINE_IN = 'dine_in';
+
+    public const TIPE_TAKE_AWAY = 'take_away';
+
+    public const TIPE_VALID = [
+        self::TIPE_DINE_IN,
+        self::TIPE_TAKE_AWAY,
+    ];
+
     protected $fillable = [
         'kode_pesanan',
         'id_pengguna',
         'nomor_meja',
+        'tipe_pesanan',
         'nama_pemesan',
         'catatan',
         'total',
@@ -74,6 +84,14 @@ class Pesanan extends Model
             self::STATUS_SELESAI => 'Selesai',
             self::STATUS_DIBATALKAN => 'Dibatalkan',
             default => ucfirst((string) $this->status),
+        };
+    }
+
+    public function labelTipePesanan(): string
+    {
+        return match ($this->tipe_pesanan) {
+            self::TIPE_TAKE_AWAY => 'Take Away',
+            default => 'Dine In',
         };
     }
 }
