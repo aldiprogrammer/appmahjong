@@ -234,6 +234,12 @@ export default function ScanMejaButton() {
         cariKode(kodeManual);
     };
 
+    const pergiKe = (url) => {
+        hentikanKamera();
+        tutupScan();
+        router.visit(url);
+    };
+
     return (
         <>
             <button
@@ -290,7 +296,7 @@ export default function ScanMejaButton() {
                                     <div className="space-y-2.5">
                                         <button
                                             type="button"
-                                            onClick={() => router.visit(mejaTerpilih.pesan_url)}
+                                            onClick={() => pergiKe(mejaTerpilih.pesan_url)}
                                             className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-3.5 text-left text-white shadow-lg shadow-orange-500/30 transition active:scale-[0.98]"
                                         >
                                             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
@@ -307,7 +313,7 @@ export default function ScanMejaButton() {
 
                                         <button
                                             type="button"
-                                            onClick={() => router.visit(mejaTerpilih.point_url)}
+                                            onClick={() => pergiKe(mejaTerpilih.point_url)}
                                             className="flex w-full items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-700 px-4 py-3.5 text-left text-white shadow-lg shadow-emerald-500/30 transition active:scale-[0.98]"
                                         >
                                             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
