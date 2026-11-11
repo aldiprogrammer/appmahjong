@@ -48,6 +48,156 @@ class PointScanTest extends TestCase
         $this->assertSame(0, $hasil['points']);
     }
 
+    public function test_hk_klasik_memberi_minimal_tiga_faan(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 't2', 't3', 't4', 'b7', 'b8', 'b9', 't9', 't9',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(MahjongCombinationService::MODE_HK, $hasil['scoring_mode']);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $hasil['faan']);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $hasil['points']);
+        $this->assertContains('Minimum HK klasik', array_column($hasil['faan_details'], 'label'));
+    }
+
+    public function test_hk_klasik_menghitung_full_flush_dan_all_pungs(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w1', 'w1', 'w3', 'w3', 'w3', 'w5', 'w5', 'w5', 'w7', 'w7', 'w7', 'w9', 'w9',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(10, $hasil['faan']);
+        $this->assertSame(10, $hasil['points']);
+        $this->assertContains('清一色 (Full Flush)', array_column($hasil['faan_details'], 'label'));
+        $this->assertContains('對對胡 (All Pungs)', array_column($hasil['faan_details'], 'label'));
+    }
+
+    public function test_hk_klasik_mendeteksi_thirteen_orphans(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w1', 'w9', 't1', 't9', 'b1', 'b9', 'z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(13, $hasil['faan']);
+        $this->assertSame(13, $hasil['points']);
+        $this->assertSame('special', $hasil['combinations'][0]['type']);
+    }
+
+    public function test_hk_klasik_membatasi_maksimum_tiga_belas_faan(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'z1', 'z1', 'z1', 'z2', 'z2', 'z2', 'z3', 'z3', 'z3', 'z4', 'z4', 'z4', 'z5', 'z5',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(MahjongCombinationService::HK_MAX_FAAN, $hasil['faan']);
+        $this->assertSame(MahjongCombinationService::HK_MAX_FAAN, $hasil['points']);
+    }
+
+    public function test_hk_klasik_mendeteksi_tujuh_pasang_sebagai_sepuluh_faan(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w1', 'w3', 'w3', 't2', 't2', 't7', 't7', 'b4', 'b4', 'b9', 'b9', 'z5', 'z5',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(10, $hasil['faan']);
+        $this->assertSame(10, $hasil['points']);
+    }
+
+    public function test_hk_klasik_menghitung_self_draw_dan_kartu_tertutup(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'z5', 'z5', 'z5', 'z1', 'z1',
+        ], MahjongCombinationService::MODE_HK, [
+            'self_draw' => true,
+            'concealed' => true,
+        ]);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(6, $hasil['faan']);
+        $labels = array_column($hasil['faan_details'], 'label');
+        $this->assertContains('自摸 (Self-draw)', $labels);
+        $this->assertContains('門前清 (Concealed Hand)', $labels);
+    }
+
+    public function test_hk_klasik_pung_angin_hanya_dihitung_saat_cocok_angin_kursi_atau_meja(): void
+    {
+        $tiles = ['w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'z1', 'z1', 'z1', 'z2', 'z2'];
+
+        $tanpa = (new MahjongCombinationService)->analisa($tiles, MahjongCombinationService::MODE_HK);
+        $dengan = (new MahjongCombinationService)->analisa($tiles, MahjongCombinationService::MODE_HK, [
+            'seat_wind' => 'z1',
+            'round_wind' => 'z3',
+        ]);
+
+        $this->assertSame(3, $tanpa['faan']);
+        $this->assertSame(4, $dengan['faan']);
+        $this->assertContains('Angin Timur (angin)', array_column($dengan['faan_details'], 'label'));
+    }
+
+    public function test_hk_klasik_kartu_tertutup_semua_pung_menjadi_si_an_ke(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w1', 'w1', 'w3', 'w3', 'w3', 'w5', 'w5', 'w5', 'w7', 'w7', 'w7', 'w9', 'w9',
+        ], MahjongCombinationService::MODE_HK, ['concealed' => true]);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(13, $hasil['faan']);
+        $this->assertContains('四暗刻 (Four Concealed Pungs)', array_column($hasil['faan_details'], 'label'));
+    }
+
+    public function test_scan_menyimpan_penanda_manual_hk(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-test-model',
+            'services.gemini.fallback_models' => [],
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/*' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [[
+                            'text' => json_encode(['tiles' => [
+                                'w1', 'w2', 'w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'z5', 'z5', 'z5', 'z1', 'z1',
+                            ]]),
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'mode' => MahjongCombinationService::MODE_HK,
+                'seat_wind' => 'z1',
+                'round_wind' => 'z2',
+                'self_draw' => 1,
+                'concealed' => 1,
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertSame('z1', $scan->seat_wind);
+        $this->assertSame('z2', $scan->round_wind);
+        $this->assertTrue($scan->is_self_draw);
+        $this->assertTrue($scan->is_concealed);
+        $this->assertSame(6, $scan->faan);
+        $this->assertSame(6, $scan->points);
+    }
+
     public function test_scan_menyimpan_foto_dan_membuat_scan_pending(): void
     {
         Storage::fake('public');
@@ -65,6 +215,83 @@ class PointScanTest extends TestCase
         $this->assertSame('pending', $scan->status);
         $this->assertNotNull($scan->image_path);
         Storage::disk('public')->assertExists($scan->image_path);
+    }
+
+    public function test_scan_mode_hk_menyimpan_faan_dan_point(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-test-model',
+            'services.gemini.fallback_models' => [],
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/*' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [[
+                            'text' => json_encode(['tiles' => self::WINNING_TILES]),
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'mode' => MahjongCombinationService::MODE_HK,
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertSame(MahjongCombinationService::MODE_HK, $scan->scoring_mode);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $scan->faan);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $scan->points);
+        $this->assertTrue($scan->is_winning_hand);
+    }
+
+    public function test_mengganti_mode_menghitung_ulang_faan_tanpa_scan_baru(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $scan = $this->buatScan($pengguna, self::WINNING_TILES);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.kartu', $scan), [
+                'tiles' => self::WINNING_TILES,
+                'mode' => MahjongCombinationService::MODE_HK,
+            ])
+            ->assertRedirect();
+
+        $scan->refresh();
+
+        $this->assertSame(MahjongCombinationService::MODE_HK, $scan->scoring_mode);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $scan->faan);
+        $this->assertSame(MahjongCombinationService::HK_MIN_FAAN, $scan->points);
+    }
+
+    public function test_konfirmasi_hk_menambahkan_point_sesuai_faan(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $scan = $this->buatScan($pengguna, [
+            'w1', 'w1', 'w1', 'w3', 'w3', 'w3', 'w5', 'w5', 'w5', 'w7', 'w7', 'w7', 'w9', 'w9',
+        ], MahjongCombinationService::MODE_HK);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.konfirmasi', $scan))
+            ->assertRedirect(route('point'));
+
+        $this->assertSame(10, $pengguna->refresh()->points);
+        $this->assertDatabaseHas('ranks', [
+            'kode_user' => $pengguna->kode_user,
+            'point' => '10',
+        ]);
     }
 
     public function test_scan_wajib_berupa_gambar(): void
@@ -403,9 +630,9 @@ class PointScanTest extends TestCase
     /**
      * @param  array<int, string>  $tiles
      */
-    private function buatScan(Pengguna $pengguna, array $tiles): MahjongScan
+    private function buatScan(Pengguna $pengguna, array $tiles, string $mode = MahjongCombinationService::MODE_CHICKEN): MahjongScan
     {
-        $hasil = (new MahjongCombinationService)->analisa($tiles);
+        $hasil = (new MahjongCombinationService)->analisa($tiles, $mode);
 
         return MahjongScan::create([
             'id_pengguna' => (string) $pengguna->id,
@@ -415,6 +642,9 @@ class PointScanTest extends TestCase
             'message' => $hasil['message'],
             'is_winning_hand' => $hasil['is_winning_hand'],
             'points' => $hasil['points'],
+            'scoring_mode' => $hasil['scoring_mode'],
+            'faan' => $hasil['faan'],
+            'faan_details' => $hasil['faan_details'],
             'status' => 'pending',
         ]);
     }

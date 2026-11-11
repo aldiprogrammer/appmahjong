@@ -15,6 +15,13 @@ class MahjongScan extends Model
         'message',
         'is_winning_hand',
         'points',
+        'scoring_mode',
+        'faan',
+        'faan_details',
+        'seat_wind',
+        'round_wind',
+        'is_self_draw',
+        'is_concealed',
         'status',
         'confirmed_at',
     ];
@@ -27,6 +34,10 @@ class MahjongScan extends Model
             'unmatched' => 'array',
             'is_winning_hand' => 'boolean',
             'points' => 'integer',
+            'faan' => 'integer',
+            'faan_details' => 'array',
+            'is_self_draw' => 'boolean',
+            'is_concealed' => 'boolean',
             'confirmed_at' => 'datetime',
         ];
     }

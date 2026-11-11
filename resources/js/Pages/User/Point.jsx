@@ -14,6 +14,7 @@ const WARNA_TIPE = {
     pung: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     kong: 'bg-amber-50 text-amber-700 ring-amber-200',
     pair: 'bg-violet-50 text-violet-700 ring-violet-200',
+    special: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200',
 };
 
 function formatTanggal(value) {
@@ -62,17 +63,45 @@ function KartuChip({ code, label, onClick, aktif = true }) {
     );
 }
 
-export default function Point({ pengguna, points = 0, pendingScan = null, riwayat = [], kartu = [], pointPerHand = 10 }) {
+export default function Point({
+    pengguna,
+    points = 0,
+    pendingScan = null,
+    riwayat = [],
+    kartu = [],
+    pointPerHand = 10,
+    scoringModes = [],
+    hkMinFaan = 3,
+    hkMaxFaan = 13,
+}) {
     const { flash, errors } = usePage().props;
     const fileRef = useRef(null);
     const [preview, setPreview] = useState(null);
     const [mengunggah, setMengunggah] = useState(false);
     const [tiles, setTiles] = useState(pendingScan?.tiles ?? []);
+    const [mode, setMode] = useState(pendingScan?.scoring_mode ?? 'chicken');
+    const [seatWind, setSeatWind] = useState(pendingScan?.seat_wind ?? '');
+    const [roundWind, setRoundWind] = useState(pendingScan?.round_wind ?? '');
+    const [selfDraw, setSelfDraw] = useState(Boolean(pendingScan?.is_self_draw));
+    const [concealed, setConcealed] = useState(Boolean(pendingScan?.is_concealed));
     const [konfirmasiTerbuka, setKonfirmasiTerbuka] = useState(false);
 
     useEffect(() => {
         setTiles(pendingScan?.tiles ?? []);
-    }, [pendingScan?.id, pendingScan?.tiles]);
+        setMode(pendingScan?.scoring_mode ?? 'chicken');
+        setSeatWind(pendingScan?.seat_wind ?? '');
+        setRoundWind(pendingScan?.round_wind ?? '');
+        setSelfDraw(Boolean(pendingScan?.is_self_draw));
+        setConcealed(Boolean(pendingScan?.is_concealed));
+    }, [
+        pendingScan?.id,
+        pendingScan?.tiles,
+        pendingScan?.scoring_mode,
+        pendingScan?.seat_wind,
+        pendingScan?.round_wind,
+        pendingScan?.is_self_draw,
+        pendingScan?.is_concealed,
+    ]);
 
     useEffect(() => () => {
         if (preview) {
@@ -93,6 +122,13 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
         [kartu],
     );
 
+    const dataOpsi = (override = {}) => ({
+        seat_wind: override.seatWind ?? seatWind ?? '',
+        round_wind: override.roundWind ?? roundWind ?? '',
+        self_draw: (override.selfDraw ?? selfDraw) ? 1 : 0,
+        concealed: (override.concealed ?? concealed) ? 1 : 0,
+    });
+
     const pilihFoto = (event) => {
         const file = event.target.files?.[0];
 
@@ -105,6 +141,9 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
 
         const formData = new FormData();
         formData.append('image', file);
+        formData.append('mode', mode);
+
+        Object.entries(dataOpsi()).forEach(([kunci, nilai]) => formData.append(kunci, nilai));
 
         router.post('/point/scan', formData, {
             forceFormData: true,
@@ -129,7 +168,51 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
             return;
         }
 
-        router.post(`/point/scan/${pendingScan.id}/kartu`, { tiles }, { preserveScroll: true });
+        router.post(`/point/scan/${pendingScan.id}/kartu`, { tiles, mode, ...dataOpsi() }, { preserveScroll: true });
+    };
+
+    const gantiMode = (modeBaru) => {
+        if (modeBaru === mode) {
+            return;
+        }
+
+        setMode(modeBaru);
+
+        if (pendingScan) {
+            router.post(
+                `/point/scan/${pendingScan.id}/kartu`,
+                { tiles, mode: modeBaru, ...dataOpsi() },
+                { preserveScroll: true },
+            );
+        }
+    };
+
+    const ubahOpsi = (override) => {
+        if ('seatWind' in override) {
+            setSeatWind(override.seatWind);
+        }
+
+        if ('roundWind' in override) {
+            setRoundWind(override.roundWind);
+        }
+
+        if ('selfDraw' in override) {
+            setSelfDraw(override.selfDraw);
+        }
+
+        if ('concealed' in override) {
+            setConcealed(override.concealed);
+        }
+
+        if (!pendingScan) {
+            return;
+        }
+
+        router.post(
+            `/point/scan/${pendingScan.id}/kartu`,
+            { tiles, mode, ...dataOpsi(override) },
+            { preserveScroll: true },
+        );
     };
 
     const klaimPoint = () => {
@@ -206,10 +289,33 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                         <div>
                             <h2 className="text-sm font-bold text-slate-800">Scan Susunan Mahjong</h2>
                             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                Foto susunan kartu. AI (Gemini) mendeteksi kartu dan memvalidasi chicken hand
-                                (4 meld + 1 pair atau 7 pasang). Setiap chicken hand yang benar bernilai{' '}
-                                <span className="font-bold text-emerald-700">{pointPerHand} point</span>.
+                                {mode === 'hk'
+                                    ? `Foto susunan kartu. AI (Gemini) membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Faan menjadi point.`
+                                    : `Foto susunan kartu. AI (Gemini) mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Setiap chicken hand yang benar bernilai ${pointPerHand} point.`}
                             </p>
+                        </div>
+                    </div>
+
+                    <div className="px-4 pt-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Pilih sistem penilaian</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                            {scoringModes.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    onClick={() => gantiMode(item.value)}
+                                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                                        mode === item.value
+                                            ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                                            : 'border-slate-200 bg-white hover:border-emerald-200'
+                                    }`}
+                                >
+                                    <span className={`block text-xs font-bold ${mode === item.value ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                        {item.label}
+                                    </span>
+                                    <span className="mt-0.5 block text-[10px] leading-snug text-slate-500">{item.description}</span>
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -242,7 +348,9 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                         <div className="flex items-center justify-between gap-2 border-b border-emerald-50 px-4 py-3">
                             <div>
                                 <h2 className="text-sm font-bold text-slate-800">Hasil Scan</h2>
-                                <p className="mt-0.5 text-[10px] text-slate-400">Periksa dan setujui sebelum point masuk.</p>
+                                <p className="mt-0.5 text-[10px] text-slate-400">
+                                    {pendingScan.scoring_mode === 'hk' ? 'HK Klasik 3-13 faan' : 'Chicken Hand 10 point'} · Periksa dan setujui sebelum point masuk.
+                                </p>
                             </div>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${
                                 pendingScan.is_winning_hand
@@ -326,13 +434,109 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                                 </div>
                             )}
 
+                            {pendingScan.scoring_mode === 'hk' && (
+                                <div className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/40 p-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700">Penanda manual HK</p>
+                                    <p className="mt-0.5 text-[10px] text-slate-500">Tandai kondisi permainan agar faan dihitung tepat.</p>
+
+                                    <div className="mt-2.5 grid grid-cols-2 gap-2">
+                                        <label className="block">
+                                            <span className="text-[10px] font-semibold text-slate-500">Angin kursi</span>
+                                            <select
+                                                value={seatWind}
+                                                onChange={(event) => ubahOpsi({ seatWind: event.target.value })}
+                                                className="mt-1 w-full rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700"
+                                            >
+                                                <option value="">Tidak dipilih</option>
+                                                <option value="z1">Timur</option>
+                                                <option value="z2">Selatan</option>
+                                                <option value="z3">Barat</option>
+                                                <option value="z4">Utara</option>
+                                            </select>
+                                        </label>
+                                        <label className="block">
+                                            <span className="text-[10px] font-semibold text-slate-500">Angin meja</span>
+                                            <select
+                                                value={roundWind}
+                                                onChange={(event) => ubahOpsi({ roundWind: event.target.value })}
+                                                className="mt-1 w-full rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700"
+                                            >
+                                                <option value="">Tidak dipilih</option>
+                                                <option value="z1">Timur</option>
+                                                <option value="z2">Selatan</option>
+                                                <option value="z3">Barat</option>
+                                                <option value="z4">Utara</option>
+                                            </select>
+                                        </label>
+                                    </div>
+
+                                    <label className="mt-2.5 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-fuchsia-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={selfDraw}
+                                            onChange={(event) => ubahOpsi({ selfDraw: event.target.checked })}
+                                            className="h-4 w-4 accent-fuchsia-600"
+                                        />
+                                        <span className="flex-1 text-[11px] font-semibold text-slate-700">
+                                            Menang sendiri (自摸)
+                                        </span>
+                                        <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
+                                    </label>
+
+                                    <label className="mt-1.5 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-fuchsia-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={concealed}
+                                            onChange={(event) => ubahOpsi({ concealed: event.target.checked })}
+                                            className="h-4 w-4 accent-fuchsia-600"
+                                        />
+                                        <span className="flex-1 text-[11px] font-semibold text-slate-700">
+                                            Kartu tertutup (門前清)
+                                        </span>
+                                        <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
+                                    </label>
+
+                                    <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
+                                        Pung angin dihitung jika cocok dengan angin kursi/meja. Semua meld pung + kartu
+                                        tertutup menjadi 四暗刻 (13 faan).
+                                    </p>
+                                </div>
+                            )}
+
+                            {pendingScan.scoring_mode === 'hk' && pendingScan.faan_details?.length > 0 && (
+                                <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Rincian Faan</p>
+                                    <div className="mt-2 space-y-1.5">
+                                        {pendingScan.faan_details.map((detail, index) => (
+                                            <div
+                                                key={`${detail.label}-${index}`}
+                                                className="flex items-center justify-between gap-2 rounded-xl border border-fuchsia-100 bg-fuchsia-50/50 px-3 py-2"
+                                            >
+                                                <span className="text-xs font-semibold text-slate-700">{detail.label}</span>
+                                                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-fuchsia-700 ring-1 ring-fuchsia-200">
+                                                    +{detail.faan} faan
+                                                </span>
+                                            </div>
+                                        ))}
+                                        <div className="flex items-center justify-between rounded-xl bg-fuchsia-600 px-3 py-2 text-white">
+                                            <span className="text-xs font-bold">Total Faan</span>
+                                            <span className="text-sm font-black">{pendingScan.faan} faan</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 ${
                                 pendingScan.is_winning_hand
                                     ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                                     : 'bg-slate-50 text-slate-600 ring-slate-200'
                             }`}>
                                 <span className="text-xs font-semibold">{pendingScan.message}</span>
-                                <span className="text-sm font-black">+{pendingScan.points}</span>
+                                <span className="text-sm font-black">
+                                    {pendingScan.scoring_mode === 'hk'
+                                        ? `${pendingScan.points} point`
+                                        : `+${pendingScan.points}`}
+                                </span>
                             </div>
 
                             <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/40 p-3">
@@ -413,7 +617,11 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                                         <p className="truncate text-xs font-semibold text-slate-700">
                                             {item.combinations?.map((kombinasi) => kombinasi.type).join(' · ') || 'Winning hand'}
                                         </p>
-                                        <p className="text-[10px] text-slate-400">{formatTanggal(item.confirmed_at)}</p>
+                                        <p className="text-[10px] text-slate-400">
+                                            {item.scoring_mode === 'hk' ? `HK Klasik · ${item.faan ?? item.points} faan` : 'Chicken Hand'}
+                                            {' · '}
+                                            {formatTanggal(item.confirmed_at)}
+                                        </p>
                                     </div>
                                     <span className="text-sm font-black text-emerald-700">+{item.points}</span>
                                 </div>
@@ -433,8 +641,20 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                             <div>
                                 <h2 className="text-sm font-bold text-slate-900">Konfirmasi hasil scan?</h2>
                                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                    Point sebesar <span className="font-bold text-emerald-700">{pendingScan.points} point</span> akan
-                                    ditambahkan ke akunmu setelah kamu menyetujui susunan ini.
+                                    {pendingScan.scoring_mode === 'hk' ? (
+                                        <>
+                                            Hasil HK klasik sebesar{' '}
+                                            <span className="font-bold text-emerald-700">{pendingScan.faan} faan</span>{' '}
+                                            akan menambah <span className="font-bold text-emerald-700">{pendingScan.points} point</span>{' '}
+                                            ke akunmu setelah kamu menyetujui susunan ini.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Point sebesar{' '}
+                                            <span className="font-bold text-emerald-700">{pendingScan.points} point</span> akan
+                                            ditambahkan ke akunmu setelah kamu menyetujui susunan ini.
+                                        </>
+                                    )}
                                 </p>
                             </div>
                         </div>
