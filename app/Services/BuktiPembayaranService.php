@@ -35,22 +35,30 @@ class BuktiPembayaranService
      */
     public function simpan(UploadedFile $file): string
     {
-        $gd = imagecreatefromstring((string) file_get_contents($file->getRealPath()));
+        try {
+            $gd = imagecreatefromstring((string) file_get_contents($file->getRealPath()));
 
-        if ($gd === false) {
-            // Fallback: simpan apa adanya bila GD tidak bisa memproses gambar.
+            if ($gd === false) {
+                // Fallback: simpan apa adanya bila GD tidak bisa memproses gambar.
+                return $file->store(self::FOLDER, self::DISK);
+            }
+
+            $gd = $this->perbaikiOrientasiExif($file, $gd);
+            $nama = bin2hex(random_bytes(12));
+
+            $this->simpanJpeg($gd, self::MAX_LEBAR, self::MAX_TINGGI, self::KUALITAS, "{$nama}.jpg");
+            $this->simpanJpeg($gd, self::LEBAR_THUMBNAIL, self::MAX_TINGGI, self::KUALITAS_THUMBNAIL, "{$nama}-thumb.jpg");
+
+            imagedestroy($gd);
+
+            return sprintf('%s/%s.jpg', self::FOLDER, $nama);
+        } catch (\Throwable $exception) {
+            // Bila server tidak sanggup memproses (mis. batas memori GD), simpan file asli
+            // agar pengguna tetap bisa mengunggah bukti pembayaran.
+            report($exception);
+
             return $file->store(self::FOLDER, self::DISK);
         }
-
-        $gd = $this->perbaikiOrientasiExif($file, $gd);
-        $nama = bin2hex(random_bytes(12));
-
-        $this->simpanJpeg($gd, self::MAX_LEBAR, self::MAX_TINGGI, self::KUALITAS, "{$nama}.jpg");
-        $this->simpanJpeg($gd, self::LEBAR_THUMBNAIL, self::MAX_TINGGI, self::KUALITAS_THUMBNAIL, "{$nama}-thumb.jpg");
-
-        imagedestroy($gd);
-
-        return sprintf('%s/%s.jpg', self::FOLDER, $nama);
     }
 
     /**
@@ -89,22 +97,14 @@ class BuktiPembayaranService
      */
     private function simpanJpeg(\GdImage $gd, int $lebarMaks, int $tinggiMaks, int $kualitas, string $namaFile): void
     {
-        $lebarAsli = imagesx($gd);
-        $tinggiAsli = imagesy($gd);
+        $lebarAsli = max(1, imagesx($gd));
+        $tinggiAsli = max(1, imagesy($gd));
         $skala = min(1, $lebarMaks / $lebarAsli, $tinggiMaks / $tinggiAsli);
 
-        if ($skala === 1.0) {
-            $hasil = $this->kanvasJpeg($gd, $lebarAsli, $tinggiAsli);
-        } else {
-            $lebarBaru = max(1, (int) round($lebarAsli * $skala));
-            $tinggiBaru = max(1, (int) round($tinggiAsli * $skala));
+        $lebarBaru = max(1, (int) round($lebarAsli * $skala));
+        $tinggiBaru = max(1, (int) round($tinggiAsli * $skala));
 
-            $hasil = $this->kanvasJpeg(
-                imagescale($gd, $lebarBaru, $tinggiBaru, IMG_BICUBIC),
-                $lebarBaru,
-                $tinggiBaru,
-            );
-        }
+        $hasil = $this->kanvasJpeg($gd, $lebarBaru, $tinggiBaru);
 
         ob_start();
         imagejpeg($hasil, null, $kualitas);
@@ -116,13 +116,20 @@ class BuktiPembayaranService
 
     /**
      * Kanvas bersih dengan latar putih agar PNG transparan tidak hitam saat dijadikan JPEG.
+     * Resize dilakukan lewat imagecopyresampled agar tidak bergantung pada imagescale()
+     * yang bisa mengembalikan false pada sebagian konfigurasi GD.
      */
     private function kanvasJpeg(\GdImage $gd, int $lebar, int $tinggi): \GdImage
     {
         $kanvas = imagecreatetruecolor($lebar, $tinggi);
+
+        if ($kanvas === false) {
+            throw new \RuntimeException('Gagal membuat kanvas gambar bukti pembayaran.');
+        }
+
         $putih = (int) imagecolorallocate($kanvas, 255, 255, 255);
         imagefill($kanvas, 0, 0, $putih);
-        imagecopy($kanvas, $gd, 0, 0, 0, 0, imagesx($gd), imagesy($gd));
+        imagecopyresampled($kanvas, $gd, 0, 0, 0, 0, $lebar, $tinggi, imagesx($gd), imagesy($gd));
 
         return $kanvas;
     }
@@ -141,11 +148,13 @@ class BuktiPembayaranService
             // Gambar tanpa EXIF dipakai apa adanya.
         }
 
-        return match ($orientasi) {
+        $hasilRotasi = match ($orientasi) {
             3 => imagerotate($gd, 180, 0),
             6 => imagerotate($gd, -90, 0),
             8 => imagerotate($gd, 90, 0),
             default => $gd,
         };
+
+        return $hasilRotasi instanceof \GdImage ? $hasilRotasi : $gd;
     }
 }

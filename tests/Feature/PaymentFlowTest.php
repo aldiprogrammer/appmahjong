@@ -720,4 +720,16 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
     }
+
+    public function test_bukti_pembayaran_tetap_tersimpan_saat_gambar_tidak_bisa_diproses_gd(): void
+    {
+        Storage::fake('public');
+
+        $file = UploadedFile::fake()->createWithContent('bukti.jpg', 'bukan-data-gambar');
+
+        $path = app(BuktiPembayaranService::class)->simpan($file);
+
+        $this->assertNotSame('', $path);
+        Storage::disk('public')->assertExists($path);
+    }
 }
