@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 function ScanIcon({ className = 'h-5 w-5' }) {
     return (
@@ -249,8 +250,8 @@ export default function ScanMejaButton() {
                 </span>
             </button>
 
-            {scanOpen && (
-                <div className="fixed inset-0 z-[60] overflow-hidden bg-black">
+            {scanOpen && typeof document !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[100] overflow-hidden bg-black">
                     {mejaTerpilih ? (
                         <div className="absolute inset-0 flex items-end justify-center bg-slate-900/70 backdrop-blur-sm sm:items-center sm:p-4">
                             <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
@@ -416,7 +417,8 @@ export default function ScanMejaButton() {
                             </div>
                         </>
                     )}
-                </div>
+                </div>,
+                document.body,
             )}
         </>
     );
