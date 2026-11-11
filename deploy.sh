@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e
 
-APP_DIR="/home/u107214145/domains/fabricoasia.com/map"
+APP_DIR="/home/u107214145/domains/fabricoasia.com/mahjong"
 WEB_DIR="/home/u107214145/domains/fabricoasia.com/public_html/mahjong"
 BRANCH="main"
 
-echo "======================================"
 echo "   DEPLOY LARAVEL"
 echo "======================================"
 
