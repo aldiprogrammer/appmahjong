@@ -110,7 +110,14 @@ class PesananController extends Controller
             return $pesanan;
         });
 
-        return back()->with('success', "Pesanan {$pesanan->kode_pesanan} berhasil dikirim ke kasir.");
+        return back()
+            ->with('success', "Pesanan {$pesanan->kode_pesanan} berhasil dikirim ke kasir.")
+            ->with('pesanan_sukses', [
+                'kode_pesanan' => $pesanan->kode_pesanan,
+                'nomor_meja' => $pesanan->nomor_meja,
+                'tipe_pesanan' => $pesanan->labelTipePesanan(),
+                'total' => $total,
+            ]);
     }
 
     private function currentPengguna(Request $request): ?Pengguna

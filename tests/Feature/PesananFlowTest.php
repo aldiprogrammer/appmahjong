@@ -51,6 +51,12 @@ class PesananFlowTest extends TestCase
         $this->assertSame(Pesanan::TIPE_DINE_IN, $pesanan->tipe_pesanan);
         $this->assertStringStartsWith('PSN-', $pesanan->kode_pesanan);
 
+        $ringkasan = session('pesanan_sukses');
+        $this->assertSame($pesanan->kode_pesanan, $ringkasan['kode_pesanan']);
+        $this->assertSame('12', $ringkasan['nomor_meja']);
+        $this->assertSame('Dine In', $ringkasan['tipe_pesanan']);
+        $this->assertSame(50000, $ringkasan['total']);
+
         $this->assertDatabaseHas('pesanan_details', [
             'id_pesanan' => $pesanan->id,
             'id_menu' => (string) $menu->id,

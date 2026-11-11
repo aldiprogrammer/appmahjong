@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'booking_success' => fn () => $request->session()->get('booking_success'),
+                'pesanan_sukses' => fn () => $request->session()->get('pesanan_sukses'),
             ],
         ];
     }
