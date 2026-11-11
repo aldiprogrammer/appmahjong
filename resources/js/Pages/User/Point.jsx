@@ -206,8 +206,9 @@ export default function Point({ pengguna, points = 0, pendingScan = null, riwaya
                         <div>
                             <h2 className="text-sm font-bold text-slate-800">Scan Susunan Mahjong</h2>
                             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                Foto susunan kartu. AI akan mendeteksi kartu dan kombinasi Chow, Pung, Kong, serta Pair.
-                                Setiap winning hand bernilai <span className="font-bold text-emerald-700">{pointPerHand} point</span>.
+                                Foto susunan kartu. AI (Gemini) mendeteksi kartu dan memvalidasi chicken hand
+                                (4 meld + 1 pair atau 7 pasang). Setiap chicken hand yang benar bernilai{' '}
+                                <span className="font-bold text-emerald-700">{pointPerHand} point</span>.
                             </p>
                         </div>
                     </div>

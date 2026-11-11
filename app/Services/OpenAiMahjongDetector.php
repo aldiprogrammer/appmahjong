@@ -14,7 +14,10 @@ class OpenAiMahjongDetector
      */
     public ?string $pesan = null;
 
-    public function __construct(private MahjongCombinationService $kombinasi) {}
+    public function __construct(
+        private MahjongCombinationService $kombinasi,
+        private MahjongImageEncoder $encoder,
+    ) {}
 
     public function tersedia(): bool
     {
@@ -40,7 +43,7 @@ class OpenAiMahjongDetector
             return [];
         }
 
-        $dataUri = $this->siapkanGambar($absolutePath);
+        $dataUri = $this->encoder->dataUri($absolutePath);
 
         if ($dataUri === null) {
             $this->pesan = 'Foto tidak dapat dibaca. Silakan unggah ulang dengan format JPG, PNG, atau WEBP.';
@@ -215,56 +218,6 @@ class OpenAiMahjongDetector
         }
 
         return $tiles;
-    }
-
-    private function siapkanGambar(string $absolutePath): ?string
-    {
-        $contents = @file_get_contents($absolutePath);
-
-        if ($contents === false || $contents === '') {
-            return null;
-        }
-
-        $mime = 'image/jpeg';
-
-        if (function_exists('imagecreatefromstring')) {
-            $gambar = @imagecreatefromstring($contents);
-
-            if ($gambar !== false) {
-                $lebar = imagesx($gambar);
-                $tinggi = imagesy($gambar);
-                $maksimal = 1536;
-
-                if (max($lebar, $tinggi) > $maksimal) {
-                    $rasio = $maksimal / max($lebar, $tinggi);
-                    $gambar = imagescale(
-                        $gambar,
-                        max(1, (int) round($lebar * $rasio)),
-                        max(1, (int) round($tinggi * $rasio)),
-                    );
-                }
-
-                ob_start();
-                imagejpeg($gambar, null, 85);
-                $jpeg = ob_get_clean();
-
-                if (is_string($jpeg) && $jpeg !== '') {
-                    $contents = $jpeg;
-                    $mime = 'image/jpeg';
-                }
-
-                if ($gambar instanceof \GdImage) {
-                    imagedestroy($gambar);
-                }
-            }
-        }
-
-        if ($mime !== 'image/jpeg' || ! str_starts_with($contents, "\xFF\xD8")) {
-            $info = @getimagesizefromstring($contents);
-            $mime = is_array($info) && isset($info['mime']) ? $info['mime'] : 'image/jpeg';
-        }
-
-        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 
     private function instruksiSistem(): string

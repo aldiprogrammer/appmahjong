@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MahjongScan;
 use App\Models\Pengguna;
 use App\Models\Rank;
+use App\Services\GeminiMahjongDetector;
 use App\Services\MahjongCombinationService;
 use App\Services\OpenAiMahjongDetector;
 use Illuminate\Http\RedirectResponse;
@@ -74,7 +75,7 @@ class PointController extends Controller
             ->update(['status' => 'discarded']);
 
         $absolutePath = Storage::disk('public')->path($path);
-        $detector = app(OpenAiMahjongDetector::class);
+        $detector = $this->detektor();
         $tiles = $detector->deteksi($absolutePath);
         $analisa = app(MahjongCombinationService::class)->analisa($tiles);
 
@@ -183,6 +184,17 @@ class PointController extends Controller
         }
 
         return back()->with('success', 'Scan dibatalkan. Point tidak ditambahkan.');
+    }
+
+    /**
+     * Pilih layanan deteksi: Gemini dipakai bila GEMINI_API_KEY tersedia,
+     * jika tidak fallback ke OpenAI Vision.
+     */
+    private function detektor(): GeminiMahjongDetector|OpenAiMahjongDetector
+    {
+        $gemini = app(GeminiMahjongDetector::class);
+
+        return $gemini->tersedia() ? $gemini : app(OpenAiMahjongDetector::class);
     }
 
     /**

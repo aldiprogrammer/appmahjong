@@ -87,7 +87,7 @@ class MahjongCombinationService
 
             $combinations[] = $this->kombinasi('pair', [$dekomposisi['pair'], $dekomposisi['pair']]);
 
-            return $this->hasil($tiles, true, $combinations, [], 'Winning hand terdeteksi.');
+            return $this->hasil($tiles, true, $combinations, [], 'Chicken hand terdeteksi (4 meld + 1 pair).');
         }
 
         [$combinations, $unmatched] = $this->deteksiKombinasi($counts);

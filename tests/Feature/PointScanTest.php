@@ -51,6 +51,7 @@ class PointScanTest extends TestCase
     public function test_scan_menyimpan_foto_dan_membuat_scan_pending(): void
     {
         Storage::fake('public');
+        config(['services.openai.key' => null, 'services.gemini.key' => null]);
         $pengguna = $this->buatPengguna();
 
         $this->withSession(['pengguna_id' => $pengguna->id])
@@ -161,6 +162,7 @@ class PointScanTest extends TestCase
         config([
             'services.openai.key' => 'test-key',
             'services.openai.base_url' => 'https://api.openai.test/v1',
+            'services.gemini.key' => null,
         ]);
 
         Http::fake([
@@ -202,6 +204,7 @@ class PointScanTest extends TestCase
         Storage::fake('public');
         config([
             'services.openai.key' => null,
+            'services.gemini.key' => null,
             'services.mahjong_ai.model' => 'gpt-4o-mini',
         ]);
 
@@ -221,6 +224,94 @@ class PointScanTest extends TestCase
         $this->assertFalse($scan->is_winning_hand);
         $this->assertSame([], $scan->tiles);
         $this->assertStringContainsString('belum dikonfigurasi', (string) session('success'));
+    }
+
+    public function test_scan_memakai_gemini_saat_api_key_tersedia(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-test-model',
+            'services.gemini.max_output_tokens' => 8192,
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/*' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [[
+                            'text' => json_encode(['tiles' => self::WINNING_TILES]),
+                        ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertTrue($scan->is_winning_hand);
+        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $scan->points);
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://gemini.test/v1beta/models/gemini-test-model:generateContent'
+                && $request->hasHeader('x-goog-api-key', 'gemini-test-key')
+                /*
+                 * Gemini 3.x memakai sebagian besar token untuk "thinking".
+                 * Batas kecil membuat JSON terpotong sehingga kartu kosong,
+                 * jadi pastikan anggaran output tetap besar.
+                 */
+                && ($request['generationConfig']['maxOutputTokens'] ?? 0) >= 4096
+                && isset($request['contents'][0]['parts'][1]['inline_data']['data']);
+        });
+    }
+
+    public function test_balasan_gemini_yang_terpotong_tidak_menghasilkan_kartu_palsu(): void
+    {
+        Storage::fake('public');
+        config([
+            'services.gemini.key' => 'gemini-test-key',
+            'services.gemini.base_url' => 'https://gemini.test/v1beta',
+            'services.gemini.model' => 'gemini-test-model',
+            'services.openai.key' => null,
+        ]);
+
+        Http::fake([
+            'gemini.test/*' => Http::response([
+                'candidates' => [[
+                    'finishReason' => 'MAX_TOKENS',
+                    'content' => [
+                        'parts' => [
+                            ['text' => '{"tiles":["'],
+                        ],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+            ])
+            ->assertRedirect(route('point'));
+
+        $scan = MahjongScan::query()->firstOrFail();
+
+        $this->assertSame([], $scan->tiles);
+        $this->assertFalse($scan->is_winning_hand);
+        $this->assertSame(0, $scan->points);
+        $this->assertStringContainsString('tidak dapat dibaca', (string) session('success'));
     }
 
     /**

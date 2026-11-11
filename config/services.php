@@ -47,6 +47,23 @@ return [
         'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
     ],
 
+    'gemini' => [
+        /*
+         * Google AI Studio (Generative Language API) untuk deteksi kartu mahjong.
+         * Buat API key di https://aistudio.google.com/app/apikey lalu isi GEMINI_API_KEY.
+         */
+        'key' => env('GEMINI_API_KEY'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.8-flash'),
+        /*
+         * Gemini 3.x adalah model "thinking": sebagian besar token dipakai untuk
+         * penalaran internal sebelum JSON dihasilkan. Batas kecil (mis. 400)
+         * membuat JSON terpotong sehingga kartu tidak terdeteksi.
+         */
+        'max_output_tokens' => (int) env('GEMINI_MAX_OUTPUT_TOKENS', 8192),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 120),
+    ],
+
     'mahjong_ai' => [
         /*
          * Deteksi kartu mahjong memakai OpenAI Vision (endpoint chat/completions).
