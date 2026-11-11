@@ -461,6 +461,8 @@ class PointScanTest extends TestCase
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
             'services.gemini.model' => 'gemini-test-model',
             'services.gemini.max_output_tokens' => 8192,
+            'services.gemini.media_resolution' => 'high',
+            'services.gemini.thinking_level' => 'low',
             'services.openai.key' => null,
         ]);
 
@@ -498,6 +500,8 @@ class PointScanTest extends TestCase
                  * jadi pastikan anggaran output tetap besar.
                  */
                 && ($request['generationConfig']['maxOutputTokens'] ?? 0) >= 4096
+                && ($request['generationConfig']['mediaResolution'] ?? null) === 'MEDIA_RESOLUTION_HIGH'
+                && ($request['generationConfig']['thinkingConfig']['thinkingLevel'] ?? null) === 'low'
                 && isset($request['contents'][0]['parts'][1]['inline_data']['data']);
         });
     }

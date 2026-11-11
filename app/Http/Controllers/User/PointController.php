@@ -103,6 +103,10 @@ class PointController extends Controller
             ->update(['status' => 'discarded']);
 
         $absolutePath = Storage::disk('public')->path($path);
+
+        // Deteksi AI bisa memakan waktu; jangan biarkan PHP memutus request lebih dulu.
+        @set_time_limit(0);
+
         $detector = $this->detektor();
         $tiles = $detector->deteksi($absolutePath);
         $analisa = app(MahjongCombinationService::class)->analisa($tiles, $mode, $opsi);

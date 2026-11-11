@@ -54,22 +54,36 @@ return [
          */
         'key' => env('GEMINI_API_KEY'),
         'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
-        'model' => env('GEMINI_MODEL', 'gemini-3.8-flash'),
+        'model' => env('GEMINI_MODEL', 'gemini-3.5-flash-lite'),
         /*
          * Kuota gratis Gemini dihitung per model. Bila model utama kena 429/503,
-         * detector otomatis mencoba model cadangan berikutnya.
+         * detector otomatis mencoba model cadangan berikutnya. Model lite dipakai
+         * lebih dulu karena jauh lebih cepat sehingga tidak memicu 504 gateway.
          */
         'fallback_models' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('GEMINI_FALLBACK_MODELS', 'gemini-3.5-flash,gemini-3.5-flash-lite')),
+            explode(',', (string) env('GEMINI_FALLBACK_MODELS', 'gemini-3.1-flash-lite,gemini-3.5-flash')),
         ))),
+        /*
+         * Resolusi gambar untuk deteksi kartu (low/medium/high).
+         */
+        'media_resolution' => env('GEMINI_MEDIA_RESOLUTION', 'high'),
+        /*
+         * Kurangi waktu "thinking" model Gemini 3.x (low/high).
+         */
+        'thinking_level' => env('GEMINI_THINKING_LEVEL', 'low'),
         /*
          * Gemini 3.x adalah model "thinking": sebagian besar token dipakai untuk
          * penalaran internal sebelum JSON dihasilkan. Batas kecil (mis. 400)
          * membuat JSON terpotong sehingga kartu tidak terdeteksi.
          */
         'max_output_tokens' => (int) env('GEMINI_MAX_OUTPUT_TOKENS', 8192),
-        'timeout' => (int) env('GEMINI_TIMEOUT', 120),
+        'timeout' => (int) env('GEMINI_TIMEOUT', 30),
+        /*
+         * Batas total seluruh percobaan model agar request tidak melewati
+         * timeout proxy hosting (504 Gateway Time-out).
+         */
+        'total_timeout' => (int) env('GEMINI_TOTAL_TIMEOUT', 45),
     ],
 
     'mahjong_ai' => [

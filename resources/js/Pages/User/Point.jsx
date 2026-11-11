@@ -339,6 +339,7 @@ export default function Point({
                         </button>
                         <p className="mt-2 text-center text-[10px] leading-relaxed text-slate-400">
                             Pastikan seluruh kartu terlihat jelas, tidak terpotong, dan pencahayaan cukup.
+                            Proses deteksi biasanya 5-20 detik.
                         </p>
                     </div>
                 </section>

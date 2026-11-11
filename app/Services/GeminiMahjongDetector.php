@@ -61,11 +61,26 @@ class GeminiMahjongDetector
         $modelTerpakai = null;
         $response = null;
         $modelTerakhir = null;
+        $mulai = microtime(true);
+
+        /*
+         * Batasi total waktu percobaan agar request tidak melewati batas proxy
+         * hosting (yang menyebabkan 504 Gateway Time-out).
+         */
+        $batasTotal = max(10, (int) config('services.gemini.total_timeout', 45));
+        $timeoutPerModel = max(5, (int) config('services.gemini.timeout', 30));
 
         try {
             foreach ($this->daftarModel() as $model) {
+                $sisa = $batasTotal - (microtime(true) - $mulai);
+
+                if ($sisa < 3) {
+                    break;
+                }
+
                 $modelTerakhir = $model;
-                $response = $this->kirimPermintaan($payloadGambar, $model);
+                $timeout = max(5, min($timeoutPerModel, (int) $sisa));
+                $response = $this->kirimPermintaan($payloadGambar, $model, $timeout);
 
                 if (! $response->failed()) {
                     $modelTerpakai = $model;
@@ -88,7 +103,15 @@ class GeminiMahjongDetector
                 }
             }
 
-            if ($response === null || $response->failed()) {
+            if ($response === null) {
+                $this->pesan = $modelTerakhir === null
+                    ? 'Model AI belum dikonfigurasi. Tambahkan kartu secara manual.'
+                    : 'Waktu tunggu layanan AI habis. Coba lagi atau tambahkan kartu secara manual.';
+
+                return [];
+            }
+
+            if ($response->failed()) {
                 $this->pesan = $this->pesanKegagalan($response, $modelTerakhir);
 
                 return [];
@@ -193,7 +216,7 @@ class GeminiMahjongDetector
     /**
      * @param  array{mime: string, data: string}  $gambar
      */
-    private function kirimPermintaan(array $gambar, string $model): Response
+    private function kirimPermintaan(array $gambar, string $model, int $timeout): Response
     {
         $payload = [
             'contents' => [
@@ -210,10 +233,12 @@ class GeminiMahjongDetector
                     ],
                 ],
             ],
-            'generationConfig' => [
+            'generationConfig' => array_filter([
                 'temperature' => 0,
                 'maxOutputTokens' => (int) config('services.gemini.max_output_tokens', 8192),
                 'responseMimeType' => 'application/json',
+                'mediaResolution' => $this->resolusiMedia(),
+                'thinkingConfig' => $this->konfigurasiThinking(),
                 'responseSchema' => [
                     'type' => 'OBJECT',
                     'properties' => [
@@ -227,18 +252,42 @@ class GeminiMahjongDetector
                     ],
                     'required' => ['tiles'],
                 ],
-            ],
+            ], fn (mixed $nilai): bool => $nilai !== null),
         ];
 
-        return $this->client()->post("/models/{$model}:generateContent", $payload);
+        return $this->client($timeout)->post("/models/{$model}:generateContent", $payload);
     }
 
-    private function client(): PendingRequest
+    /**
+     * Gemini memakai nama enum MEDIA_RESOLUTION_*.
+     */
+    private function resolusiMedia(): ?string
+    {
+        $resolusi = strtoupper(trim((string) config('services.gemini.media_resolution')));
+
+        return in_array($resolusi, ['LOW', 'MEDIUM', 'HIGH'], true)
+            ? 'MEDIA_RESOLUTION_'.$resolusi
+            : null;
+    }
+
+    /**
+     * @return array{thinkingLevel: string}|null
+     */
+    private function konfigurasiThinking(): ?array
+    {
+        $level = strtolower(trim((string) config('services.gemini.thinking_level')));
+
+        return in_array($level, ['low', 'high'], true)
+            ? ['thinkingLevel' => $level]
+            : null;
+    }
+
+    private function client(int $timeout): PendingRequest
     {
         return Http::baseUrl(rtrim((string) config('services.gemini.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/'))
             ->withHeaders(['x-goog-api-key' => (string) config('services.gemini.key')])
             ->acceptJson()
-            ->timeout((int) config('services.gemini.timeout', 120));
+            ->timeout($timeout);
     }
 
     /**
