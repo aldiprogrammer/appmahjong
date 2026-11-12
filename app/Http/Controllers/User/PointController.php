@@ -75,7 +75,7 @@ class PointController extends Controller
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'mode' => ['nullable', 'string', 'in:chicken,hk'],
-            'seat_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
+            'seat_wind' => ['required_if:mode,hk', 'string', 'in:z1,z2,z3,z4'],
             'round_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
             'self_draw' => ['nullable', 'boolean'],
             'concealed' => ['nullable', 'boolean'],
@@ -89,7 +89,8 @@ class PointController extends Controller
             'image.mimes' => 'Foto harus berformat JPG, JPEG, PNG, atau WEBP.',
             'image.max' => 'Ukuran foto maksimal 5 MB.',
             'mode.in' => 'Mode penilaian tidak dikenal.',
-            'seat_wind.in' => 'Angin kursi tidak dikenal.',
+            'seat_wind.required_if' => 'Pilih posisi duduk dulu sebelum scan susunan mahjong.',
+            'seat_wind.in' => 'Posisi duduk tidak dikenal.',
             'round_wind.in' => 'Angin meja tidak dikenal.',
         ]);
 

@@ -10,6 +10,13 @@ const GRUP_KARTU = [
     { key: 'f', nama: 'Bunga', warna: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200' },
 ];
 
+const POSISI_DUDUK = [
+    { value: 'z1', label: 'Timur', hanzi: '東' },
+    { value: 'z2', label: 'Selatan', hanzi: '南' },
+    { value: 'z3', label: 'Barat', hanzi: '西' },
+    { value: 'z4', label: 'Utara', hanzi: '北' },
+];
+
 const KONDISI_HK = [
     { key: 'selfDraw', label: 'Menang sendiri', hanzi: '自摸', hint: 'Self Draw' },
     { key: 'concealed', label: 'Kartu tertutup', hanzi: '門前清', hint: 'Concealed Hand' },
@@ -166,6 +173,12 @@ export default function Point({
             return;
         }
 
+        if (mode === 'hk' && !seatWind) {
+            event.target.value = '';
+
+            return;
+        }
+
         setPreview(URL.createObjectURL(file));
         setMengunggah(true);
 
@@ -303,6 +316,12 @@ export default function Point({
                     </div>
                 )}
 
+                {errors?.seat_wind && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium leading-relaxed text-rose-700">
+                        {errors.seat_wind}
+                    </div>
+                )}
+
                 <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                     <div className="flex items-start gap-3 px-4 pt-4">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -341,6 +360,43 @@ export default function Point({
                         </div>
                     </div>
 
+                    {mode === 'hk' && (
+                        <div className="px-4 pt-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                    Posisi duduk <span className="text-rose-500">*</span>
+                                </p>
+                                <span className="text-[10px] font-semibold text-fuchsia-700">+1 faan jika pung angin cocok</span>
+                            </div>
+                            <div className="mt-2 grid grid-cols-4 gap-2">
+                                {POSISI_DUDUK.map((item) => (
+                                    <button
+                                        key={item.value}
+                                        type="button"
+                                        onClick={() => ubahOpsi({ seatWind: item.value })}
+                                        className={`rounded-xl border px-2 py-2 text-center transition ${
+                                            seatWind === item.value
+                                                ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
+                                                : 'border-slate-200 bg-white hover:border-fuchsia-200'
+                                        }`}
+                                    >
+                                        <span className={`block text-lg font-black leading-none ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-700'}`}>
+                                            {item.hanzi}
+                                        </span>
+                                        <span className={`mt-1 block text-[10px] font-bold ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-500'}`}>
+                                            {item.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                            {!seatWind && (
+                                <p className="mt-1.5 text-[10px] font-semibold text-rose-500">
+                                    Pilih posisi duduk dulu sebelum upload atau memfoto susunan mahjong.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
                     <div className="px-4 pb-4 pt-3">
                         <input
                             ref={fileRef}
@@ -353,11 +409,17 @@ export default function Point({
                         <button
                             type="button"
                             onClick={() => fileRef.current?.click()}
-                            disabled={mengunggah}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={mengunggah || (mode === 'hk' && !seatWind)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
                             <ScanIcon className="h-4 w-4" />
-                            {mengunggah ? 'Memindai...' : pendingScan ? 'Scan Ulang' : 'Buka Kamera / Pilih Foto'}
+                            {mengunggah
+                                ? 'Memindai...'
+                                : mode === 'hk' && !seatWind
+                                    ? 'Pilih Posisi Duduk Dulu'
+                                    : pendingScan
+                                        ? 'Scan Ulang'
+                                        : 'Buka Kamera / Pilih Foto'}
                         </button>
                         <p className="mt-2 text-center text-[10px] leading-relaxed text-slate-400">
                             Pastikan seluruh kartu terlihat jelas, tidak terpotong, dan pencahayaan cukup.

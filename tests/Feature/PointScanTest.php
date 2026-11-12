@@ -286,6 +286,7 @@ class PointScanTest extends TestCase
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
                 'mode' => MahjongCombinationService::MODE_HK,
+                'seat_wind' => 'z1',
                 'no_flowers' => 1,
                 'last_tile' => 1,
                 'robbing_kong' => 1,
@@ -353,6 +354,7 @@ class PointScanTest extends TestCase
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
                 'mode' => MahjongCombinationService::MODE_HK,
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
@@ -410,6 +412,21 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), ['image' => 'bukan-file'])
             ->assertSessionHasErrors('image');
+
+        $this->assertSame(0, MahjongScan::query()->count());
+    }
+
+    public function test_scan_hk_wajib_pilih_posisi_duduk(): void
+    {
+        Storage::fake('public');
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'mode' => MahjongCombinationService::MODE_HK,
+            ])
+            ->assertSessionHasErrors('seat_wind');
 
         $this->assertSame(0, MahjongScan::query()->count());
     }
