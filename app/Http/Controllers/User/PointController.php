@@ -56,7 +56,7 @@ class PointController extends Controller
                 [
                     'value' => MahjongCombinationService::MODE_HK,
                     'label' => 'HK Klasik',
-                    'description' => 'Penilaian Hong Kong klasik 3-13 faan. Faan menjadi point.',
+                    'description' => 'Penilaian Hong Kong klasik 3-14 faan. Faan menjadi point.',
                 ],
             ],
             'hkMinFaan' => MahjongCombinationService::HK_MIN_FAAN,
@@ -79,6 +79,10 @@ class PointController extends Controller
             'round_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
             'self_draw' => ['nullable', 'boolean'],
             'concealed' => ['nullable', 'boolean'],
+            'no_flowers' => ['nullable', 'boolean'],
+            'last_tile' => ['nullable', 'boolean'],
+            'robbing_kong' => ['nullable', 'boolean'],
+            'kong_replacement' => ['nullable', 'boolean'],
         ], [
             'image.required' => 'Foto susunan mahjong wajib diambil.',
             'image.image' => 'File harus berupa gambar.',
@@ -127,6 +131,10 @@ class PointController extends Controller
             'round_wind' => $opsi['round_wind'],
             'is_self_draw' => $opsi['self_draw'],
             'is_concealed' => $opsi['concealed'],
+            'is_no_flowers' => $opsi['no_flowers'],
+            'is_last_tile' => $opsi['last_tile'],
+            'is_robbing_kong' => $opsi['robbing_kong'],
+            'is_kong_replacement' => $opsi['kong_replacement'],
             'status' => 'pending',
         ]);
 
@@ -155,6 +163,10 @@ class PointController extends Controller
             'round_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
             'self_draw' => ['nullable', 'boolean'],
             'concealed' => ['nullable', 'boolean'],
+            'no_flowers' => ['nullable', 'boolean'],
+            'last_tile' => ['nullable', 'boolean'],
+            'robbing_kong' => ['nullable', 'boolean'],
+            'kong_replacement' => ['nullable', 'boolean'],
         ]);
 
         $mode = $validated['mode']
@@ -170,6 +182,18 @@ class PointController extends Controller
             'concealed' => array_key_exists('concealed', $validated)
                 ? (bool) $validated['concealed']
                 : (bool) $scan->is_concealed,
+            'no_flowers' => array_key_exists('no_flowers', $validated)
+                ? (bool) $validated['no_flowers']
+                : (bool) $scan->is_no_flowers,
+            'last_tile' => array_key_exists('last_tile', $validated)
+                ? (bool) $validated['last_tile']
+                : (bool) $scan->is_last_tile,
+            'robbing_kong' => array_key_exists('robbing_kong', $validated)
+                ? (bool) $validated['robbing_kong']
+                : (bool) $scan->is_robbing_kong,
+            'kong_replacement' => array_key_exists('kong_replacement', $validated)
+                ? (bool) $validated['kong_replacement']
+                : (bool) $scan->is_kong_replacement,
         ];
 
         $analisa = app(MahjongCombinationService::class)->analisa($validated['tiles'] ?? [], $mode, $opsi);
@@ -188,10 +212,14 @@ class PointController extends Controller
             'round_wind' => $opsi['round_wind'],
             'is_self_draw' => $opsi['self_draw'],
             'is_concealed' => $opsi['concealed'],
+            'is_no_flowers' => $opsi['no_flowers'],
+            'is_last_tile' => $opsi['last_tile'],
+            'is_robbing_kong' => $opsi['robbing_kong'],
+            'is_kong_replacement' => $opsi['kong_replacement'],
         ]);
 
         if (! $analisa['is_winning_hand']) {
-            return back()->with('success', 'Kartu diperbarui. Susunan belum membentuk winning hand.');
+            return back()->with('success', 'Kartu diperbarui. '.$analisa['message']);
         }
 
         return back()->with('success', $analisa['scoring_mode'] === MahjongCombinationService::MODE_HK
@@ -257,7 +285,7 @@ class PointController extends Controller
     }
 
     /**
-     * @return array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool}
+     * @return array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool, no_flowers: bool, last_tile: bool, robbing_kong: bool, kong_replacement: bool}
      */
     private function opsiHk(Request $request): array
     {
@@ -266,6 +294,10 @@ class PointController extends Controller
             'round_wind' => $request->input('round_wind') ?: null,
             'self_draw' => $request->boolean('self_draw'),
             'concealed' => $request->boolean('concealed'),
+            'no_flowers' => $request->boolean('no_flowers'),
+            'last_tile' => $request->boolean('last_tile'),
+            'robbing_kong' => $request->boolean('robbing_kong'),
+            'kong_replacement' => $request->boolean('kong_replacement'),
         ];
     }
 
@@ -289,6 +321,10 @@ class PointController extends Controller
             'id' => $scan->id,
             'image_url' => MahjongScan::imageUrl($scan->image_path),
             'tiles' => $scan->tiles ?? [],
+            'flowers' => array_values(array_filter(
+                $scan->tiles ?? [],
+                fn (string $tile): bool => str_starts_with($tile, 'f'),
+            )),
             'combinations' => $scan->combinations ?? [],
             'unmatched' => $scan->unmatched ?? [],
             'message' => $scan->message,
@@ -301,6 +337,10 @@ class PointController extends Controller
             'round_wind' => $scan->round_wind,
             'is_self_draw' => (bool) $scan->is_self_draw,
             'is_concealed' => (bool) $scan->is_concealed,
+            'is_no_flowers' => (bool) $scan->is_no_flowers,
+            'is_last_tile' => (bool) $scan->is_last_tile,
+            'is_robbing_kong' => (bool) $scan->is_robbing_kong,
+            'is_kong_replacement' => (bool) $scan->is_kong_replacement,
             'status' => $scan->status,
         ];
     }

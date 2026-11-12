@@ -14,7 +14,7 @@ class MahjongCombinationService
 
     public const HK_MIN_FAAN = 3;
 
-    public const HK_MAX_FAAN = 13;
+    public const HK_MAX_FAAN = 14;
 
     /**
      * Urutan kartu yang dipakai untuk normalisasi dan pencarian meld.
@@ -26,6 +26,7 @@ class MahjongCombinationService
         't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9',
         'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9',
         'z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7',
+        'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8',
     ];
 
     /**
@@ -40,6 +41,10 @@ class MahjongCombinationService
         'b6' => '6 Bambu', 'b7' => '7 Bambu', 'b8' => '8 Bambu', 'b9' => '9 Bambu',
         'z1' => 'Angin Timur', 'z2' => 'Angin Selatan', 'z3' => 'Angin Barat', 'z4' => 'Angin Utara',
         'z5' => 'Naga Merah', 'z6' => 'Naga Hijau', 'z7' => 'Naga Putih',
+        'f1' => 'Musim Semi (Timur)', 'f2' => 'Musim Panas (Selatan)',
+        'f3' => 'Musim Gugur (Barat)', 'f4' => 'Musim Dingin (Utara)',
+        'f5' => 'Bunga Plum (Timur)', 'f6' => 'Bunga Anggrek (Selatan)',
+        'f7' => 'Bunga Krisan (Barat)', 'f8' => 'Bunga Bambu (Utara)',
     ];
 
     /**
@@ -50,21 +55,38 @@ class MahjongCombinationService
         't1' => 10, 't2' => 11, 't3' => 12, 't4' => 13, 't5' => 14, 't6' => 15, 't7' => 16, 't8' => 17, 't9' => 18,
         'b1' => 19, 'b2' => 20, 'b3' => 21, 'b4' => 22, 'b5' => 23, 'b6' => 24, 'b7' => 25, 'b8' => 26, 'b9' => 27,
         'z1' => 28, 'z2' => 29, 'z3' => 30, 'z4' => 31, 'z5' => 32, 'z6' => 33, 'z7' => 34,
+        'f1' => 35, 'f2' => 36, 'f3' => 37, 'f4' => 38,
+        'f5' => 39, 'f6' => 40, 'f7' => 41, 'f8' => 42,
+    ];
+
+    /**
+     * Bunga yang cocok untuk setiap angin kursi.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private const BUNGA_KURSI = [
+        'z1' => ['f1', 'f5'],
+        'z2' => ['f2', 'f6'],
+        'z3' => ['f3', 'f7'],
+        'z4' => ['f4', 'f8'],
     ];
 
     /**
      * Analisis susunan kartu: validasi winning hand, deteksi kombinasi, dan hitung poin.
      *
      * Mode "chicken" memberi 10 point untuk setiap chicken hand. Mode "hk"
-     * memakai penilaian HK klasik 3-13 faan dan menjadikan faan sebagai point.
+     * memakai penilaian HK klasik 3-14 faan dan menjadikan faan sebagai point.
      *
-     * Opsi manual HK: angin kursi, angin meja, self-draw (自摸), dan kartu
-     * tertutup (門前清). Opsi lain diabaikan pada mode chicken.
+     * Opsi manual HK: angin kursi, self-draw (自摸), kartu tertutup (門前清),
+     * tanpa bunga (無花), last tile, robbing kong, dan kong replacement.
+     * All Chows, Own Flower, dan Dragon Pung dideteksi otomatis dari kartu.
+     * Opsi lain diabaikan pada mode chicken.
      *
      * @param  array<int, string>  $tiles
-     * @param  array{seat_wind?: string|null, round_wind?: string|null, self_draw?: bool, concealed?: bool}  $opsi
+     * @param  array{seat_wind?: string|null, round_wind?: string|null, self_draw?: bool, concealed?: bool, no_flowers?: bool, last_tile?: bool, robbing_kong?: bool, kong_replacement?: bool}  $opsi
      * @return array{
      *     tiles: array<int, string>,
+     *     flowers: array<int, string>,
      *     is_winning_hand: bool,
      *     points: int,
      *     combinations: array<int, array{type: string, label: string, tiles: array<int, string>}>,
@@ -78,20 +100,31 @@ class MahjongCombinationService
     public function analisa(array $tiles, string $mode = self::MODE_CHICKEN, array $opsi = []): array
     {
         $mode = $mode === self::MODE_HK ? self::MODE_HK : self::MODE_CHICKEN;
-        $tiles = $this->normalisasi($tiles);
+        $semua = $this->normalisasi($tiles);
+        $flowers = array_values(array_filter($semua, fn (string $tile): bool => $tile[0] === 'f'));
+        $hand = array_values(array_filter($semua, fn (string $tile): bool => $tile[0] !== 'f'));
 
-        if ($tiles === []) {
-            return $this->hasil($tiles, false, [], $tiles, 'Belum ada kartu yang terdeteksi.', $mode);
+        if ($hand === []) {
+            $hasil = $this->hasil([], false, [], [], 'Belum ada kartu yang terdeteksi.', $mode);
+            $hasil['tiles'] = $semua;
+            $hasil['flowers'] = $flowers;
+
+            return $hasil;
         }
 
-        return $mode === self::MODE_HK
-            ? $this->analisaHk($tiles, $this->normalisasiOpsiHk($opsi))
-            : $this->analisaChicken($tiles);
+        $hasil = $mode === self::MODE_HK
+            ? $this->analisaHk($hand, $this->normalisasiOpsiHk($opsi), $flowers)
+            : $this->analisaChicken($hand);
+
+        $hasil['tiles'] = $semua;
+        $hasil['flowers'] = $flowers;
+
+        return $hasil;
     }
 
     /**
      * @param  array<string, mixed>  $opsi
-     * @return array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool}
+     * @return array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool, no_flowers: bool, last_tile: bool, robbing_kong: bool, kong_replacement: bool}
      */
     private function normalisasiOpsiHk(array $opsi): array
     {
@@ -104,6 +137,10 @@ class MahjongCombinationService
             'round_wind' => in_array($round, $angin, true) ? $round : null,
             'self_draw' => (bool) ($opsi['self_draw'] ?? false),
             'concealed' => (bool) ($opsi['concealed'] ?? false),
+            'no_flowers' => (bool) ($opsi['no_flowers'] ?? false),
+            'last_tile' => (bool) ($opsi['last_tile'] ?? false),
+            'robbing_kong' => (bool) ($opsi['robbing_kong'] ?? false),
+            'kong_replacement' => (bool) ($opsi['kong_replacement'] ?? false),
         ];
     }
 
@@ -151,16 +188,18 @@ class MahjongCombinationService
     }
 
     /**
-     * Penilaian HK klasik 3-13 faan. Faan yang dihitung menjadi point.
+     * Penilaian HK klasik 3-14 faan. Faan yang dihitung menjadi point.
      *
      * @param  array<int, string>  $tiles
-     * @param  array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool}  $opsi
+     * @param  array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool, no_flowers: bool, last_tile: bool, robbing_kong: bool, kong_replacement: bool}  $opsi
+     * @param  array<int, string>  $flowers
      * @return array<string, mixed>
      */
-    private function analisaHk(array $tiles, array $opsi): array
+    private function analisaHk(array $tiles, array $opsi, array $flowers = []): array
     {
         $counts = array_count_values($tiles);
         $jumlah = count($tiles);
+        $kondisiTambahan = $this->faanKondisiTambahan($opsi, $flowers);
 
         if ($jumlah !== 14) {
             [$combinations, $unmatched] = $this->deteksiKombinasi($counts);
@@ -176,28 +215,40 @@ class MahjongCombinationService
         }
 
         if ($this->tigaBelasYatim($counts)) {
+            $details = array_merge(
+                [['label' => '十三么 (Thirteen Orphans)', 'faan' => 13]],
+                $kondisiTambahan,
+            );
+            $faan = min(self::HK_MAX_FAAN, array_sum(array_column($details, 'faan')));
+
             return $this->hasil(
                 $tiles,
                 true,
                 [$this->kombinasiKhusus('十三么 (Thirteen Orphans)', $tiles)],
                 [],
-                'HK klasik: 十三么 (13 faan).',
+                'HK klasik: 十三么 ('.$faan.' faan).',
                 self::MODE_HK,
-                13,
-                [['label' => '十三么 (Thirteen Orphans)', 'faan' => 13]],
+                $faan,
+                $details,
             );
         }
 
         if ($this->sembilanGerbang($counts)) {
+            $details = array_merge(
+                [['label' => '九子連環 (Nine Gates)', 'faan' => 13]],
+                $kondisiTambahan,
+            );
+            $faan = min(self::HK_MAX_FAAN, array_sum(array_column($details, 'faan')));
+
             return $this->hasil(
                 $tiles,
                 true,
                 [$this->kombinasiKhusus('九子連環 (Nine Gates)', $tiles)],
                 [],
-                'HK klasik: 九子連環 (13 faan).',
+                'HK klasik: 九子連環 ('.$faan.' faan).',
                 self::MODE_HK,
-                13,
-                [['label' => '九子連環 (Nine Gates)', 'faan' => 13]],
+                $faan,
+                $details,
             );
         }
 
@@ -208,12 +259,10 @@ class MahjongCombinationService
                 $combinations[] = $this->kombinasi('pair', [$tile, $tile]);
             }
 
-            $details = [['label' => '七對 (Seven Pairs)', 'faan' => 10]];
-
-            if ($opsi['self_draw']) {
-                $details[] = ['label' => '自摸 (Self-draw)', 'faan' => 1];
-            }
-
+            $details = array_merge(
+                [['label' => '七對 (Seven Pairs)', 'faan' => 10]],
+                $kondisiTambahan,
+            );
             $faan = min(self::HK_MAX_FAAN, array_sum(array_column($details, 'faan')));
 
             return $this->hasil(
@@ -246,7 +295,7 @@ class MahjongCombinationService
         $terbaik = null;
 
         foreach ($dekomposisi as $kandidat) {
-            $skor = $this->skorHk($counts, $kandidat, $opsi);
+            $skor = $this->skorHk($counts, $kandidat, $opsi, $flowers);
 
             if ($terbaik === null || $skor['faan'] > $terbaik['faan']) {
                 $terbaik = $skor + ['dekomposisi' => $kandidat];
@@ -256,15 +305,6 @@ class MahjongCombinationService
         $faan = (int) $terbaik['faan'];
         $details = $terbaik['details'];
 
-        if ($faan < self::HK_MIN_FAAN) {
-            $details[] = ['label' => 'Minimum HK klasik', 'faan' => self::HK_MIN_FAAN - $faan];
-            $faan = self::HK_MIN_FAAN;
-        }
-
-        if ($faan > self::HK_MAX_FAAN) {
-            $faan = self::HK_MAX_FAAN;
-        }
-
         $combinations = [];
 
         foreach ($terbaik['dekomposisi']['melds'] as $meld) {
@@ -273,6 +313,21 @@ class MahjongCombinationService
 
         $pair = $terbaik['dekomposisi']['pair'];
         $combinations[] = $this->kombinasi('pair', [$pair, $pair]);
+
+        if ($faan < self::HK_MIN_FAAN) {
+            return $this->hasil(
+                $tiles,
+                false,
+                $combinations,
+                [],
+                'Belum bisa menang: total '.$faan.' faan, minimal '.self::HK_MIN_FAAN.' faan.',
+                self::MODE_HK,
+                $faan,
+                $details,
+            );
+        }
+
+        $faan = min(self::HK_MAX_FAAN, $faan);
 
         return $this->hasil(
             $tiles,
@@ -291,10 +346,11 @@ class MahjongCombinationService
      *
      * @param  array<string, int>  $counts
      * @param  array{pair: string, melds: array<int, array{type: string, tiles: array<int, string>}>}  $dekomposisi
-     * @param  array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool}  $opsi
+     * @param  array{seat_wind: string|null, round_wind: string|null, self_draw: bool, concealed: bool, no_flowers: bool, last_tile: bool, robbing_kong: bool, kong_replacement: bool}  $opsi
+     * @param  array<int, string>  $flowers
      * @return array{faan: int, details: array<int, array{label: string, faan: int}>}
      */
-    private function skorHk(array $counts, array $dekomposisi, array $opsi): array
+    private function skorHk(array $counts, array $dekomposisi, array $opsi, array $flowers = []): array
     {
         $details = [];
         $tambah = function (string $label, int $faan) use (&$details): void {
@@ -356,12 +412,8 @@ class MahjongCombinationService
             $tambah('平胡 (All Chows)', 1);
         }
 
-        if ($opsi['concealed'] && $chows !== []) {
-            $tambah('門前清 (Concealed Hand)', 1);
-        }
-
-        if ($opsi['self_draw']) {
-            $tambah('自摸 (Self-draw)', 1);
+        foreach ($this->faanKondisiTambahan($opsi, $flowers) as $detail) {
+            $tambah($detail['label'], $detail['faan']);
         }
 
         if (! $semuaHonor && ! $semuaTerminal && $this->setiapGrupAdaTerminal($dekomposisi)) {
@@ -372,26 +424,68 @@ class MahjongCombinationService
             $tambah(self::LABEL_KARTU[$kode], 1);
         }
 
-        foreach ($pungAngin as $kode) {
-            $faanAngin = 0;
-
-            if ($kode === $opsi['seat_wind']) {
-                $faanAngin++;
-            }
-
-            if ($kode === $opsi['round_wind']) {
-                $faanAngin++;
-            }
-
-            if ($faanAngin > 0) {
-                $tambah(self::LABEL_KARTU[$kode].' (angin)', $faanAngin);
-            }
+        if ($opsi['seat_wind'] !== null && in_array($opsi['seat_wind'], $pungAngin, true)) {
+            $tambah(self::LABEL_KARTU[$opsi['seat_wind']].' (angin kursi)', 1);
         }
 
         return [
             'faan' => array_sum(array_column($details, 'faan')),
             'details' => $details,
         ];
+    }
+
+    /**
+     * Kondisi manual dan bunga yang berlaku untuk semua bentuk winning hand.
+     *
+     * @param  array{seat_wind: string|null, self_draw: bool, concealed: bool, no_flowers: bool, last_tile: bool, robbing_kong: bool, kong_replacement: bool}  $opsi
+     * @param  array<int, string>  $flowers
+     * @return array<int, array{label: string, faan: int}>
+     */
+    private function faanKondisiTambahan(array $opsi, array $flowers): array
+    {
+        $details = [];
+
+        if ($opsi['concealed']) {
+            $details[] = ['label' => '門前清 (Concealed Hand)', 'faan' => 1];
+        }
+
+        if ($opsi['self_draw']) {
+            $details[] = ['label' => '自摸 (Self-draw)', 'faan' => 1];
+        }
+
+        if ($opsi['no_flowers'] && $flowers === []) {
+            $details[] = ['label' => '無花 (No Flowers)', 'faan' => 1];
+        }
+
+        if ($this->adaBungaSendiri($opsi['seat_wind'], $flowers)) {
+            $details[] = ['label' => '正花 (Own Flower)', 'faan' => 1];
+        }
+
+        if ($opsi['last_tile']) {
+            $details[] = ['label' => '海底撈月 (Last Tile)', 'faan' => 1];
+        }
+
+        if ($opsi['robbing_kong']) {
+            $details[] = ['label' => '搶槓 (Robbing Kong)', 'faan' => 1];
+        }
+
+        if ($opsi['kong_replacement']) {
+            $details[] = ['label' => '槓上開花 (Kong Replacement)', 'faan' => 1];
+        }
+
+        return $details;
+    }
+
+    /**
+     * @param  array<int, string>  $flowers
+     */
+    private function adaBungaSendiri(?string $seatWind, array $flowers): bool
+    {
+        if ($seatWind === null) {
+            return false;
+        }
+
+        return array_intersect(self::BUNGA_KURSI[$seatWind] ?? [], $flowers) !== [];
     }
 
     /**
@@ -697,6 +791,12 @@ class MahjongCombinationService
             'merah' => 'z5', 'hijau' => 'z6', 'putih' => 'z7',
             'angintimur' => 'z1', 'anginselatan' => 'z2', 'anginbarat' => 'z3', 'anginutara' => 'z4',
             'nagamerah' => 'z5', 'nagahijau' => 'z6', 'nagaputih' => 'z7',
+            'spring' => 'f1', 'summer' => 'f2', 'autumn' => 'f3', 'winter' => 'f4',
+            'plum' => 'f5', 'orchid' => 'f6', 'chrysanthemum' => 'f7', 'bambooflower' => 'f8',
+            'musimsemi' => 'f1', 'musimpanas' => 'f2', 'musimgugur' => 'f3', 'musimdingin' => 'f4',
+            'bungaplum' => 'f5', 'bungaanggrek' => 'f6', 'bungakrisan' => 'f7', 'bungabambu' => 'f8',
+            'flower1' => 'f5', 'flower2' => 'f6', 'flower3' => 'f7', 'flower4' => 'f8',
+            'season1' => 'f1', 'season2' => 'f2', 'season3' => 'f3', 'season4' => 'f4',
         ];
 
         if (isset($alias[$tile])) {
@@ -898,6 +998,7 @@ class MahjongCombinationService
      * @param  array<int, array{label: string, faan: int}>  $faanDetails
      * @return array{
      *     tiles: array<int, string>,
+     *     flowers: array<int, string>,
      *     is_winning_hand: bool,
      *     points: int,
      *     combinations: array<int, array{type: string, label: string, tiles: array<int, string>}>,
@@ -922,19 +1023,20 @@ class MahjongCombinationService
 
         if ($winning) {
             $points = $mode === self::MODE_HK
-                ? max(self::HK_MIN_FAAN, min(self::HK_MAX_FAAN, (int) $faan))
+                ? min(self::HK_MAX_FAAN, (int) $faan)
                 : self::POINT_PER_HAND;
         }
 
         return [
             'tiles' => $tiles,
+            'flowers' => [],
             'is_winning_hand' => $winning,
             'points' => $points,
             'combinations' => $combinations,
             'unmatched' => $unmatched,
             'message' => $message,
             'scoring_mode' => $mode,
-            'faan' => $mode === self::MODE_HK && $winning ? $points : null,
+            'faan' => $mode === self::MODE_HK ? $faan : null,
             'faan_details' => $faanDetails,
         ];
     }

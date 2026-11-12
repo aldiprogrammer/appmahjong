@@ -7,6 +7,16 @@ const GRUP_KARTU = [
     { key: 't', nama: 'Tong', warna: 'bg-sky-50 text-sky-700 ring-sky-200' },
     { key: 'b', nama: 'Bambu', warna: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
     { key: 'z', nama: 'Honor', warna: 'bg-violet-50 text-violet-700 ring-violet-200' },
+    { key: 'f', nama: 'Bunga', warna: 'bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-200' },
+];
+
+const KONDISI_HK = [
+    { key: 'selfDraw', label: 'Menang sendiri', hanzi: '自摸', hint: 'Self Draw' },
+    { key: 'concealed', label: 'Kartu tertutup', hanzi: '門前清', hint: 'Concealed Hand' },
+    { key: 'noFlowers', label: 'Tanpa bunga', hanzi: '無花', hint: 'No Flowers' },
+    { key: 'lastTile', label: 'Kartu terakhir', hanzi: '海底撈月', hint: 'Last Tile' },
+    { key: 'robbingKong', label: 'Merebut kong', hanzi: '搶槓', hint: 'Robbing Kong' },
+    { key: 'kongReplacement', label: 'Kartu pengganti kong', hanzi: '槓上開花', hint: 'Kong Replacement' },
 ];
 
 const WARNA_TIPE = {
@@ -72,7 +82,7 @@ export default function Point({
     pointPerHand = 10,
     scoringModes = [],
     hkMinFaan = 3,
-    hkMaxFaan = 13,
+    hkMaxFaan = 14,
 }) {
     const { flash, errors } = usePage().props;
     const fileRef = useRef(null);
@@ -81,26 +91,39 @@ export default function Point({
     const [tiles, setTiles] = useState(pendingScan?.tiles ?? []);
     const [mode, setMode] = useState(pendingScan?.scoring_mode ?? 'chicken');
     const [seatWind, setSeatWind] = useState(pendingScan?.seat_wind ?? '');
-    const [roundWind, setRoundWind] = useState(pendingScan?.round_wind ?? '');
-    const [selfDraw, setSelfDraw] = useState(Boolean(pendingScan?.is_self_draw));
-    const [concealed, setConcealed] = useState(Boolean(pendingScan?.is_concealed));
+    const [kondisi, setKondisi] = useState({
+        selfDraw: Boolean(pendingScan?.is_self_draw),
+        concealed: Boolean(pendingScan?.is_concealed),
+        noFlowers: Boolean(pendingScan?.is_no_flowers),
+        lastTile: Boolean(pendingScan?.is_last_tile),
+        robbingKong: Boolean(pendingScan?.is_robbing_kong),
+        kongReplacement: Boolean(pendingScan?.is_kong_replacement),
+    });
     const [konfirmasiTerbuka, setKonfirmasiTerbuka] = useState(false);
 
     useEffect(() => {
         setTiles(pendingScan?.tiles ?? []);
         setMode(pendingScan?.scoring_mode ?? 'chicken');
         setSeatWind(pendingScan?.seat_wind ?? '');
-        setRoundWind(pendingScan?.round_wind ?? '');
-        setSelfDraw(Boolean(pendingScan?.is_self_draw));
-        setConcealed(Boolean(pendingScan?.is_concealed));
+        setKondisi({
+            selfDraw: Boolean(pendingScan?.is_self_draw),
+            concealed: Boolean(pendingScan?.is_concealed),
+            noFlowers: Boolean(pendingScan?.is_no_flowers),
+            lastTile: Boolean(pendingScan?.is_last_tile),
+            robbingKong: Boolean(pendingScan?.is_robbing_kong),
+            kongReplacement: Boolean(pendingScan?.is_kong_replacement),
+        });
     }, [
         pendingScan?.id,
         pendingScan?.tiles,
         pendingScan?.scoring_mode,
         pendingScan?.seat_wind,
-        pendingScan?.round_wind,
         pendingScan?.is_self_draw,
         pendingScan?.is_concealed,
+        pendingScan?.is_no_flowers,
+        pendingScan?.is_last_tile,
+        pendingScan?.is_robbing_kong,
+        pendingScan?.is_kong_replacement,
     ]);
 
     useEffect(() => () => {
@@ -122,12 +145,19 @@ export default function Point({
         [kartu],
     );
 
-    const dataOpsi = (override = {}) => ({
-        seat_wind: override.seatWind ?? seatWind ?? '',
-        round_wind: override.roundWind ?? roundWind ?? '',
-        self_draw: (override.selfDraw ?? selfDraw) ? 1 : 0,
-        concealed: (override.concealed ?? concealed) ? 1 : 0,
-    });
+    const dataOpsi = (override = {}) => {
+        const flags = { ...kondisi, ...(override.kondisi ?? {}) };
+
+        return {
+            seat_wind: override.seatWind ?? seatWind ?? '',
+            self_draw: flags.selfDraw ? 1 : 0,
+            concealed: flags.concealed ? 1 : 0,
+            no_flowers: flags.noFlowers ? 1 : 0,
+            last_tile: flags.lastTile ? 1 : 0,
+            robbing_kong: flags.robbingKong ? 1 : 0,
+            kong_replacement: flags.kongReplacement ? 1 : 0,
+        };
+    };
 
     const pilihFoto = (event) => {
         const file = event.target.files?.[0];
@@ -192,16 +222,8 @@ export default function Point({
             setSeatWind(override.seatWind);
         }
 
-        if ('roundWind' in override) {
-            setRoundWind(override.roundWind);
-        }
-
-        if ('selfDraw' in override) {
-            setSelfDraw(override.selfDraw);
-        }
-
-        if ('concealed' in override) {
-            setConcealed(override.concealed);
+        if ('kondisi' in override) {
+            setKondisi((sebelumnya) => ({ ...sebelumnya, ...override.kondisi }));
         }
 
         if (!pendingScan) {
@@ -290,7 +312,7 @@ export default function Point({
                             <h2 className="text-sm font-bold text-slate-800">Scan Susunan Mahjong</h2>
                             <p className="mt-1 text-xs leading-relaxed text-slate-500">
                                 {mode === 'hk'
-                                    ? `Foto susunan kartu. AI (Gemini) membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Faan menjadi point.`
+                                    ? `Foto susunan kartu. AI (Gemini) membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Di bawah ${hkMinFaan} faan belum bisa menang.`
                                     : `Foto susunan kartu. AI (Gemini) mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Setiap chicken hand yang benar bernilai ${pointPerHand} point.`}
                             </p>
                         </div>
@@ -350,7 +372,7 @@ export default function Point({
                             <div>
                                 <h2 className="text-sm font-bold text-slate-800">Hasil Scan</h2>
                                 <p className="mt-0.5 text-[10px] text-slate-400">
-                                    {pendingScan.scoring_mode === 'hk' ? 'HK Klasik 3-13 faan' : 'Chicken Hand 10 point'} · Periksa dan setujui sebelum point masuk.
+                                    {pendingScan.scoring_mode === 'hk' ? `HK Klasik ${hkMinFaan}-${hkMaxFaan} faan` : 'Chicken Hand 10 point'} · Periksa dan setujui sebelum point masuk.
                                 </p>
                             </div>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${
@@ -438,68 +460,55 @@ export default function Point({
                             {pendingScan.scoring_mode === 'hk' && (
                                 <div className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/40 p-3">
                                     <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700">Penanda manual HK</p>
-                                    <p className="mt-0.5 text-[10px] text-slate-500">Tandai kondisi permainan agar faan dihitung tepat.</p>
+                                    <p className="mt-0.5 text-[10px] text-slate-500">
+                                        Pilih posisi duduk, lalu tandai kondisi yang terjadi. All Chows, Own Flower, dan
+                                        Dragon Pung dihitung otomatis dari foto.
+                                    </p>
 
-                                    <div className="mt-2.5 grid grid-cols-2 gap-2">
-                                        <label className="block">
-                                            <span className="text-[10px] font-semibold text-slate-500">Angin kursi</span>
-                                            <select
-                                                value={seatWind}
-                                                onChange={(event) => ubahOpsi({ seatWind: event.target.value })}
-                                                className="mt-1 w-full rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700"
+                                    <label className="mt-2.5 block">
+                                        <span className="text-[10px] font-semibold text-slate-500">Posisi duduk (angin kursi)</span>
+                                        <select
+                                            value={seatWind}
+                                            onChange={(event) => ubahOpsi({ seatWind: event.target.value })}
+                                            className="mt-1 w-full rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700"
+                                        >
+                                            <option value="">Tidak dipilih</option>
+                                            <option value="z1">Timur</option>
+                                            <option value="z2">Selatan</option>
+                                            <option value="z3">Barat</option>
+                                            <option value="z4">Utara</option>
+                                        </select>
+                                    </label>
+                                    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                        Pung angin posisi = +1 faan. Own Flower juga mengikuti posisi ini.
+                                    </p>
+
+                                    <div className="mt-2.5 space-y-1.5">
+                                        {KONDISI_HK.map((item) => (
+                                            <label
+                                                key={item.key}
+                                                className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-fuchsia-100"
                                             >
-                                                <option value="">Tidak dipilih</option>
-                                                <option value="z1">Timur</option>
-                                                <option value="z2">Selatan</option>
-                                                <option value="z3">Barat</option>
-                                                <option value="z4">Utara</option>
-                                            </select>
-                                        </label>
-                                        <label className="block">
-                                            <span className="text-[10px] font-semibold text-slate-500">Angin meja</span>
-                                            <select
-                                                value={roundWind}
-                                                onChange={(event) => ubahOpsi({ roundWind: event.target.value })}
-                                                className="mt-1 w-full rounded-lg border border-fuchsia-200 bg-white px-2 py-1.5 text-[11px] font-semibold text-slate-700"
-                                            >
-                                                <option value="">Tidak dipilih</option>
-                                                <option value="z1">Timur</option>
-                                                <option value="z2">Selatan</option>
-                                                <option value="z3">Barat</option>
-                                                <option value="z4">Utara</option>
-                                            </select>
-                                        </label>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(kondisi[item.key])}
+                                                    onChange={(event) => ubahOpsi({
+                                                        kondisi: { [item.key]: event.target.checked },
+                                                    })}
+                                                    className="h-4 w-4 accent-fuchsia-600"
+                                                />
+                                                <span className="flex-1 text-[11px] font-semibold text-slate-700">
+                                                    {item.label} <span className="font-normal text-slate-400">· {item.hint}</span>{' '}
+                                                    ({item.hanzi})
+                                                </span>
+                                                <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
+                                            </label>
+                                        ))}
                                     </div>
 
-                                    <label className="mt-2.5 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-fuchsia-100">
-                                        <input
-                                            type="checkbox"
-                                            checked={selfDraw}
-                                            onChange={(event) => ubahOpsi({ selfDraw: event.target.checked })}
-                                            className="h-4 w-4 accent-fuchsia-600"
-                                        />
-                                        <span className="flex-1 text-[11px] font-semibold text-slate-700">
-                                            Menang sendiri (自摸)
-                                        </span>
-                                        <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
-                                    </label>
-
-                                    <label className="mt-1.5 flex items-center gap-2 rounded-lg bg-white px-2.5 py-2 ring-1 ring-fuchsia-100">
-                                        <input
-                                            type="checkbox"
-                                            checked={concealed}
-                                            onChange={(event) => ubahOpsi({ concealed: event.target.checked })}
-                                            className="h-4 w-4 accent-fuchsia-600"
-                                        />
-                                        <span className="flex-1 text-[11px] font-semibold text-slate-700">
-                                            Kartu tertutup (門前清)
-                                        </span>
-                                        <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
-                                    </label>
-
-                                    <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
-                                        Pung angin dihitung jika cocok dengan angin kursi/meja. Semua meld pung + kartu
-                                        tertutup menjadi 四暗刻 (13 faan).
+                                    <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                                        Setiap kondisi bernilai 1 faan. Total minimal {hkMinFaan} faan dan maksimal{' '}
+                                        {hkMaxFaan} faan. Di bawah {hkMinFaan} faan belum bisa menang.
                                     </p>
                                 </div>
                             )}

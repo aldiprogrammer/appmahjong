@@ -362,12 +362,14 @@ Class codes (use exactly these strings):
 - b1..b9 = Bamboo/Sou tiles (b1 is the bird, b2..b9 are bamboo sticks).
 - z1 = East wind (東), z2 = South wind (南), z3 = West wind (西), z4 = North wind (北).
 - z5 = Red dragon (中), z6 = Green dragon (發), z7 = White dragon (blank tile, often with a blue frame).
+- f1..f4 = Season/Flower tiles in seat order: f1 = Spring (春, East), f2 = Summer (夏, South), f3 = Autumn (秋, West), f4 = Winter (冬, North).
+- f5..f8 = Flower tiles in seat order: f5 = Plum (梅, East), f6 = Orchid (蘭, South), f7 = Chrysanthemum (菊, West), f8 = Bamboo (竹, North).
 
 Rules:
 1. Report every visible tile exactly once, including duplicate copies.
 2. Read tiles left-to-right, then top-to-bottom for multiple rows.
 3. Do not invent tiles that are hidden, cut off, or unreadable.
-4. Ignore non-tile objects (table, hands, racks, coins, flowers, jokers).
+4. Include flower tiles (f1..f8) if they are visible; ignore non-tile objects such as table, hands, racks, coins, and jokers.
 5. If the photo shows no mahjong tiles, return an empty array.
 6. Return only JSON matching the provided schema.
 
@@ -386,6 +388,7 @@ PROMPT;
             't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9',
             'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7', 'b8', 'b9',
             'z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7',
+            'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8',
         ];
     }
 }

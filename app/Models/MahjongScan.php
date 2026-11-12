@@ -22,6 +22,10 @@ class MahjongScan extends Model
         'round_wind',
         'is_self_draw',
         'is_concealed',
+        'is_no_flowers',
+        'is_last_tile',
+        'is_robbing_kong',
+        'is_kong_replacement',
         'status',
         'confirmed_at',
     ];
@@ -38,6 +42,10 @@ class MahjongScan extends Model
             'faan_details' => 'array',
             'is_self_draw' => 'boolean',
             'is_concealed' => 'boolean',
+            'is_no_flowers' => 'boolean',
+            'is_last_tile' => 'boolean',
+            'is_robbing_kong' => 'boolean',
+            'is_kong_replacement' => 'boolean',
             'confirmed_at' => 'datetime',
         ];
     }
