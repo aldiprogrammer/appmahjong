@@ -26,6 +26,15 @@ function MejaIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function VenueIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+        </svg>
+    );
+}
+
 function JamMainIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -137,6 +146,7 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
         { name: 'Dashboard', href: '/admin/dashboard', icon: DashboardIcon },
         { name: 'Kasir', href: '/admin/kasir', icon: KasirIcon },
         { name: 'Meja', href: '/admin/mejas', icon: MejaIcon },
+        { name: 'Venue', href: '/admin/vanues', icon: VenueIcon },
         { name: 'Jam Main', href: '/admin/jam-mains', icon: JamMainIcon },
         { name: 'Harga Jam Main', href: '/admin/harga-jam-mains', icon: HargaIcon },
         { name: 'Kategori Menu', href: '/admin/kategori-menus', icon: KategoriMenuIcon },

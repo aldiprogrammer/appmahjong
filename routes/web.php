@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\PenggunaController;
 use App\Http\Controllers\Admin\SettingBookingRoomController;
 use App\Http\Controllers\Admin\StatusVoucherController;
+use App\Http\Controllers\Admin\VanueController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\User\AuthController;
 use App\Http\Controllers\User\GoogleAuthController;
@@ -77,6 +78,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('mejas/{meja}/qr-code/gambar', [MejaController::class, 'qrCodeImage'])->name('mejas.qr-code.gambar');
         Route::get('mejas/{meja}/qr-code', [MejaController::class, 'downloadQrCode'])->name('mejas.qr-code');
         Route::resource('mejas', MejaController::class)->except(['create', 'edit', 'show']);
+        Route::resource('vanues', VanueController::class)->except(['create', 'edit', 'show']);
         Route::resource('jam-mains', JamMainController::class)->except(['create', 'edit', 'show']);
         Route::resource('harga-jam-mains', HargaJamMainController::class)->except(['create', 'edit', 'show']);
         Route::resource('kategori-menus', KategoriMenuController::class)->except(['create', 'edit', 'show']);

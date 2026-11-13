@@ -52,7 +52,7 @@ export default function Index({ menus, kategoriMenus, filters }) {
     const [gambarPreview, setGambarPreview] = useState(null);
     const namaInputRef = useRef(null);
 
-    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
         id_kategori: '',
         nama: '',
         gambar: null,
@@ -229,11 +229,15 @@ export default function Index({ menus, kategoriMenus, filters }) {
         };
 
         if (editingMenu) {
-            put(`/admin/menus/${editingMenu.id}`, options);
+            // PHP tidak mem-parse body multipart pada request PUT/PATCH, sehingga
+            // gunakan POST dengan method spoofing agar update + upload gambar tetap terbaca.
+            transform((values) => ({ ...values, _method: 'put' }));
+            post(`/admin/menus/${editingMenu.id}`, options);
 
             return;
         }
 
+        transform((values) => values);
         post('/admin/menus', options);
     };
 

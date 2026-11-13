@@ -18,12 +18,12 @@ const POSISI_DUDUK = [
 ];
 
 const KONDISI_HK = [
-    { key: 'selfDraw', label: 'Menang sendiri', hanzi: '自摸', hint: 'Self Draw' },
-    { key: 'concealed', label: 'Kartu tertutup', hanzi: '門前清', hint: 'Concealed Hand' },
-    { key: 'noFlowers', label: 'Tanpa bunga', hanzi: '無花', hint: 'No Flowers' },
-    { key: 'lastTile', label: 'Kartu terakhir', hanzi: '海底撈月', hint: 'Last Tile' },
-    { key: 'robbingKong', label: 'Merebut kong', hanzi: '搶槓', hint: 'Robbing Kong' },
-    { key: 'kongReplacement', label: 'Kartu pengganti kong', hanzi: '槓上開花', hint: 'Kong Replacement' },
+    { key: 'selfDraw', label: 'Menang sendiri', hanzi: '', hint: 'Self Draw' },
+    { key: 'concealed', label: 'Kartu tertutup', hanzi: '', hint: 'Concealed Hand' },
+    { key: 'noFlowers', label: 'Tanpa bunga', hanzi: '', hint: 'No Flowers' },
+    { key: 'lastTile', label: 'Kartu terakhir', hanzi: '', hint: 'Last Tile' },
+    { key: 'robbingKong', label: 'Merebut kong', hanzi: '', hint: 'Robbing Kong' },
+    { key: 'kongReplacement', label: 'Kartu pengganti kong', hanzi: '', hint: 'Kong Replacement' },
 ];
 
 const WARNA_TIPE = {
@@ -71,9 +71,8 @@ function KartuChip({ code, label, onClick, aktif = true }) {
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-lg px-2 py-1 text-[10px] font-bold ring-1 transition ${warnaKartu(code)} ${
-                aktif ? 'hover:scale-105' : 'opacity-40'
-            }`}
+            className={`rounded-lg px-2 py-1 text-[10px] font-bold ring-1 transition ${warnaKartu(code)} ${aktif ? 'hover:scale-105' : 'opacity-40'
+                }`}
         >
             {label}
         </button>
@@ -345,11 +344,10 @@ export default function Point({
                                     key={item.value}
                                     type="button"
                                     onClick={() => gantiMode(item.value)}
-                                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
-                                        mode === item.value
-                                            ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
-                                            : 'border-slate-200 bg-white hover:border-emerald-200'
-                                    }`}
+                                    className={`rounded-xl border px-3 py-2.5 text-left transition ${mode === item.value
+                                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                                        : 'border-slate-200 bg-white hover:border-emerald-200'
+                                        }`}
                                 >
                                     <span className={`block text-xs font-bold ${mode === item.value ? 'text-emerald-700' : 'text-slate-700'}`}>
                                         {item.label}
@@ -374,11 +372,10 @@ export default function Point({
                                         key={item.value}
                                         type="button"
                                         onClick={() => ubahOpsi({ seatWind: item.value })}
-                                        className={`rounded-xl border px-2 py-2 text-center transition ${
-                                            seatWind === item.value
-                                                ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
-                                                : 'border-slate-200 bg-white hover:border-fuchsia-200'
-                                        }`}
+                                        className={`rounded-xl border px-2 py-2 text-center transition ${seatWind === item.value
+                                            ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
+                                            : 'border-slate-200 bg-white hover:border-fuchsia-200'
+                                            }`}
                                     >
                                         <span className={`block text-lg font-black leading-none ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-700'}`}>
                                             {item.hanzi}
@@ -437,11 +434,10 @@ export default function Point({
                                     {pendingScan.scoring_mode === 'hk' ? `HK Klasik ${hkMinFaan}-${hkMaxFaan} faan` : 'Chicken Hand 10 point'} · Periksa dan setujui sebelum point masuk.
                                 </p>
                             </div>
-                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${
-                                pendingScan.is_winning_hand
-                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 ring-amber-200'
-                            }`}>
+                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${pendingScan.is_winning_hand
+                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                : 'bg-amber-50 text-amber-700 ring-amber-200'
+                                }`}>
                                 {pendingScan.is_winning_hand ? 'Winning Hand' : 'Belum Winning'}
                             </span>
                         </div>
@@ -527,7 +523,7 @@ export default function Point({
                                         Dragon Pung dihitung otomatis dari foto.
                                     </p>
 
-                                    <label className="mt-2.5 block">
+                                    {/* <label className="mt-2.5 block">
                                         <span className="text-[10px] font-semibold text-slate-500">Posisi duduk (angin kursi)</span>
                                         <select
                                             value={seatWind}
@@ -540,10 +536,10 @@ export default function Point({
                                             <option value="z3">Barat</option>
                                             <option value="z4">Utara</option>
                                         </select>
-                                    </label>
-                                    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
+                                    </label> */}
+                                    {/* <p className="mt-1 text-[10px] leading-relaxed text-slate-400">
                                         Pung angin posisi = +1 faan. Own Flower juga mengikuti posisi ini.
-                                    </p>
+                                    </p> */}
 
                                     <div className="mt-2.5 space-y-1.5">
                                         {KONDISI_HK.map((item) => (
@@ -561,7 +557,7 @@ export default function Point({
                                                 />
                                                 <span className="flex-1 text-[11px] font-semibold text-slate-700">
                                                     {item.label} <span className="font-normal text-slate-400">· {item.hint}</span>{' '}
-                                                    ({item.hanzi})
+                                                    {item.hanzi}
                                                 </span>
                                                 <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
                                             </label>
@@ -598,11 +594,10 @@ export default function Point({
                                 </div>
                             )}
 
-                            <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 ${
-                                pendingScan.is_winning_hand
-                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                    : 'bg-slate-50 text-slate-600 ring-slate-200'
-                            }`}>
+                            <div className={`flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 ${pendingScan.is_winning_hand
+                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                                : 'bg-slate-50 text-slate-600 ring-slate-200'
+                                }`}>
                                 <span className="text-xs font-semibold">{pendingScan.message}</span>
                                 <span className="text-sm font-black">
                                     {pendingScan.scoring_mode === 'hk'
