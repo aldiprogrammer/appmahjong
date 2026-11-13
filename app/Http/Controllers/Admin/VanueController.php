@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\VanueScope;
 use App\Http\Controllers\Controller;
 use App\Models\Vanue;
 use Illuminate\Http\RedirectResponse;
@@ -12,11 +13,15 @@ use Inertia\Response;
 
 class VanueController extends Controller
 {
+    use VanueScope;
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
+        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
 
         $vanues = Vanue::query()
+            ->when($vanueTerbatas !== null, fn ($query) => $query->whereKey($vanueTerbatas))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('nama', 'like', "%{$search}%")
@@ -37,6 +42,10 @@ class VanueController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        if ($this->vanueTerbatas($this->adminAktif($request)) !== null) {
+            abort(403, 'Admin venue hanya dapat mengelola venue miliknya sendiri.');
+        }
+
         $validated = $request->validate($this->aturanValidasi(), $this->pesanValidasi());
 
         $validated['logo'] = $request->file('logo')->store('vanues', 'public');
@@ -50,6 +59,8 @@ class VanueController extends Controller
 
     public function update(Request $request, Vanue $vanue): RedirectResponse
     {
+        $this->batasiAksesVanue($request, (int) $vanue->id);
+
         $validated = $request->validate($this->aturanValidasi(false), $this->pesanValidasi());
 
         if ($request->hasFile('logo')) {
@@ -69,8 +80,12 @@ class VanueController extends Controller
             ->with('success', 'Venue berhasil diperbarui.');
     }
 
-    public function destroy(Vanue $vanue): RedirectResponse
+    public function destroy(Request $request, Vanue $vanue): RedirectResponse
     {
+        if ($this->vanueTerbatas($this->adminAktif($request)) !== null) {
+            abort(403, 'Admin venue tidak dapat menghapus venue.');
+        }
+
         if ($vanue->logo) {
             Storage::disk('public')->delete($vanue->logo);
         }

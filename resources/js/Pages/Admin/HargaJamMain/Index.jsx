@@ -44,8 +44,10 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ hargaJamMains, jamMains = [], filters }) {
-    const { flash } = usePage().props;
+export default function Index({ hargaJamMains, jamMains = [], vanues = [], filters }) {
+    const { flash, auth } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -55,8 +57,10 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
     const jamMainSelectRef = useRef(null);
 
     const hasJamMains = jamMains.length > 0;
+    const vanueTerkunci = isVenueScoped || Boolean(editingHarga);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
         jam_main_ids: [],
         hari_list: ['Senin'],
         harga: '',
@@ -122,6 +126,7 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
     const openEditModal = (harga) => {
         clearErrors();
         setData({
+            vanue_id: harga.vanue?.id ? String(harga.vanue.id) : '',
             jam_main_ids: [String(harga.jam_main_id ?? '')],
             hari_list: [harga.hari ?? 'Senin'],
             harga: String(harga.harga ?? ''),
@@ -218,7 +223,16 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Data Harga Jam Main</h1>
-                        <p className="text-sm text-slate-500">Kelola tarif jam main berdasarkan hari.</p>
+                        <p className="text-sm text-slate-500">Kelola tarif jam main berdasarkan hari dan venue.</p>
+                        {isVenueScoped && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                Venue aktif: {currentAdmin?.vanue?.nama}
+                            </span>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -302,12 +316,13 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[760px] text-left text-sm">
+                                <table className="w-full min-w-[940px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Jam Main</th>
                                             <th className="px-5 py-3 font-semibold">Hari</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Harga</th>
                                             <th className="px-5 py-3 font-semibold">Diskon</th>
                                             <th className="px-5 py-3 font-semibold">Harga Akhir</th>
@@ -326,6 +341,21 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3.5 font-medium text-slate-800">{harga.hari}</td>
+                                                <td className="px-5 py-3.5">
+                                                    {harga.vanue ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                            </svg>
+                                                            {harga.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-5 py-3.5 text-slate-600">{formatRupiah(harga.harga)}</td>
                                                 <td className="px-5 py-3.5">
                                                     <span className={Number(harga.diskon) > 0 ? 'font-medium text-rose-600' : 'text-slate-400'}>
@@ -447,6 +477,9 @@ export default function Index({ hargaJamMains, jamMains = [], filters }) {
                                 jamMains={jamMains}
                                 jamMainSelectRef={jamMainSelectRef}
                                 multiple={!editingHarga}
+                                vanues={vanues}
+                                isVenueScoped={isVenueScoped}
+                                vanueTerkunci={vanueTerkunci}
                             />
                         </div>
                     </div>

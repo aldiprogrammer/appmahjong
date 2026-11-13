@@ -13,10 +13,19 @@ class hargajammain extends Model
         'harga',
         'diskon',
         'harga_akhir',
+        'vanue_id',
     ];
 
     public function jamMain(): BelongsTo
     {
         return $this->belongsTo(jam_main::class, 'jam_main_id');
+    }
+
+    /**
+     * @return BelongsTo<Vanue, $this>
+     */
+    public function vanue(): BelongsTo
+    {
+        return $this->belongsTo(Vanue::class);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin;
 use App\Models\Vanue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -253,5 +254,102 @@ class AdminVanueTest extends TestCase
                 ->has('vanues.data', 1)
                 ->where('vanues.data.0.nama', 'Mahjong Center Bandung')
             );
+    }
+
+    private function buatVanue(string $nama): Vanue
+    {
+        return Vanue::create([
+            'nama' => $nama,
+            'alamat' => 'Jl. Contoh No. 1',
+            'logo' => 'vanues/'.strtolower(str_replace(' ', '-', $nama)).'.png',
+        ]);
+    }
+
+    private function adminVenue(Vanue $vanue, string $username): static
+    {
+        $admin = Admin::create([
+            'username' => $username,
+            'role' => 'admin',
+            'vanue_id' => $vanue->id,
+            'password' => 'password123',
+        ]);
+
+        return $this->withSession(['admin_id' => $admin->id]);
+    }
+
+    public function test_admin_venue_hanya_melihat_venue_miliknya_sendiri(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $this->buatVanue('Mahjong Center Surabaya');
+
+        $this->adminVenue($jakarta, 'admin_jakarta')
+            ->get('/admin/vanues')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Vanue/Index')
+                ->has('vanues.data', 1)
+                ->where('vanues.data.0.nama', 'Mahjong Center Jakarta')
+            );
+    }
+
+    public function test_admin_venue_tidak_bisa_menambah_venue(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+
+        $this->adminVenue($jakarta, 'admin_jakarta')
+            ->post('/admin/vanues', [
+                'nama' => 'Mahjong Center Baru',
+                'alamat' => 'Jl. Baru No. 1',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(1, Vanue::query()->count());
+    }
+
+    public function test_admin_venue_tidak_bisa_mengubah_venue_lain(): void
+    {
+        Storage::fake('public');
+
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $surabaya = $this->buatVanue('Mahjong Center Surabaya');
+
+        $this->adminVenue($jakarta, 'admin_jakarta')
+            ->put("/admin/vanues/{$surabaya->id}", [
+                'nama' => 'Mahjong Center Dubah',
+                'alamat' => 'Jl. Baru No. 9',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame('Mahjong Center Surabaya', $surabaya->fresh()->nama);
+    }
+
+    public function test_admin_venue_bisa_memperbarui_venue_miliknya(): void
+    {
+        Storage::fake('public');
+
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+
+        $this->adminVenue($jakarta, 'admin_jakarta')
+            ->put("/admin/vanues/{$jakarta->id}", [
+                'nama' => 'Mahjong Center Jakarta Pusat',
+                'alamat' => 'Jl. Sudirman No. 10',
+            ])
+            ->assertRedirect(route('admin.vanues.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Mahjong Center Jakarta Pusat', $jakarta->fresh()->nama);
+    }
+
+    public function test_admin_venue_tidak_bisa_menghapus_venue(): void
+    {
+        Storage::fake('public');
+
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+
+        $this->adminVenue($jakarta, 'admin_jakarta')
+            ->delete("/admin/vanues/{$jakarta->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('vanues', ['id' => $jakarta->id]);
     }
 }

@@ -31,9 +31,11 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ mejas, filters }) {
-    const { flash } = usePage().props;
+export default function Index({ mejas, vanues = [], filters }) {
+    const { flash, auth } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
     const [search, setSearch] = useState(filters?.search ?? '');
+    const [vanueId, setVanueId] = useState(filters?.vanue_id ? String(filters.vanue_id) : '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [errorMessage, setErrorMessage] = useState(flash?.error ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -46,6 +48,7 @@ export default function Index({ mejas, filters }) {
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         kode_meja: '',
         nama_meja: '',
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
     });
 
     useEffect(() => {
@@ -90,11 +93,12 @@ export default function Index({ mejas, filters }) {
     const submitSearch = (event) => {
         event.preventDefault();
 
-        router.get('/admin/mejas', { search }, { preserveState: true, replace: true });
+        router.get('/admin/mejas', { search, vanue_id: vanueId }, { preserveState: true, replace: true });
     };
 
     const resetSearch = () => {
         setSearch('');
+        setVanueId('');
         router.get('/admin/mejas', {}, { preserveState: true, replace: true });
     };
 
@@ -110,6 +114,7 @@ export default function Index({ mejas, filters }) {
         setData({
             kode_meja: meja.kode_meja,
             nama_meja: meja.nama_meja,
+            vanue_id: meja.vanue?.id ? String(meja.vanue.id) : '',
         });
         setEditingMeja(meja);
         setFormOpen(true);
@@ -161,6 +166,9 @@ export default function Index({ mejas, filters }) {
         });
     };
 
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
+    const hasFilter = Boolean(filters?.search) || Boolean(filters?.vanue_id);
+
     return (
         <>
             <Head title="Data Meja" />
@@ -211,7 +219,16 @@ export default function Index({ mejas, filters }) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Data Meja</h1>
-                        <p className="text-sm text-slate-500">Kelola daftar meja mahjong yang tersedia.</p>
+                        <p className="text-sm text-slate-500">Kelola daftar meja mahjong pada setiap venue.</p>
+                        {isVenueScoped && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                Venue aktif: {currentAdmin?.vanue?.nama}
+                            </span>
+                        )}
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                         <a
@@ -238,7 +255,7 @@ export default function Index({ mejas, filters }) {
 
                 <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                        <form onSubmit={submitSearch} className="flex w-full gap-2 sm:max-w-md">
+                        <form onSubmit={submitSearch} className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row">
                             <div className="relative flex-1">
                                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -253,13 +270,25 @@ export default function Index({ mejas, filters }) {
                                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                                 />
                             </div>
+                            <select
+                                value={vanueId}
+                                onChange={(event) => setVanueId(event.target.value)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                            >
+                                <option value="">Semua venue</option>
+                                {(vanues ?? []).map((vanue) => (
+                                    <option key={vanue.id} value={vanue.id}>
+                                        {vanue.nama}
+                                    </option>
+                                ))}
+                            </select>
                             <button
                                 type="submit"
                                 className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
                             >
                                 Cari
                             </button>
-                            {filters?.search && (
+                            {hasFilter && (
                                 <button
                                     type="button"
                                     onClick={resetSearch}
@@ -281,14 +310,14 @@ export default function Index({ mejas, filters }) {
                                 <EmptyIcon />
                             </span>
                             <h2 className="mt-4 text-sm font-semibold text-slate-800">
-                                {filters?.search ? 'Meja tidak ditemukan' : 'Belum ada data meja'}
+                                {hasFilter ? 'Meja tidak ditemukan' : 'Belum ada data meja'}
                             </h2>
                             <p className="mt-1 max-w-sm text-sm text-slate-500">
-                                {filters?.search
-                                    ? 'Coba gunakan kata kunci lain untuk menemukan meja yang dicari.'
-                                    : 'Tambahkan meja pertama Anda untuk mulai mengelola data meja mahjong.'}
+                                {hasFilter
+                                    ? 'Coba gunakan kata kunci atau venue lain untuk menemukan meja yang dicari.'
+                                    : 'Tambahkan meja pertama pada venue Anda untuk mulai mengelola data meja mahjong.'}
                             </p>
-                            {!filters?.search && (
+                            {!hasFilter && (
                                 <button
                                     type="button"
                                     onClick={openCreateModal}
@@ -304,12 +333,13 @@ export default function Index({ mejas, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[640px] text-left text-sm">
+                                <table className="w-full min-w-[760px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Kode Meja</th>
                                             <th className="px-5 py-3 font-semibold">Nama Meja</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat</th>
                                             <th className="px-5 py-3 text-right font-semibold">Aksi</th>
                                         </tr>
@@ -326,6 +356,21 @@ export default function Index({ mejas, filters }) {
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3.5 font-medium text-slate-800">{meja.nama_meja}</td>
+                                                <td className="px-5 py-3.5">
+                                                    {meja.vanue ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                            </svg>
+                                                            {meja.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="px-5 py-3.5 text-slate-500">{formatDate(meja.created_at)}</td>
                                                 <td className="px-5 py-3.5">
                                                     <div className="flex items-center justify-end gap-2">
@@ -446,6 +491,8 @@ export default function Index({ mejas, filters }) {
                                 onSubmit={submitForm}
                                 onCancel={closeFormModal}
                                 submitLabel={editingMeja ? 'Simpan Perubahan' : 'Simpan Meja'}
+                                vanues={vanues}
+                                currentAdmin={currentAdmin}
                                 kodeInputRef={kodeInputRef}
                             />
                         </div>
@@ -466,7 +513,15 @@ export default function Index({ mejas, filters }) {
                                 <h2 className="text-base font-semibold text-slate-900">Hapus meja ini?</h2>
                                 <p className="mt-1 text-sm leading-relaxed text-slate-500">
                                     Meja <span className="font-semibold text-slate-700">{deleteTarget.nama_meja}</span>{' '}
-                                    ({deleteTarget.kode_meja}) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                                    ({deleteTarget.kode_meja})
+                                    {deleteTarget.vanue ? (
+                                        <>
+                                            {' '}
+                                            di venue{' '}
+                                            <span className="font-semibold text-slate-700">{deleteTarget.vanue.nama}</span>
+                                        </>
+                                    ) : null}{' '}
+                                    akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
                                 </p>
                             </div>
                         </div>
@@ -514,6 +569,7 @@ export default function Index({ mejas, filters }) {
                                 <h2 className="text-base font-semibold text-slate-900">QR Code Meja</h2>
                                 <p className="mt-0.5 text-sm text-slate-500">
                                     {qrTarget.nama_meja} &middot; {qrTarget.kode_meja}
+                                    {qrTarget.vanue ? ` · ${qrTarget.vanue.nama}` : ''}
                                 </p>
                             </div>
                             <button
@@ -568,7 +624,7 @@ export default function Index({ mejas, filters }) {
 }
 
 Index.layout = (page) => (
-    <AdminLayout title="Data Meja" subtitle="Kelola data meja mahjong">
+    <AdminLayout title="Data Meja" subtitle="Kelola data meja mahjong per venue">
         {page}
     </AdminLayout>
 );

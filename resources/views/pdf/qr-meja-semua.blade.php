@@ -17,6 +17,7 @@
         .qr { margin: 0 0 5px; }
         .qr img { width: 105px; height: 105px; }
         .name { font-size: 9px; font-weight: 600; color: #15803d; margin: 0; }
+        .venue { font-size: 7px; color: #6b7280; margin: 1px 0 0; }
         .page-break { page-break-after: always; }
     </style>
 </head>
@@ -36,6 +37,9 @@
                                 <div class="code">{{ $item['kode_meja'] }}</div>
                                 <div class="qr"><img src="{{ $item['qr'] }}" alt="QR Code {{ $item['kode_meja'] }}"></div>
                                 <div class="name">{{ $item['nama_meja'] }}</div>
+                                @isset($item['vanue'])
+                                    <div class="venue">{{ $item['vanue'] }}</div>
+                                @endisset
                             </div>
                         </td>
                     @endforeach

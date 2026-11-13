@@ -30,8 +30,10 @@ function EmptyIcon() {
     );
 }
 
-export default function Index({ kategoriMenus, filters }) {
-    const { flash } = usePage().props;
+export default function Index({ kategoriMenus, vanues = [], filters }) {
+    const { flash, auth } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [errorMessage, setErrorMessage] = useState(flash?.error ?? null);
@@ -40,9 +42,11 @@ export default function Index({ kategoriMenus, filters }) {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const inputRef = useRef(null);
+    const vanueTerkunci = isVenueScoped || Boolean(editingKategori);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         kategori: '',
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
     });
 
     useEffect(() => {
@@ -99,7 +103,10 @@ export default function Index({ kategoriMenus, filters }) {
 
     const openEditModal = (kategori) => {
         clearErrors();
-        setData({ kategori: kategori.kategori });
+        setData({
+            kategori: kategori.kategori,
+            vanue_id: kategori.vanue?.id ? String(kategori.vanue.id) : '',
+        });
         setEditingKategori(kategori);
         setFormOpen(true);
     };
@@ -197,6 +204,15 @@ export default function Index({ kategoriMenus, filters }) {
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Kategori Menu</h1>
                         <p className="text-sm text-slate-500">Kelola kategori untuk makanan dan minuman.</p>
+                        {isVenueScoped && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                Venue aktif: {currentAdmin?.vanue?.nama}
+                            </span>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -278,11 +294,12 @@ export default function Index({ kategoriMenus, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[640px] text-left text-sm">
+                                <table className="w-full min-w-[760px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Kategori</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Jumlah Menu</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat</th>
                                             <th className="px-5 py-3 text-right font-semibold">Aksi</th>
@@ -296,6 +313,21 @@ export default function Index({ kategoriMenus, filters }) {
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span className="font-semibold text-slate-800">{kategori.kategori}</span>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {kategori.vanue ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                            </svg>
+                                                            {kategori.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span className="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
@@ -425,6 +457,36 @@ export default function Index({ kategoriMenus, filters }) {
                                     }`}
                                 />
                                 {errors.kategori && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kategori}</p>}
+                            </div>
+
+                            <div>
+                                <label htmlFor="vanue_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                    Venue
+                                </label>
+                                <select
+                                    id="vanue_id"
+                                    value={data.vanue_id ?? ''}
+                                    onChange={(event) => setData('vanue_id', event.target.value)}
+                                    disabled={vanueTerkunci}
+                                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                                        errors.vanue_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                                    } ${vanueTerkunci ? 'cursor-not-allowed bg-slate-50 text-slate-600' : 'text-slate-800'}`}
+                                >
+                                    <option value="">Tanpa venue</option>
+                                    {vanues.map((vanue) => (
+                                        <option key={vanue.id} value={vanue.id}>
+                                            {vanue.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.vanue_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.vanue_id}</p>}
+                                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                                    {editingKategori
+                                        ? 'Venue kategori tidak dapat diubah setelah dibuat.'
+                                        : isVenueScoped
+                                            ? `Kategori ini otomatis menjadi milik venue ${currentAdmin?.vanue?.nama}.`
+                                            : 'Kategori tanpa venue hanya tampil untuk akun yang tidak terbatas venue.'}
+                                </p>
                             </div>
 
                             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">

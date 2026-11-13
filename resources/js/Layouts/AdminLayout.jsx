@@ -124,6 +124,27 @@ function AdminIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+/**
+ * Ikon tiap menu panel admin. Kuncinya sama dengan kunci pada prop `adminMenus`
+ * (segmen nama rute setelah "admin.").
+ */
+const menuIcons = {
+    dashboard: DashboardIcon,
+    kasir: KasirIcon,
+    mejas: MejaIcon,
+    vanues: VenueIcon,
+    'jam-mains': JamMainIcon,
+    'harga-jam-mains': HargaIcon,
+    'kategori-menus': KategoriMenuIcon,
+    menus: MenuMakananIcon,
+    bookings: BookingIcon,
+    penggunas: PenggunaIcon,
+    'setting-booking-rooms': SettingRoomIcon,
+    'status-vouchers': StatusVoucherIcon,
+    vouchers: VoucherIcon,
+    admins: AdminIcon,
+};
+
 function MenuIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -134,7 +155,9 @@ function MenuIcon() {
 
 export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Administrasi Mahjong', children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const currentAdmin = props.auth?.admin ?? null;
+    const hakAkses = currentAdmin?.hak_akses ?? null;
 
     const today = new Intl.DateTimeFormat('id-ID', {
         day: '2-digit',
@@ -142,28 +165,20 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
         year: 'numeric',
     }).format(new Date());
 
-    const menus = [
-        { name: 'Dashboard', href: '/admin/dashboard', icon: DashboardIcon },
-        { name: 'Kasir', href: '/admin/kasir', icon: KasirIcon },
-        { name: 'Meja', href: '/admin/mejas', icon: MejaIcon },
-        { name: 'Venue', href: '/admin/vanues', icon: VenueIcon },
-        { name: 'Jam Main', href: '/admin/jam-mains', icon: JamMainIcon },
-        { name: 'Harga Jam Main', href: '/admin/harga-jam-mains', icon: HargaIcon },
-        { name: 'Kategori Menu', href: '/admin/kategori-menus', icon: KategoriMenuIcon },
-        { name: 'Menu', href: '/admin/menus', icon: MenuMakananIcon },
-        { name: 'Booking', href: '/admin/bookings', icon: BookingIcon },
-        { name: 'Pengguna', href: '/admin/penggunas', icon: PenggunaIcon },
-        { name: 'Setting Room Booking', href: '/admin/setting-booking-rooms', icon: SettingRoomIcon },
-        { name: 'Status Voucher', href: '/admin/status-vouchers', icon: StatusVoucherIcon },
-        { name: 'Voucher', href: '/admin/vouchers', icon: VoucherIcon },
-        { name: 'Akun Admin', href: '/admin/admins', icon: AdminIcon },
-    ];
+    const menus = Object.entries(props.adminMenus ?? {})
+        .map(([key, name]) => ({
+            key,
+            name,
+            href: `/admin/${key}`,
+            icon: menuIcons[key] ?? DashboardIcon,
+        }))
+        .filter((menu) => hakAkses === null || hakAkses.includes(menu.key));
     const isActive = (href) => url.startsWith(href);
 
     return (
         <>
             <aside
-                className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-gradient-to-b from-emerald-700 to-emerald-900 shadow-2xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+                className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col overflow-hidden bg-gradient-to-b from-emerald-700 to-emerald-900 shadow-2xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
@@ -187,7 +202,7 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                     </button>
                 </div>
 
-                <nav className="flex-1 space-y-1 px-3 py-6">
+                <nav className="admin-sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-6">
                     <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-emerald-300">Menu</p>
 
                     {menus.map((menu) => {
@@ -196,7 +211,7 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
 
                         return (
                             <Link
-                                key={menu.name}
+                                key={menu.key}
                                 href={menu.href}
                                 className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
                                     active
@@ -212,7 +227,7 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                     })}
                 </nav>
 
-                <div className="m-3 rounded-xl bg-white/10 p-4 ring-1 ring-white/10">
+                <div className="m-3 shrink-0 rounded-xl bg-white/10 p-4 ring-1 ring-white/10">
                     <p className="text-sm font-semibold text-white">Butuh bantuan?</p>
                     <p className="mt-1 text-xs leading-relaxed text-emerald-200">
                         Kelola data meja, jam main, harga, booking, pengguna, dan akun admin dengan mudah dari panel ini.
@@ -256,10 +271,17 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                             Keluar
                         </Link>
                         <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white py-1 pl-1 pr-3">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
-                                A
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold uppercase text-white">
+                                {currentAdmin?.username?.charAt(0) ?? 'A'}
                             </span>
-                            <span className="hidden text-sm font-medium text-slate-700 sm:block">Admin</span>
+                            <span className="hidden leading-tight sm:block">
+                                <span className="block text-sm font-medium text-slate-700">
+                                    {currentAdmin?.username ?? 'Admin'}
+                                </span>
+                                <span className="block text-[11px] font-normal text-slate-500">
+                                    {currentAdmin?.vanue?.nama ?? 'Belum ada venue'}
+                                </span>
+                            </span>
                         </div>
                     </div>
                 </header>

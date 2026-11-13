@@ -43,6 +43,9 @@ export default function HargaJamMainForm({
     jamMains = [],
     jamMainSelectRef,
     multiple = false,
+    vanues = [],
+    isVenueScoped = false,
+    vanueTerkunci = false,
 }) {
     const hargaAkhir = Math.max(0, (Number(data.harga) || 0) - (Number(data.diskon) || 0));
     const jamMainIds = (data.jam_main_ids ?? []).map(String);
@@ -83,6 +86,36 @@ export default function HargaJamMainForm({
 
     return (
         <form onSubmit={onSubmit} className="space-y-5">
+            <div>
+                <label htmlFor="vanue_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Venue
+                </label>
+                <select
+                    id="vanue_id"
+                    value={data.vanue_id ?? ''}
+                    onChange={(event) => setData('vanue_id', event.target.value)}
+                    disabled={vanueTerkunci}
+                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                        errors.vanue_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                    } ${vanueTerkunci ? 'cursor-not-allowed bg-slate-50 text-slate-600' : 'text-slate-800'}`}
+                >
+                    <option value="">Tanpa venue</option>
+                    {vanues.map((vanue) => (
+                        <option key={vanue.id} value={vanue.id}>
+                            {vanue.nama}
+                        </option>
+                    ))}
+                </select>
+                {errors.vanue_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.vanue_id}</p>}
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    {vanueTerkunci
+                        ? 'Venue harga tidak dapat diubah setelah dibuat.'
+                        : isVenueScoped
+                            ? 'Harga ini otomatis menjadi milik venue Anda dan hanya dipakai untuk meja pada venue tersebut.'
+                            : 'Harga hanya dipakai untuk meja pada venue yang sama, tanpa fallback antar venue.'}
+                </p>
+            </div>
+
             <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                     <label htmlFor={multiple ? undefined : 'jam_main_id'} className="block text-sm font-medium text-slate-700">

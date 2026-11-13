@@ -23,7 +23,7 @@
         <div class="code">{{ $meja->kode_meja }}</div>
         <div class="qr"><img src="{{ $qr }}" alt="QR Code {{ $meja->kode_meja }}"></div>
         <div class="name">{{ $meja->nama_meja }}</div>
-        <div class="footer">Mahjong Medan</div>
+        <div class="footer">{{ $meja->vanue?->nama ?? 'Mahjong Medan' }}</div>
     </div>
 </body>
 </html>

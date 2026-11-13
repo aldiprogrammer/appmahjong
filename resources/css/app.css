@@ -45,6 +45,29 @@
     backdrop-filter: blur(5px);
 }
 
+/* Sidebar admin: daftar menu dapat digulir saat tinggi layar terbatas */
+.admin-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(16 185 129 / 45%) transparent;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(16 185 129 / 45%);
+    border-radius: 9999px;
+}
+
+.admin-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(16 185 129 / 70%);
+}
+
 .app-alert {
     border: 1px solid #e2e8f0;
     border-radius: 1.5rem;

@@ -295,6 +295,15 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
     const hariTerpilih = data.tgl_main ? hariMap[new Date(`${data.tgl_main}T00:00:00`).getDay()] : '';
     const mejaTerpilih = mejas.find((meja) => String(meja.id) === String(data.meja_id));
     const mejaKey = mejaTerpilih ? String(mejaTerpilih.kode_meja || mejaTerpilih.id) : '';
+    // Harga jam main mengikuti venue meja yang dipilih (tanpa fallback antar venue).
+    const vanueTerpilih = mejaTerpilih?.vanue_id ?? null;
+    const hargaVenue = (jam) =>
+        hargas.find(
+            (item) =>
+                String(item.jam_main_id) === String(jam.id) &&
+                item.hari === hariTerpilih &&
+                String(item.vanue_id ?? '') === String(vanueTerpilih ?? ''),
+        );
 
     const jamSudahDibooking = (jam) =>
         mejaKey !== '' &&
@@ -309,9 +318,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
     const jamTerpilih = jamMains.filter((jam) => data.jam_main_ids.includes(String(jam.id)));
     const jamTampil = jamMains.filter((jam) => !jamSudahLewat(jam));
     const rincian = jamTerpilih.map((jam) => {
-        const harga = hargas.find(
-            (item) => String(item.jam_main_id) === String(jam.id) && item.hari === hariTerpilih,
-        );
+        const harga = hargaVenue(jam);
 
         return {
             jam,
@@ -694,10 +701,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                                 {jamTampil.map((jam) => {
                                                     const booked = jamSudahDibooking(jam);
                                                     const active = !booked && data.jam_main_ids.includes(String(jam.id));
-                                                    const hargaJam = hargas.find(
-                                                        (item) =>
-                                                            String(item.jam_main_id) === String(jam.id) && item.hari === hariTerpilih,
-                                                    );
+                                                    const hargaJam = hargaVenue(jam);
                                                     const diskonJam = Number(hargaJam?.diskon) || 0;
 
                                                     return (

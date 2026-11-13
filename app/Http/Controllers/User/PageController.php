@@ -153,7 +153,7 @@ class PageController extends Controller
 
         return Inertia::render('User/Booking', [
             'pengguna' => $pengguna,
-            'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja'])),
+            'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id'])),
             'jamMains' => Inertia::defer(fn () => jam_main::query()
                 ->where('status', 'aktif')
                 ->orderBy('jam_mulai')
@@ -161,7 +161,7 @@ class PageController extends Controller
             'hargas' => Inertia::defer(fn () => hargajammain::query()
                 ->orderBy('hari')
                 ->orderBy('harga')
-                ->get(['id', 'jam_main_id', 'hari', 'harga', 'diskon', 'harga_akhir'])),
+                ->get(['id', 'jam_main_id', 'hari', 'harga', 'diskon', 'harga_akhir', 'vanue_id'])),
             'bookedSlots' => Inertia::defer(fn () => Booking::query()
                 ->where('status_hapus', '!=', '1')
                 ->where('status_booking', '!=', '400')
@@ -252,9 +252,11 @@ class PageController extends Controller
             ->get()
             ->keyBy(fn (jam_main $jamMain) => (string) $jamMain->id);
 
+        // Harga jam main mengikuti venue meja yang dipilih, tanpa fallback antar venue.
         $hargaPerJam = hargajammain::query()
             ->whereIn('jam_main_id', array_map('strval', $validated['jam_main_ids']))
             ->where('hari', $hari)
+            ->where('vanue_id', $meja->vanue_id)
             ->get()
             ->keyBy(fn (hargajammain $harga) => (string) $harga->jam_main_id);
 
@@ -287,7 +289,7 @@ class PageController extends Controller
 
                 if (! $jamMain || ! $harga) {
                     throw ValidationException::withMessages([
-                        'jam_main_ids' => 'Harga untuk hari dan jam yang dipilih belum tersedia.',
+                        'jam_main_ids' => 'Harga untuk hari dan jam yang dipilih belum tersedia pada venue meja tersebut.',
                     ]);
                 }
 

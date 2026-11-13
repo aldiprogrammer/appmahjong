@@ -51,10 +51,13 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ admins, roles, filters }) {
-    const { flash } = usePage().props;
+export default function Index({ admins, roles, vanues = [], filters }) {
+    const { flash, auth, adminMenus } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
+    const menuAkses = adminMenus ?? {};
     const [search, setSearch] = useState(filters?.search ?? '');
     const [role, setRole] = useState(filters?.role ?? '');
+    const [vanueId, setVanueId] = useState(filters?.vanue_id ? String(filters.vanue_id) : '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
@@ -65,6 +68,8 @@ export default function Index({ admins, roles, filters }) {
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         username: '',
         role: 'staff',
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
+        hak_akses: Object.keys(menuAkses),
         password: '',
         password_confirmation: '',
     });
@@ -106,12 +111,13 @@ export default function Index({ admins, roles, filters }) {
     const submitSearch = (event) => {
         event.preventDefault();
 
-        router.get('/admin/admins', { search, role }, { preserveState: true, replace: true });
+        router.get('/admin/admins', { search, role, vanue_id: vanueId }, { preserveState: true, replace: true });
     };
 
     const resetSearch = () => {
         setSearch('');
         setRole('');
+        setVanueId('');
         router.get('/admin/admins', {}, { preserveState: true, replace: true });
     };
 
@@ -127,6 +133,8 @@ export default function Index({ admins, roles, filters }) {
         setData({
             username: admin.username,
             role: admin.role,
+            vanue_id: admin.vanue?.id ? String(admin.vanue.id) : '',
+            hak_akses: admin.hak_akses ?? Object.keys(menuAkses),
             password: '',
             password_confirmation: '',
         });
@@ -180,7 +188,9 @@ export default function Index({ admins, roles, filters }) {
         });
     };
 
-    const hasFilter = Boolean(filters?.search) || Boolean(filters?.role);
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
+    const hasFilter =
+        Boolean(filters?.search) || Boolean(filters?.role) || Boolean(filters?.vanue_id);
 
     return (
         <>
@@ -211,7 +221,16 @@ export default function Index({ admins, roles, filters }) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Data Admin</h1>
-                        <p className="text-sm text-slate-500">Kelola akun admin beserta role aksesnya.</p>
+                        <p className="text-sm text-slate-500">Kelola akun admin beserta role dan venue miliknya.</p>
+                        {isVenueScoped && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                Venue aktif: {currentAdmin?.vanue?.nama}
+                            </span>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -227,7 +246,7 @@ export default function Index({ admins, roles, filters }) {
 
                 <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                        <form onSubmit={submitSearch} className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row">
+                        <form onSubmit={submitSearch} className="flex w-full flex-col gap-2 sm:max-w-3xl sm:flex-row">
                             <div className="relative flex-1">
                                 <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -251,6 +270,18 @@ export default function Index({ admins, roles, filters }) {
                                 {Object.entries(roles ?? {}).map(([value, label]) => (
                                     <option key={value} value={value}>
                                         {label}
+                                    </option>
+                                ))}
+                            </select>
+                            <select
+                                value={vanueId}
+                                onChange={(event) => setVanueId(event.target.value)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                            >
+                                <option value="">Semua venue</option>
+                                {(vanues ?? []).map((vanue) => (
+                                    <option key={vanue.id} value={vanue.id}>
+                                        {vanue.nama}
                                     </option>
                                 ))}
                             </select>
@@ -286,8 +317,8 @@ export default function Index({ admins, roles, filters }) {
                             </h2>
                             <p className="mt-1 max-w-sm text-sm text-slate-500">
                                 {hasFilter
-                                    ? 'Coba gunakan kata kunci atau role lain untuk menemukan admin yang dicari.'
-                                    : 'Tambahkan akun admin pertama dengan role staff, admin, atau super admin.'}
+                                    ? 'Coba gunakan kata kunci, role, atau venue lain untuk menemukan admin yang dicari.'
+                                    : 'Tambahkan akun admin, tentukan role-nya, lalu pilih venue tempat admin tersebut bertugas.'}
                             </p>
                             {!hasFilter && (
                                 <button
@@ -305,12 +336,13 @@ export default function Index({ admins, roles, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[640px] text-left text-sm">
+                                <table className="w-full min-w-[760px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Username</th>
                                             <th className="px-5 py-3 font-semibold">Role</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat</th>
                                             <th className="px-5 py-3 text-right font-semibold">Aksi</th>
                                         </tr>
@@ -331,6 +363,26 @@ export default function Index({ admins, roles, filters }) {
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <RoleBadge role={admin.role} roles={roles} />
+                                                    <p className="mt-1 text-[11px] font-medium text-slate-500">
+                                                        {admin.hak_akses
+                                                            ? `${admin.hak_akses.length} menu`
+                                                            : 'Semua menu'}
+                                                    </p>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {admin.vanue ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                            </svg>
+                                                            {admin.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-slate-500">{formatDate(admin.created_at)}</td>
                                                 <td className="px-5 py-3.5">
@@ -444,6 +496,9 @@ export default function Index({ admins, roles, filters }) {
                                 submitLabel={editingAdmin ? 'Simpan Perubahan' : 'Simpan Admin'}
                                 isEditing={Boolean(editingAdmin)}
                                 roles={roles}
+                                vanues={vanues}
+                                adminMenus={menuAkses}
+                                currentAdmin={currentAdmin}
                                 usernameInputRef={usernameInputRef}
                             />
                         </div>
@@ -468,6 +523,14 @@ export default function Index({ admins, roles, filters }) {
                                     <span className="font-semibold text-slate-700">
                                         {roles?.[deleteTarget.role] ?? deleteTarget.role}
                                     </span>{' '}
+                                    {deleteTarget.vanue ? (
+                                        <>
+                                            dari venue{' '}
+                                            <span className="font-semibold text-slate-700">{deleteTarget.vanue.nama}</span>{' '}
+                                        </>
+                                    ) : (
+                                        'tanpa venue '
+                                    )}
                                     akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
                                 </p>
                             </div>
@@ -505,7 +568,7 @@ export default function Index({ admins, roles, filters }) {
 }
 
 Index.layout = (page) => (
-    <AdminLayout title="Data Admin" subtitle="Kelola akun admin dan role akses">
+    <AdminLayout title="Data Admin" subtitle="Kelola akun admin, role, dan venue">
         {page}
     </AdminLayout>
 );

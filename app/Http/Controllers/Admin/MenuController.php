@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\VanueScope;
 use App\Http\Controllers\Controller;
 use App\Models\Kategorimenu;
 use App\Models\Menu;
@@ -15,13 +16,17 @@ use Inertia\Response;
 
 class MenuController extends Controller
 {
+    use VanueScope;
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
         $kategori = trim((string) $request->query('kategori', ''));
+        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
 
         $menus = Menu::query()
-            ->with('kategori')
+            ->with(['kategori', 'vanue'])
+            ->when($vanueTerbatas !== null, fn ($query) => $query->where('vanue_id', $vanueTerbatas))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('nama', 'like', "%{$search}%")
@@ -38,12 +43,14 @@ class MenuController extends Controller
             ->withQueryString();
 
         $kategoriMenus = Kategorimenu::query()
+            ->when($vanueTerbatas !== null, fn ($query) => $query->where('vanue_id', $vanueTerbatas))
             ->orderBy('kategori')
-            ->get(['id', 'kategori']);
+            ->get(['id', 'kategori', 'vanue_id']);
 
         return Inertia::render('Admin/Menu/Index', [
             'menus' => $menus,
             'kategoriMenus' => $kategoriMenus,
+            'vanues' => $this->daftarVanueTersedia($request),
             'filters' => [
                 'search' => $search,
                 'kategori' => $kategori,
@@ -53,15 +60,22 @@ class MenuController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
+
         $isMinuman = $this->kategoriMinuman($request);
 
-        $validated = $request->validate($this->aturanValidasi($isMinuman, false), $this->pesanValidasi());
+        $validated = $request->validate(
+            $this->aturanValidasi($isMinuman, false, $vanueTerbatas ?? $this->vanueDariInput($request)),
+            $this->pesanValidasi(),
+        );
 
         $validated = $this->normalisasiHarga($validated, $isMinuman);
 
         if ($request->hasFile('gambar')) {
             $validated['gambar'] = $request->file('gambar')->store('menus', 'public');
         }
+
+        $validated['vanue_id'] = $vanueTerbatas ?? $this->vanueDariInput($request);
 
         Menu::create($validated);
 
@@ -72,9 +86,14 @@ class MenuController extends Controller
 
     public function update(Request $request, Menu $menu): RedirectResponse
     {
+        $this->batasiAksesVanue($request, $menu->vanue_id !== null ? (int) $menu->vanue_id : null);
+
         $isMinuman = $this->kategoriMinuman($request);
 
-        $validated = $request->validate($this->aturanValidasi($isMinuman, true), $this->pesanValidasi());
+        $validated = $request->validate(
+            $this->aturanValidasi($isMinuman, true, $menu->vanue_id),
+            $this->pesanValidasi(),
+        );
 
         $validated = $this->normalisasiHarga($validated, $isMinuman);
 
@@ -92,6 +111,7 @@ class MenuController extends Controller
 
         unset($validated['hapus_gambar']);
 
+        // Venue menu tidak berubah saat edit agar tetap senada dengan kategorinya.
         $menu->update($validated);
 
         return redirect()
@@ -99,8 +119,10 @@ class MenuController extends Controller
             ->with('success', 'Menu berhasil diperbarui.');
     }
 
-    public function updateStatus(Menu $menu): RedirectResponse
+    public function updateStatus(Request $request, Menu $menu): RedirectResponse
     {
+        $this->batasiAksesVanue($request, $menu->vanue_id !== null ? (int) $menu->vanue_id : null);
+
         $menu->update([
             'status' => $menu->status === 'aktif' ? 'nonaktif' : 'aktif',
         ]);
@@ -108,8 +130,10 @@ class MenuController extends Controller
         return back()->with('success', 'Status menu berhasil diperbarui.');
     }
 
-    public function destroy(Menu $menu): RedirectResponse
+    public function destroy(Request $request, Menu $menu): RedirectResponse
     {
+        $this->batasiAksesVanue($request, $menu->vanue_id !== null ? (int) $menu->vanue_id : null);
+
         if ($menu->gambar) {
             Storage::disk('public')->delete($menu->gambar);
         }
@@ -119,6 +143,14 @@ class MenuController extends Controller
         return redirect()
             ->route('admin.menus.index')
             ->with('success', 'Menu berhasil dihapus.');
+    }
+
+    /**
+     * Venue tujuan saat menambah menu, null bila menu tanpa venue.
+     */
+    private function vanueDariInput(Request $request): ?int
+    {
+        return $request->filled('vanue_id') ? (int) $request->input('vanue_id') : null;
     }
 
     private function kategoriMinuman(Request $request): bool
@@ -131,10 +163,18 @@ class MenuController extends Controller
     /**
      * @return array<string, array<int, mixed>>
      */
-    private function aturanValidasi(bool $isMinuman, bool $untukUpdate): array
+    private function aturanValidasi(bool $isMinuman, bool $untukUpdate, ?int $vanueTarget): array
     {
         $aturan = [
-            'id_kategori' => ['required', 'string', Rule::exists('kategorimenus', 'id')],
+            'id_kategori' => [
+                'required',
+                'string',
+                Rule::exists('kategorimenus', 'id')->where(function ($query) use ($vanueTarget) {
+                    $vanueTarget === null
+                        ? $query->whereNull('vanue_id')
+                        : $query->where('vanue_id', $vanueTarget);
+                }),
+            ],
             'nama' => ['required', 'string', 'max:50'],
             'gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'dibuat_di' => ['required', 'string', Rule::in(['Dapur', 'Bar'])],
@@ -146,6 +186,8 @@ class MenuController extends Controller
 
         if ($untukUpdate) {
             $aturan['hapus_gambar'] = ['sometimes', 'boolean'];
+        } else {
+            $aturan['vanue_id'] = ['nullable', 'integer', Rule::exists('vanues', 'id')];
         }
 
         return $aturan;
@@ -158,7 +200,7 @@ class MenuController extends Controller
     {
         return [
             'id_kategori.required' => 'Kategori menu wajib dipilih.',
-            'id_kategori.exists' => 'Kategori menu tidak ditemukan.',
+            'id_kategori.exists' => 'Kategori menu tidak ditemukan atau bukan milik venue Anda.',
             'nama.required' => 'Nama menu wajib diisi.',
             'nama.max' => 'Nama menu maksimal 50 karakter.',
             'gambar.image' => 'File harus berupa gambar.',
@@ -177,6 +219,8 @@ class MenuController extends Controller
             'harga_panas.min' => 'Harga minuman panas tidak boleh negatif.',
             'status.required' => 'Status menu wajib dipilih.',
             'status.in' => 'Status menu tidak valid.',
+            'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
+            'vanue_id.exists' => 'Venue yang dipilih tidak ditemukan.',
         ];
     }
 

@@ -38,8 +38,10 @@ function EmptyIcon() {
     );
 }
 
-export default function Index({ menus, kategoriMenus, filters }) {
-    const { flash } = usePage().props;
+export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
+    const { flash, auth } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
     const [search, setSearch] = useState(filters?.search ?? '');
     const [kategoriFilter, setKategoriFilter] = useState(filters?.kategori ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
@@ -51,8 +53,10 @@ export default function Index({ menus, kategoriMenus, filters }) {
     const [togglingId, setTogglingId] = useState(null);
     const [gambarPreview, setGambarPreview] = useState(null);
     const namaInputRef = useRef(null);
+    const vanueTerkunci = isVenueScoped || Boolean(editingMenu);
 
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
         id_kategori: '',
         nama: '',
         gambar: null,
@@ -68,6 +72,11 @@ export default function Index({ menus, kategoriMenus, filters }) {
         (kategori) => String(kategori.id) === String(data.id_kategori),
     );
     const isMinuman = /minum/i.test(kategoriTerpilih?.kategori ?? '');
+
+    // Kategori yang ditawarkan pada form mengikuti venue yang dipilih agar selalu senada.
+    const kategoriTersedia = kategoriMenus.filter(
+        (kategori) => String(kategori.vanue_id ?? '') === String(data.vanue_id ?? ''),
+    );
 
     useEffect(() => {
         return () => {
@@ -135,13 +144,13 @@ export default function Index({ menus, kategoriMenus, filters }) {
         setGambarPreview(null);
 
         if (kategoriFilter) {
-            const kategori = kategoriMenus.find(
+            const kategori = kategoriTersedia.find(
                 (item) => String(item.id) === String(kategoriFilter),
             );
 
             setData((current) => ({
                 ...current,
-                id_kategori: String(kategoriFilter),
+                id_kategori: kategori ? String(kategoriFilter) : '',
                 dibuat_di: /minum/i.test(kategori?.kategori ?? '') ? 'Bar' : 'Dapur',
             }));
         }
@@ -152,6 +161,7 @@ export default function Index({ menus, kategoriMenus, filters }) {
     const openEditModal = (menu) => {
         clearErrors();
         setData({
+            vanue_id: menu.vanue?.id ? String(menu.vanue.id) : '',
             id_kategori: String(menu.id_kategori),
             nama: menu.nama,
             gambar: null,
@@ -168,7 +178,7 @@ export default function Index({ menus, kategoriMenus, filters }) {
     };
 
     const ubahKategori = (value) => {
-        const kategori = kategoriMenus.find((item) => String(item.id) === String(value));
+        const kategori = kategoriTersedia.find((item) => String(item.id) === String(value));
         const minuman = /minum/i.test(kategori?.kategori ?? '');
 
         setData((current) => ({
@@ -179,6 +189,23 @@ export default function Index({ menus, kategoriMenus, filters }) {
             harga_dingin: minuman ? current.harga_dingin : '',
             harga_panas: minuman ? current.harga_panas : '',
         }));
+    };
+
+    const ubahVanue = (value) => {
+        setData((current) => {
+            const kategoriVenue = kategoriMenus.filter(
+                (kategori) => String(kategori.vanue_id ?? '') === String(value ?? ''),
+            );
+            const kategoriMasihAda = kategoriVenue.some(
+                (kategori) => String(kategori.id) === String(current.id_kategori),
+            );
+
+            return {
+                ...current,
+                vanue_id: value,
+                id_kategori: kategoriMasihAda ? current.id_kategori : '',
+            };
+        });
     };
 
     const closeFormModal = () => {
@@ -311,6 +338,15 @@ export default function Index({ menus, kategoriMenus, filters }) {
                     <div>
                         <h1 className="text-xl font-bold text-slate-900">Menu</h1>
                         <p className="text-sm text-slate-500">Kelola daftar makanan dan minuman beserta harga dan statusnya.</p>
+                        {isVenueScoped && (
+                            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                </svg>
+                                Venue aktif: {currentAdmin?.vanue?.nama}
+                            </span>
+                        )}
                     </div>
                     <button
                         type="button"
@@ -406,13 +442,14 @@ export default function Index({ menus, kategoriMenus, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[960px] text-left text-sm">
+                                <table className="w-full min-w-[1080px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Gambar</th>
                                             <th className="px-5 py-3 font-semibold">Nama Menu</th>
                                             <th className="px-5 py-3 font-semibold">Kategori</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat di</th>
                                             <th className="px-5 py-3 font-semibold">Harga</th>
                                             <th className="px-5 py-3 font-semibold">Status</th>
@@ -448,6 +485,21 @@ export default function Index({ menus, kategoriMenus, filters }) {
                                                     <span className="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
                                                         {menu.kategori?.kategori ?? '-'}
                                                     </span>
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {menu.vanue ? (
+                                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                            </svg>
+                                                            {menu.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span
@@ -617,6 +669,36 @@ export default function Index({ menus, kategoriMenus, filters }) {
 
                         <form onSubmit={submitForm} className="space-y-5 px-6 py-5">
                             <div>
+                                <label htmlFor="vanue_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                    Venue
+                                </label>
+                                <select
+                                    id="vanue_id"
+                                    value={data.vanue_id ?? ''}
+                                    onChange={(event) => ubahVanue(event.target.value)}
+                                    disabled={vanueTerkunci}
+                                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                                        errors.vanue_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                                    } ${vanueTerkunci ? 'cursor-not-allowed bg-slate-50 text-slate-600' : 'text-slate-800'}`}
+                                >
+                                    <option value="">Tanpa venue</option>
+                                    {vanues.map((vanue) => (
+                                        <option key={vanue.id} value={vanue.id}>
+                                            {vanue.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.vanue_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.vanue_id}</p>}
+                                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                                    {editingMenu
+                                        ? 'Venue menu tidak dapat diubah setelah dibuat.'
+                                        : isVenueScoped
+                                            ? `Menu ini otomatis menjadi milik venue ${currentAdmin?.vanue?.nama}.`
+                                            : 'Pilihan kategori menyesuaikan venue yang dipilih.'}
+                                </p>
+                            </div>
+
+                            <div>
                                 <label htmlFor="id_kategori" className="mb-1.5 block text-sm font-medium text-slate-700">
                                     Kategori Menu <span className="text-rose-500">*</span>
                                 </label>
@@ -630,16 +712,16 @@ export default function Index({ menus, kategoriMenus, filters }) {
                                     }`}
                                 >
                                     <option value="">Pilih kategori menu</option>
-                                    {kategoriMenus.map((kategori) => (
+                                    {kategoriTersedia.map((kategori) => (
                                         <option key={kategori.id} value={kategori.id}>
                                             {kategori.kategori}
                                         </option>
                                     ))}
                                 </select>
                                 {errors.id_kategori && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.id_kategori}</p>}
-                                {kategoriMenus.length === 0 && (
+                                {kategoriTersedia.length === 0 && (
                                     <p className="mt-1.5 text-xs text-amber-600">
-                                        Belum ada kategori. Tambahkan kategori menu terlebih dahulu.
+                                        Belum ada kategori pada venue ini. Tambahkan kategori menu terlebih dahulu.
                                     </p>
                                 )}
                             </div>
