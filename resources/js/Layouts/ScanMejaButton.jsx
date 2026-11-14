@@ -280,10 +280,14 @@ export default function ScanMejaButton() {
 
                                 <div className="space-y-4">
                                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-center">
-                                        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                            </svg>
+                                        <span className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-emerald-600 text-white">
+                                            {mejaTerpilih.vanue?.logo_url ? (
+                                                <img src={mejaTerpilih.vanue.logo_url} alt={mejaTerpilih.vanue.nama} className="h-full w-full object-cover" />
+                                            ) : (
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                </svg>
+                                            )}
                                         </span>
                                         <p className="mt-2 text-sm font-bold text-emerald-900">
                                             {mejaTerpilih.meja?.nama_meja}
@@ -291,6 +295,14 @@ export default function ScanMejaButton() {
                                         <p className="mt-0.5 inline-flex rounded-full bg-white px-2.5 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
                                             {mejaTerpilih.meja?.kode_meja}
                                         </p>
+                                        {mejaTerpilih.vanue?.nama && (
+                                            <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m-4.5 0h4.5" />
+                                                </svg>
+                                                Venue {mejaTerpilih.vanue.nama}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2.5">
@@ -305,7 +317,9 @@ export default function ScanMejaButton() {
                                             <span className="flex-1">
                                                 <span className="block text-sm font-bold">Pesan Makanan</span>
                                                 <span className="mt-0.5 block text-[11px] text-white/85">
-                                                    Nomor meja terisi otomatis
+                                                    {mejaTerpilih.vanue?.nama
+                                                        ? `Menu ${mejaTerpilih.vanue.nama} · meja terisi otomatis`
+                                                        : 'Nomor meja terisi otomatis'}
                                                 </span>
                                             </span>
                                             <ChevronRightIcon />

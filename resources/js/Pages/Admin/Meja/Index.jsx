@@ -491,6 +491,7 @@ export default function Index({ mejas, vanues = [], filters }) {
                                 onSubmit={submitForm}
                                 onCancel={closeFormModal}
                                 submitLabel={editingMeja ? 'Simpan Perubahan' : 'Simpan Meja'}
+                                isEditing={Boolean(editingMeja)}
                                 vanues={vanues}
                                 currentAdmin={currentAdmin}
                                 kodeInputRef={kodeInputRef}

@@ -12,6 +12,7 @@ use App\Models\Menu;
 use App\Models\Pengguna;
 use App\Models\Settingbookingroom;
 use App\Models\Statusvoucher;
+use App\Models\Vanue;
 use App\Models\Voucher;
 use App\Services\BuktiPembayaranService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -65,13 +66,14 @@ class PageController extends Controller
         if ($kodeMeja !== '') {
             $meja = Meja::query()
                 ->whereRaw('LOWER(kode_meja) = ?', [Str::lower($kodeMeja)])
-                ->first(['id', 'kode_meja', 'nama_meja']);
+                ->first(['id', 'kode_meja', 'nama_meja', 'vanue_id']);
 
             if ($meja) {
                 $mejaAwal = [
                     'id' => $meja->id,
                     'kode_meja' => $meja->kode_meja,
                     'nama_meja' => $meja->nama_meja,
+                    'vanue_id' => (string) $meja->vanue_id,
                 ];
             }
         }
@@ -79,7 +81,7 @@ class PageController extends Controller
         $kategoriMenus = Kategorimenu::query()
             ->whereHas('menus', fn ($query) => $query->where('status', 'aktif'))
             ->orderBy('kategori')
-            ->get(['id', 'kategori']);
+            ->get(['id', 'kategori', 'vanue_id']);
 
         $menus = Menu::query()
             ->with('kategori:id,kategori')
@@ -92,6 +94,7 @@ class PageController extends Controller
                 'harga' => (int) $menu->harga,
                 'kategori_id' => (string) $menu->id_kategori,
                 'kategori' => $menu->kategori?->kategori,
+                'vanue_id' => (string) $menu->vanue_id,
                 'gambar_url' => $menu->gambar_url,
                 'dibuat_di' => $menu->dibuat_di,
                 'harga_dingin' => $menu->harga_dingin !== null ? (int) $menu->harga_dingin : null,
@@ -103,6 +106,11 @@ class PageController extends Controller
             'kategoriMenus' => $kategoriMenus,
             'menus' => $menus,
             'mejaAwal' => $mejaAwal,
+            'vanues' => Vanue::query()
+                ->where('status', Vanue::STATUS_AKTIF)
+                ->orderBy('nama')
+                ->get(['id', 'nama', 'alamat', 'logo', 'fasilitas', 'latitude', 'longitude']),
+            'mejas' => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id']),
         ]);
     }
 
@@ -119,6 +127,7 @@ class PageController extends Controller
 
         $meja = Meja::query()
             ->whereRaw('LOWER(kode_meja) = ?', [Str::lower($kode)])
+            ->with('vanue:id,nama,logo')
             ->first(['id', 'kode_meja', 'nama_meja']);
 
         if (! $meja) {
@@ -135,6 +144,10 @@ class PageController extends Controller
                 'kode_meja' => $meja->kode_meja,
                 'nama_meja' => $meja->nama_meja,
             ],
+            'vanue' => $meja->vanue ? [
+                'nama' => $meja->vanue->nama,
+                'logo_url' => $meja->vanue->logo_url,
+            ] : null,
             'pesan_url' => route('pesan', ['meja' => $meja->kode_meja]),
             'point_url' => route('point'),
         ]);
@@ -153,6 +166,10 @@ class PageController extends Controller
 
         return Inertia::render('User/Booking', [
             'pengguna' => $pengguna,
+            'vanues' => Vanue::query()
+                ->where('status', Vanue::STATUS_AKTIF)
+                ->orderBy('nama')
+                ->get(['id', 'nama', 'alamat', 'logo', 'fasilitas', 'latitude', 'longitude']),
             'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id'])),
             'jamMains' => Inertia::defer(fn () => jam_main::query()
                 ->where('status', 'aktif')

@@ -114,10 +114,11 @@ function EmptyIcon() {
     );
 }
 
-export default function Index({ bookings, filters }) {
+export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [status, setStatus] = useState(filters?.status ?? '');
+    const [vanueId, setVanueId] = useState(filters?.vanue_id ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
@@ -148,12 +149,13 @@ export default function Index({ bookings, filters }) {
     const submitSearch = (event) => {
         event.preventDefault();
 
-        router.get('/admin/bookings', { search, status }, { preserveState: true, replace: true });
+        router.get('/admin/bookings', { search, status, vanue_id: vanueId }, { preserveState: true, replace: true });
     };
 
     const resetSearch = () => {
         setSearch('');
         setStatus('');
+        setVanueId('');
         router.get('/admin/bookings', {}, { preserveState: true, replace: true });
     };
 
@@ -197,7 +199,7 @@ export default function Index({ bookings, filters }) {
         });
     };
 
-    const hasFilter = Boolean(filters?.search) || Boolean(filters?.status);
+    const hasFilter = Boolean(filters?.search) || Boolean(filters?.status) || Boolean(filters?.vanue_id);
 
     return (
         <>
@@ -257,6 +259,20 @@ export default function Index({ bookings, filters }) {
                                 <option value="200">Disetujui</option>
                                 <option value="400">Ditolak</option>
                             </select>
+                            {bolehPilihVanue && (vanues?.length ?? 0) > 0 && (
+                                <select
+                                    value={vanueId}
+                                    onChange={(event) => setVanueId(event.target.value)}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                                >
+                                    <option value="">Semua venue</option>
+                                    {vanues.map((vanue) => (
+                                        <option key={vanue.id} value={vanue.id}>
+                                            {vanue.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                             <button
                                 type="submit"
                                 className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
@@ -364,7 +380,25 @@ export default function Index({ bookings, filters }) {
                                                             <span className="text-slate-600">{booking.id_pengguna || '-'}</span>
                                                         )}
                                                     </td>
-                                                    <td className="px-5 py-3.5 text-slate-600">{booking.id_meja || '-'}</td>
+                                                    <td className="px-5 py-3.5">
+                                                        {booking.meja ? (
+                                                            <>
+                                                                <p className="font-medium text-slate-700">
+                                                                    {booking.meja.nama_meja || booking.meja.kode_meja}
+                                                                </p>
+                                                                <p className="mt-0.5 text-xs text-slate-500">
+                                                                    {booking.meja.kode_meja}
+                                                                </p>
+                                                                {booking.meja.vanue && (
+                                                                    <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">
+                                                                        {booking.meja.vanue.nama}
+                                                                    </p>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-slate-600">{booking.id_meja || '-'}</span>
+                                                        )}
+                                                    </td>
                                                     <td className="px-5 py-3.5">
                                                         <p className="font-medium text-slate-700">{formatDate(booking.tgl_main)}</p>
                                                         <p className="mt-0.5 text-xs text-slate-500">

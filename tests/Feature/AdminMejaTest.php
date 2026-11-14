@@ -103,10 +103,13 @@ class AdminMejaTest extends TestCase
             ->assertRedirect(route('admin.mejas.index'))
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('mejas', [
-            'kode_meja' => 'MJ-01',
-            'vanue_id' => $vanue->id,
-        ]);
+        // Kode meja dibuat otomatis (format MJ-XXXXXX), bukan memakai input.
+        $meja = Meja::query()->where('nama_meja', 'Meja VIP 1')->firstOrFail();
+
+        $this->assertEquals($vanue->id, $meja->vanue_id);
+        $this->assertMatchesRegularExpression('/^MJ-[A-Z0-9]{6}$/', $meja->kode_meja);
+        $this->assertMatchesRegularExpression('/[A-Z]/', $meja->kode_meja);
+        $this->assertMatchesRegularExpression('/[0-9]/', $meja->kode_meja);
     }
 
     public function test_admin_venue_hanya_melihat_meja_pada_venue_nya(): void

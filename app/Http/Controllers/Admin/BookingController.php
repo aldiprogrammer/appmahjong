@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\VanueScope;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\Meja;
 use App\Models\Pengguna;
 use App\Models\Statusvoucher;
 use App\Models\Voucher;
@@ -16,14 +18,38 @@ use Inertia\Response;
 
 class BookingController extends Controller
 {
+    use VanueScope;
+
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
         $status = (string) $request->query('status', '');
+        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
+        $vanueIdFilter = $this->vanueFilter($request);
+
+        // Venue yang membatasi daftar: venue milik admin venue, atau pilihan
+        // filter venue bagi super admin.
+        $mejaVanueId = $vanueTerbatas ?? $vanueIdFilter;
 
         $bookings = Booking::query()
-            ->with('pengguna:id,nama_depan,nama_balakang')
+            ->with([
+                'pengguna:id,nama_depan,nama_balakang',
+                'meja:id,kode_meja,nama_meja,vanue_id',
+                'meja.vanue:id,nama',
+            ])
             ->where('status_hapus', '!=', '1')
+            ->when($mejaVanueId !== null, function ($query) use ($mejaVanueId) {
+                $idMejas = Meja::query()
+                    ->where('vanue_id', $mejaVanueId)
+                    ->get(['kode_meja', 'id'])
+                    ->flatMap(fn (Meja $meja) => [$meja->kode_meja, (string) $meja->id])
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $query->whereIn('id_meja', $idMejas);
+            })
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('kode_booking', 'like', "%{$search}%")
@@ -66,9 +92,12 @@ class BookingController extends Controller
 
         return Inertia::render('Admin/Booking/Index', [
             'bookings' => $bookings,
+            'vanues' => $this->daftarVanueTersedia($request),
+            'bolehPilihVanue' => $vanueTerbatas === null,
             'filters' => [
                 'search' => $search,
                 'status' => $status,
+                'vanue_id' => $vanueIdFilter,
             ],
         ]);
     }

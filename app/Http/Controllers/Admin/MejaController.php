@@ -55,6 +55,8 @@ class MejaController extends Controller
 
         $this->batasiAksesVanue($request, (int) $validated['vanue_id']);
 
+        $validated['kode_meja'] = $this->buatKodeMeja();
+
         Meja::create($validated);
 
         return redirect()
@@ -141,13 +143,39 @@ class MejaController extends Controller
     }
 
     /**
+     * Kode meja unik dibuat otomatis, format MJ-X9X9X9 (huruf dan angka berselang).
+     */
+    private function buatKodeMeja(): string
+    {
+        $huruf = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $angka = '0123456789';
+
+        do {
+            $acak = '';
+            $posisiHuruf = 0;
+            $posisiAngka = 0;
+
+            for ($i = 0; $i < 6; $i++) {
+                $acak .= $i % 2 === 0 ? $huruf[$posisiHuruf++ % 24] : $angka[$posisiAngka++ % 10];
+            }
+
+            // Acak urutan karakter agar kombinasi tiap meja bervariasi.
+            $acak = str_shuffle($acak);
+            $kode = 'MJ-'.$acak;
+        } while (Meja::query()->where('kode_meja', $kode)->exists());
+
+        return $kode;
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     private function aturanValidasi(?Meja $meja = null): array
     {
         return [
             'kode_meja' => [
-                'required',
+                // Kode dibuat otomatis saat tambah meja baru; saat edit boleh diisi manual.
+                $meja === null ? 'nullable' : 'required',
                 'string',
                 'max:50',
                 Rule::unique(Meja::class, 'kode_meja')->ignore($meja?->id),
@@ -165,7 +193,7 @@ class MejaController extends Controller
         return [
             'kode_meja.required' => 'Kode meja wajib diisi.',
             'kode_meja.max' => 'Kode meja maksimal 50 karakter.',
-            'kode_meja.unique' => 'Kode meja sudah digunakan.',
+            'kode_meja.unique' => 'Kode meja sudah digunakan, gunakan kode lain.',
             'nama_meja.required' => 'Nama meja wajib diisi.',
             'nama_meja.max' => 'Nama meja maksimal 50 karakter.',
             'vanue_id.required' => 'Venue wajib dipilih untuk setiap meja.',

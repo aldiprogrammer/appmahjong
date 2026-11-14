@@ -6,6 +6,7 @@ use App\Services\BuktiPembayaranService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 class Booking extends Model
@@ -49,6 +50,15 @@ class Booking extends Model
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(Pengguna::class, 'id_pengguna');
+    }
+
+    /**
+     * Meja yang dibooking. Kolom id_meja menyimpan kode meja, dan bila kosong
+     * fallback ke id meja.
+     */
+    public function meja(): HasOne
+    {
+        return $this->hasOne(Meja::class, 'kode_meja', 'id_meja');
     }
 
     /**

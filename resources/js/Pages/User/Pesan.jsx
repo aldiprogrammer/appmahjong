@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
+import PilihVenue from '../../Components/PilihVenue';
 
 function formatRupiah(value) {
     return new Intl.NumberFormat('id-ID', {
@@ -124,8 +125,9 @@ function iconKategori(nama = '') {
     return GridIcon;
 }
 
-export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAwal = null }) {
+export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAwal = null, vanues = [], mejas = [] }) {
     const { flash } = usePage().props;
+    const [vanueId, setVanueId] = useState(mejaAwal?.vanue_id ?? '');
     const [kategori, setKategori] = useState('semua');
     const [pencarian, setPencarian] = useState('');
     const [keranjang, setKeranjang] = useState([]);
@@ -162,7 +164,15 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
         );
     }, [keranjang]);
 
-    const menuTampil = menus.filter((menu) => {
+    const vanueTerpilih = vanues.find((vanue) => String(vanue.id) === String(vanueId));
+    const menuVenue = vanueId
+        ? menus.filter((menu) => String(menu.vanue_id) === String(vanueId))
+        : [];
+    const kategoriVenue = vanueId
+        ? kategoriMenus.filter((kategori) => String(kategori.vanue_id) === String(vanueId))
+        : [];
+
+    const menuTampil = menuVenue.filter((menu) => {
         const cocokKategori = kategori === 'semua' || String(menu.kategori_id) === String(kategori);
         const cocokPencarian = (menu.nama ?? '').toLowerCase().includes(pencarian.trim().toLowerCase());
 
@@ -290,14 +300,29 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                             Riwayat Pesanan
                         </Link>
                     </div>
-                    <h1 className="mt-3 text-xl font-bold leading-snug">Mau Ngemil Apa Hari Ini?</h1>
+                    <h1 className="mt-3 text-xl font-bold leading-snug">
+                        {vanueTerpilih ? `Menu di ${vanueTerpilih.nama}` : 'Mau Ngemil Apa Hari Ini?'}
+                    </h1>
                     <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-emerald-100">
-                        Pilih makanan, minuman, atau snack favoritmu dan nikmati langsung di meja.
+                        {vanueTerpilih
+                            ? 'Pilih makanan, minuman, atau snack favoritmu dan nikmati langsung di meja.'
+                            : 'Pilih venue tempat kamu bermain untuk melihat menu yang tersedia.'}
                     </p>
                 </div>
             </header>
 
             <main className="relative -mt-9 space-y-4 px-5 pb-8">
+                {!vanueId && !mejaAwal ? (
+                    <PilihVenue
+                        vanues={vanues}
+                        mejas={mejas}
+                        onPilih={(vanue) => {
+                            setKategori('semua');
+                            setVanueId(String(vanue.id));
+                        }}
+                    />
+                ) : (
+                <>
                 <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-lg shadow-emerald-900/5">
                     <div className="flex items-center gap-2 rounded-xl bg-emerald-50/50 px-3.5 py-2.5 ring-1 ring-inset ring-emerald-100/70 focus-within:ring-emerald-300">
                         <span className="text-emerald-500">
@@ -323,7 +348,22 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                     </div>
 
                     <div className="mt-2.5 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {[{ id: 'semua', kategori: 'Semua' }, ...kategoriMenus].map((item) => {
+                        {!mejaAwal && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setKategori('semua');
+                                    setVanueId('');
+                                }}
+                                className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 transition hover:bg-emerald-50 active:scale-95"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12l7.5-7.5M3 12h18" />
+                                </svg>
+                                Ganti venue
+                            </button>
+                        )}
+                        {[{ id: 'semua', kategori: 'Semua' }, ...kategoriVenue].map((item) => {
                             const value = item.id === 'semua' ? 'semua' : String(item.id);
                             const Icon = item.id === 'semua' ? GridIcon : iconKategori(item.kategori);
                             const aktif = kategori === value;
@@ -355,8 +395,8 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
 
                     {menuTampil.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-4 py-10 text-center text-sm text-slate-500">
-                            {menus.length === 0
-                                ? 'Belum ada menu tersedia saat ini.'
+                            {menuVenue.length === 0
+                                ? 'Belum ada menu tersedia di venue ini.'
                                 : 'Menu tidak ditemukan. Coba kata kunci lain.'}
                         </div>
                     ) : (
@@ -459,6 +499,8 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                     >
                         Masuk untuk mulai pesan
                     </Link>
+                )}
+                </>
                 )}
             </main>
 

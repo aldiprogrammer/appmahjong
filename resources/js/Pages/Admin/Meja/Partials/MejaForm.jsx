@@ -6,6 +6,7 @@ export default function MejaForm({
     onSubmit,
     onCancel,
     submitLabel = 'Simpan',
+    isEditing = false,
     vanues = [],
     currentAdmin = null,
     kodeInputRef,
@@ -14,25 +15,38 @@ export default function MejaForm({
 
     return (
         <form onSubmit={onSubmit} className="space-y-5">
-            <div>
-                <label htmlFor="kode_meja" className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Kode Meja <span className="text-rose-500">*</span>
-                </label>
-                <input
-                    id="kode_meja"
-                    ref={kodeInputRef}
-                    type="text"
-                    value={data.kode_meja}
-                    onChange={(event) => setData('kode_meja', event.target.value)}
-                    placeholder="Contoh: MJ-01"
-                    autoComplete="off"
-                    required
-                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
-                        errors.kode_meja ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
-                    }`}
-                />
-                {errors.kode_meja && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_meja}</p>}
-            </div>
+            {isEditing ? (
+                <div>
+                    <label htmlFor="kode_meja" className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Kode Meja <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                        id="kode_meja"
+                        ref={kodeInputRef}
+                        type="text"
+                        value={data.kode_meja}
+                        onChange={(event) => setData('kode_meja', event.target.value)}
+                        placeholder="Contoh: MJ-01"
+                        autoComplete="off"
+                        required
+                        className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                            errors.kode_meja ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                        }`}
+                    />
+                    {errors.kode_meja && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_meja}</p>}
+                    <p className="mt-1.5 text-xs text-slate-500">
+                        Kode unik dipakai pada QR code meja. Pastikan tidak sama dengan meja lain.
+                    </p>
+                </div>
+            ) : (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3">
+                    <p className="text-xs font-semibold text-emerald-800">Kode meja dibuat otomatis</p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700/80">
+                        Sistem akan membuat kode unik (contoh: MJ-A1B2C3) saat meja disimpan, sehingga tidak mungkin
+                        sama dengan meja lain.
+                    </p>
+                </div>
+            )}
 
             <div>
                 <label htmlFor="nama_meja" className="mb-1.5 block text-sm font-medium text-slate-700">

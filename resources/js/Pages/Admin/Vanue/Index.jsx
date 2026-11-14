@@ -49,6 +49,10 @@ export default function Index({ vanues, filters }) {
         nama: '',
         alamat: '',
         logo: null,
+        fasilitas: [],
+        latitude: '',
+        longitude: '',
+        status: 'aktif',
     });
 
     useEffect(() => {
@@ -118,6 +122,10 @@ export default function Index({ vanues, filters }) {
             nama: vanue.nama,
             alamat: vanue.alamat,
             logo: null,
+            fasilitas: vanue.fasilitas ?? [],
+            latitude: vanue.latitude ?? '',
+            longitude: vanue.longitude ?? '',
+            status: vanue.status ?? 'aktif',
         });
         setLogoPreview(vanue.logo_url ?? null);
         setEditingVanue(vanue);
@@ -340,9 +348,30 @@ export default function Index({ vanues, filters }) {
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span className="font-semibold text-slate-800">{vanue.nama}</span>
+                                                    {vanue.status === 'nonaktif' ? (
+                                                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700 ring-1 ring-rose-100">
+                                                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                                            Nonaktif
+                                                        </span>
+                                                    ) : (
+                                                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-100">
+                                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                            Aktif
+                                                        </span>
+                                                    )}
+                                                    {(vanue.fasilitas?.length ?? 0) > 0 && (
+                                                        <p className="mt-1 line-clamp-1 text-[11px] text-slate-500">
+                                                            {vanue.fasilitas.join(', ')}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="max-w-xs px-5 py-3.5 text-slate-600">
                                                     <p className="line-clamp-2">{vanue.alamat}</p>
+                                                    {vanue.latitude !== null && vanue.longitude !== null && (
+                                                        <p className="mt-1 text-[10px] font-medium text-emerald-700">
+                                                            {vanue.latitude}, {vanue.longitude}
+                                                        </p>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5 text-slate-500">{formatDate(vanue.created_at)}</td>
                                                 <td className="px-5 py-3.5">

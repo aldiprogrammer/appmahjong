@@ -297,10 +297,11 @@ function BellOffIcon({ className = 'h-5 w-5' }) {
     );
 }
 
-export default function Index({ pesanans, ringkasan, filters }) {
+export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [statusFilter, setStatusFilter] = useState(filters?.status ?? '');
+    const [vanueId, setVanueId] = useState(filters?.vanue_id ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [errorMessage, setErrorMessage] = useState(flash?.error ?? null);
     const [processingId, setProcessingId] = useState(null);
@@ -563,7 +564,7 @@ export default function Index({ pesanans, ringkasan, filters }) {
 
         router.get(
             '/admin/kasir',
-            { search, status: statusFilter },
+            { search, status: statusFilter, vanue_id: vanueId },
             { preserveState: true, replace: true },
         );
     };
@@ -571,6 +572,7 @@ export default function Index({ pesanans, ringkasan, filters }) {
     const resetFilter = () => {
         setSearch('');
         setStatusFilter('');
+        setVanueId('');
         router.get('/admin/kasir', {}, { preserveState: true, replace: true });
     };
 
@@ -578,7 +580,7 @@ export default function Index({ pesanans, ringkasan, filters }) {
         setStatusFilter(status);
         router.get(
             '/admin/kasir',
-            { search, status },
+            { search, status, vanue_id: vanueId },
             { preserveState: true, replace: true },
         );
     };
@@ -801,13 +803,28 @@ export default function Index({ pesanans, ringkasan, filters }) {
                                 <option value="dibatalkan">Dibatalkan</option>
                             </select>
 
+                            {bolehPilihVanue && (vanues?.length ?? 0) > 0 && (
+                                <select
+                                    value={vanueId}
+                                    onChange={(event) => setVanueId(event.target.value)}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                                >
+                                    <option value="">Semua venue</option>
+                                    {vanues.map((vanue) => (
+                                        <option key={vanue.id} value={vanue.id}>
+                                            {vanue.nama}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
+
                             <button
                                 type="submit"
                                 className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
                             >
                                 Cari
                             </button>
-                            {(filters?.search || filters?.status) && (
+                            {(filters?.search || filters?.status || filters?.vanue_id) && (
                                 <button
                                     type="button"
                                     onClick={resetFilter}
@@ -840,10 +857,10 @@ export default function Index({ pesanans, ringkasan, filters }) {
                                 <EmptyIcon />
                             </span>
                             <h2 className="mt-4 text-sm font-semibold text-slate-800">
-                                {filters?.search || filters?.status ? 'Pesanan tidak ditemukan' : 'Belum ada pesanan masuk'}
+                                {filters?.search || filters?.status || filters?.vanue_id ? 'Pesanan tidak ditemukan' : 'Belum ada pesanan masuk'}
                             </h2>
                             <p className="mt-1 max-w-sm text-sm text-slate-500">
-                                {filters?.search || filters?.status
+                                {filters?.search || filters?.status || filters?.vanue_id
                                     ? 'Coba ubah kata kunci atau filter status pesanan.'
                                     : 'Pesanan baru dari halaman Pesan pelanggan akan otomatis muncul di sini.'}
                             </p>

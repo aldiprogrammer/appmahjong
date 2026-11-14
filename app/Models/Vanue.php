@@ -16,7 +16,27 @@ class Vanue extends Model
         'nama',
         'alamat',
         'logo',
+        'fasilitas',
+        'latitude',
+        'longitude',
+        'status',
     ];
+
+    public const STATUS_AKTIF = 'aktif';
+
+    public const STATUS_NONAKTIF = 'nonaktif';
+
+    protected function casts(): array
+    {
+        return [
+            'fasilitas' => 'array',
+        ];
+    }
+
+    public function bolehDitampilkan(): bool
+    {
+        return $this->status !== self::STATUS_NONAKTIF;
+    }
 
     protected function logoUrl(): Attribute
     {

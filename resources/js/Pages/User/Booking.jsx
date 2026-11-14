@@ -1,8 +1,9 @@
-import { Deferred, Head, Link, router, useForm, usePage } from '@inertiajs/react';
+﻿import { Deferred, Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
+import PilihVenue from '../../Components/PilihVenue';
 
 const hariMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -224,7 +225,7 @@ function BookingSkeleton() {
 }
 
 // mejas/jamMains/hargas/bookedSlots/settingBookingRooms/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
-export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [] }) {
+export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [] }) {
     // Default destrukturisasi menyembunyikan undefined, cek status deferred via page props.
     const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers'];
     const pageProps = usePage().props;
@@ -242,6 +243,7 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
     });
 
     const [step, setStep] = useState(1);
+    const [vanueId, setVanueId] = useState('');
     const [sekarang, setSekarang] = useState(() => new Date());
 
     useEffect(() => {
@@ -293,7 +295,11 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
         }`;
 
     const hariTerpilih = data.tgl_main ? hariMap[new Date(`${data.tgl_main}T00:00:00`).getDay()] : '';
-    const mejaTerpilih = mejas.find((meja) => String(meja.id) === String(data.meja_id));
+    const vanueTerpilihObj = vanues.find((vanue) => String(vanue.id) === String(vanueId));
+    const mejaVenue = vanueId
+        ? mejas.filter((meja) => String(meja.vanue_id) === String(vanueId))
+        : [];
+    const mejaTerpilih = mejaVenue.find((meja) => String(meja.id) === String(data.meja_id));
     const mejaKey = mejaTerpilih ? String(mejaTerpilih.kode_meja || mejaTerpilih.id) : '';
     // Harga jam main mengikuti venue meja yang dipilih (tanpa fallback antar venue).
     const vanueTerpilih = mejaTerpilih?.vanue_id ?? null;
@@ -400,6 +406,17 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
             setData('tipe_booking', '');
         }
     }, [bookingDataDimuat, opsiBookingKey, data.tipe_booking, setData]);
+
+    const pilihVanue = (vanue) => {
+        if (String(vanue.id) === String(vanueId)) {
+            return;
+        }
+
+        setVanueId(String(vanue.id));
+        setData({ ...data, meja_id: '', jam_main_ids: [] });
+        setStep(1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     const bisaKeStep = (target) => {
         if (target <= step) {
@@ -513,13 +530,19 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                     <div>
                         <h1 className="text-lg font-bold">Booking Mahjong</h1>
                         <p className="text-xs text-emerald-100">
-                            Langkah {step} dari 3 &middot; {langkahBooking[step - 1].judul}
+                            {vanueId
+                                ? `Langkah ${step} dari 3 \u00b7 ${langkahBooking[step - 1].judul}`
+                                : 'Pilih venue untuk mulai booking'}
                         </p>
                     </div>
                 </div>
             </header>
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
+                {vanueId === '' ? (
+                    <PilihVenue vanues={vanues} mejas={pageProps.m} onPilih={pilihVanue} />
+                ) : (
+                <>
                 <BookingStepper step={step} bisaKe={bisaKeStep} onPilih={pindahStep} />
 
                 <Deferred
@@ -576,19 +599,44 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
 
                                 <div className="my-3 border-t border-dashed border-emerald-100" />
 
-                                <p className="mb-2 text-xs font-medium text-slate-600">Pilih meja</p>
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <p className="text-xs font-medium text-slate-600">Pilih meja di</p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setVanueId('')}
+                                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100 active:scale-95"
+                                    >
+                                        <EditIcon className="h-2.5 w-2.5" />
+                                        Ganti venue
+                                    </button>
+                                </div>
+                                <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-xs font-black text-white">
+                                        {vanueTerpilihObj?.logo_url ? (
+                                            <img src={vanueTerpilihObj.logo_url} alt={vanueTerpilihObj.nama} className="h-full w-full object-cover" />
+                                        ) : (
+                                            (vanueTerpilihObj?.nama || 'V').charAt(0).toUpperCase()
+                                        )}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-bold text-slate-800">{vanueTerpilihObj?.nama || '-'}</p>
+                                        {vanueTerpilihObj?.alamat && (
+                                            <p className="truncate text-[10px] text-slate-500">{vanueTerpilihObj.alamat}</p>
+                                        )}
+                                    </div>
+                                </div>
 
                                 {!data.tgl_main ? (
                                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
                                         Pilih tanggal main terlebih dahulu.
                                     </div>
-                                ) : mejas.length === 0 ? (
+                                ) : mejaVenue.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
                                         Belum ada meja tersedia.
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2.5">
-                                        {mejas.map((meja) => {
+                                        {mejaVenue.map((meja) => {
                                             const active = String(data.meja_id) === String(meja.id);
 
                                             return (
@@ -672,6 +720,11 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                         <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
                                             {mejaTerpilih?.nama_meja || 'Meja belum dipilih'}
                                         </span>
+                                        {vanueTerpilihObj?.nama && (
+                                            <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
+                                                {vanueTerpilihObj.nama}
+                                            </span>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={() => pindahStep(1)}
@@ -913,8 +966,13 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                                         </div>
                                         <div className="flex items-center justify-between">
                                             <span>Meja</span>
-                                            <span className="font-semibold text-white">
+                                            <span className="text-right font-semibold text-white">
                                                 {mejaTerpilih ? mejaTerpilih.nama_meja : 'Belum dipilih'}
+                                                {vanueTerpilihObj?.nama && (
+                                                    <span className="block text-[10px] font-medium text-emerald-200">
+                                                        {vanueTerpilihObj.nama}
+                                                    </span>
+                                                )}
                                             </span>
                                         </div>
                                         {tipeBookingTerpilih && (
@@ -1040,6 +1098,8 @@ export default function Booking({ pengguna, mejas = [], jamMains = [], hargas = 
                         )}
                     </div>
                 </Deferred>
+                </>
+                )}
             </form>
         </>
     );
