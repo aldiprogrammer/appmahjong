@@ -72,7 +72,7 @@ export default function Login() {
             <AuthLayout
                 mode="login"
                 title="Halaman Login"
-                subtitle="Gunakan nomor WhatsApp atau email anda yang sudah terdaftar."
+                subtitle="Masuk cepat dengan akun Google, atau gunakan nomor WhatsApp/email yang sudah terdaftar."
                 footer={
                     <div className="text-center text-sm text-slate-500">
                         Belum punya akun?{' '}
@@ -87,15 +87,23 @@ export default function Login() {
             >
                 <a
                     href="/auth/google"
-                    className="flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+                    className="group flex w-full items-center justify-center gap-3 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-slate-800 shadow-[0_18px_35px_-20px_rgba(15,23,42,0.5)] ring-1 ring-slate-200 transition hover:ring-emerald-600/40 hover:shadow-[0_18px_35px_-18px_rgba(6,78,59,0.6)]"
                 >
-                    <GoogleIcon />
-                    Masuk dengan Google
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition group-hover:scale-110">
+                        <GoogleIcon />
+                    </span>
+                    Login dengan akun google anda
+                    <span className="text-emerald-700 transition-transform group-hover:translate-x-0.5">
+                        <ArrowIcon />
+                    </span>
                 </a>
+                {/* <p className="mt-2 text-center text-[11px] text-slate-500">
+                    Sekali klik, langsung masuk tanpa isi form.
+                </p> */}
 
                 <div className="my-4 flex items-center gap-3">
                     <span className="h-px flex-1 bg-slate-200" />
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">atau</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">atau masuk dengan password</span>
                     <span className="h-px flex-1 bg-slate-200" />
                 </div>
 

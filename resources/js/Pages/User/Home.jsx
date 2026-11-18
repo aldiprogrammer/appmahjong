@@ -109,6 +109,23 @@ const menuCepat = [
     },
 ];
 
+function ChairIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 4.5h9A2.25 2.25 0 0 1 18.75 6.75v6a2.25 2.25 0 0 1-2.25 2.25h-9A2.25 2.25 0 0 1 5.25 12.75v-6A2.25 2.25 0 0 1 7.5 4.5ZM6.75 15v3M17.25 15v3M8.25 9.75h7.5" />
+        </svg>
+    );
+}
+
+function TagIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6Z" />
+        </svg>
+    );
+}
+
 function MahjongTile({ label, tone, className = '' }) {
     return (
         <span
@@ -119,7 +136,7 @@ function MahjongTile({ label, tone, className = '' }) {
     );
 }
 
-export default function Home({ pengguna, mejas, hargas }) {
+export default function Home({ pengguna, hargas }) {
     const { flash } = usePage().props;
     const nama = namaPengguna(pengguna);
     const inisial = nama.trim().charAt(0).toUpperCase() || 'M';
@@ -308,57 +325,109 @@ export default function Home({ pengguna, mejas, hargas }) {
                 <section>
                     <div className="mb-3 flex items-end justify-between">
                         <div>
-                            <h2 className="text-sm font-bold text-slate-800">Meja Tersedia</h2>
-                            <p className="text-xs text-slate-500">Pilihan meja terbaik untukmu</p>
+                            <h2 className="text-sm font-bold text-slate-800">Promo Buat Kamu</h2>
+                            <p className="text-xs text-slate-500">Geser untuk lihat semua poster</p>
                         </div>
-                        <Link href="/booking" className="text-xs font-semibold text-emerald-700">
+                        <Link href="/voucher" className="text-xs font-semibold text-emerald-700">
                             Lihat semua
                         </Link>
                     </div>
 
-                    {mejas.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white p-4 text-center text-xs text-slate-500">
-                            Belum ada meja yang tersedia.
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                            {mejas.map((meja) => (
-                                <Link
-                                    key={meja.id}
-                                    href="/booking"
-                                    className="group overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-900/10"
-                                >
-                                    <div className="relative aspect-[4/3] overflow-hidden bg-emerald-900">
-                                        <img
-                                            src="/images/meja-mahjong.svg"
-                                            alt={`Meja ${meja.nama_meja}`}
-                                            loading="lazy"
-                                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                                        />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/10 to-transparent" />
-                                        <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-emerald-700 shadow-sm backdrop-blur">
-                                            {meja.kode_meja || 'MEJA'}
-                                        </span>
-                                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                                            Tersedia
-                                        </span>
-                                        <div className="absolute inset-x-2 bottom-2">
-                                            <p className="truncate text-sm font-bold text-white drop-shadow">
-                                                {meja.nama_meja}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between px-3 py-2.5">
-                                        <span className="text-[11px] font-medium text-slate-500">Meja premium</span>
-                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition group-hover:bg-emerald-600 group-hover:text-white">
-                                            <ChevronRightIcon />
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+                    <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {/* Poster 1 - Diskon harga */}
+                        <Link
+                            href="/booking"
+                            className="relative w-64 shrink-0 snap-start overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-950 p-4 text-white shadow-lg shadow-emerald-900/25"
+                        >
+                            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10" />
+                            <div className="pointer-events-none absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-lime-300/15 blur-xl" />
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.07]"
+                                style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '12px 12px' }}
+                            />
+                            <div className="relative flex h-full flex-col">
+                                <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-lime-300/90 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-950">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-700" />
+                                    Promo Booking
+                                </span>
+                                <h3 className="mt-3 text-xl font-black leading-tight">
+                                    {maxDiskon > 0
+                                        ? <>Diskon Hingga<br />{formatRupiah(maxDiskon)}</>
+                                        : <>Harga Spesial<br />Setiap Hari</>}
+                                </h3>
+                                <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-100">
+                                    Booking meja favoritmu sekarang, bayar lebih hemat.
+                                </p>
+                                <div className="mt-auto flex items-center justify-between pt-4">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-emerald-800">
+                                        Booking Sekarang
+                                        <ChevronRightIcon />
+                                    </span>
+                                    <span className="flex h-10 w-9 items-center justify-center rounded-lg border-b-4 border-emerald-950/40 bg-gradient-to-b from-white to-emerald-50 text-xl font-black text-rose-600 shadow-md">
+                                        中
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* Poster 2 - Voucher */}
+                        <Link
+                            href="/booking"
+                            className="relative w-64 shrink-0 snap-start overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-rose-600 to-rose-800 p-4 text-white shadow-lg shadow-rose-900/25"
+                        >
+                            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15" />
+                            <div className="pointer-events-none absolute -bottom-10 -left-6 h-24 w-24 rounded-full bg-amber-300/20 blur-xl" />
+                            <div className="relative flex h-full flex-col">
+                                <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ring-white/30">
+                                    <VoucherMenuIcon className="h-3.5 w-3.5" />
+                                    Free Booking
+                                </span>
+                                <h3 className="mt-3 text-xl font-black leading-tight">
+                                    Gratis<br />Main Mahjong
+                                </h3>
+                                <p className="mt-1.5 text-[11px] leading-relaxed text-rose-50">
+                                    Dapatkan gratis main mahjong dengan syarat & aturan yang berlaku
+                                </p>
+                                <div className="mt-auto flex items-center justify-between pt-4">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-rose-600">
+                                        Booking Sekarang
+                                        <ChevronRightIcon />
+                                    </span>
+                                    <span className="text-3xl font-black text-white/30">%</span>
+                                </div>
+                            </div>
+                        </Link>
+
+                        {/* Poster 3 - Menu & snack */}
+                        <Link
+                            href="/pesan"
+                            className="relative w-64 shrink-0 snap-start overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-orange-700 p-4 text-white shadow-lg shadow-orange-900/25"
+                        >
+                            <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15" />
+                            <div className="pointer-events-none absolute -bottom-10 -left-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+                            <div className="relative flex h-full flex-col">
+                                <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ring-white/30">
+                                    <FoodIcon className="h-3.5 w-3.5" />
+                                    Kuliner
+                                </span>
+                                <h3 className="mt-3 text-xl font-black leading-tight">
+                                    Main Jalan,<br />Laper Tetap Kejawab
+                                </h3>
+                                <p className="mt-1.5 text-[11px] leading-relaxed text-orange-50">
+                                    Makanan, minuman, dan snack diantar ke mejamu.
+                                </p>
+                                <div className="mt-auto flex items-center justify-between pt-4">
+                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[11px] font-bold text-orange-600">
+                                        Pesan Sekarang
+                                        <ChevronRightIcon />
+                                    </span>
+                                    <span className="flex h-10 w-9 items-center justify-center rounded-lg bg-white/15 text-white">
+                                        <DrinkIcon className="h-5 w-5" />
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+                    </div>
                 </section>
 
                 <section>
@@ -385,8 +454,8 @@ export default function Home({ pengguna, mejas, hargas }) {
                         </div>
 
                         <div className="rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-base font-black text-emerald-600">
-                                發
+                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                <ChairIcon />
                             </span>
                             <p className="mt-2 text-xs font-bold text-slate-800">Suasana Santai</p>
                             <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">
@@ -395,8 +464,8 @@ export default function Home({ pengguna, mejas, hargas }) {
                         </div>
 
                         <div className="rounded-2xl border border-emerald-100 bg-white p-3.5 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-base font-black text-sky-600">
-                                東
+                            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-50 text-sky-600">
+                                <TagIcon />
                             </span>
                             <p className="mt-2 text-xs font-bold text-slate-800">Harga Bersahabat</p>
                             <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">

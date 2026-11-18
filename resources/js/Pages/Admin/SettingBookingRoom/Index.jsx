@@ -31,7 +31,7 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ settingBookingRooms, filters }) {
+export default function Index({ settingBookingRooms, vanues = [], filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
@@ -43,6 +43,7 @@ export default function Index({ settingBookingRooms, filters }) {
     const pembayaranInputRef = useRef(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        vanue_id: '',
         pembayaran: '',
         jumlah_user: '',
         minimal_user: '',
@@ -105,6 +106,7 @@ export default function Index({ settingBookingRooms, filters }) {
     const openEditModal = (setting) => {
         clearErrors();
         setData({
+            vanue_id: String(setting.vanue_id ?? ''),
             pembayaran: setting.pembayaran,
             jumlah_user: setting.jumlah_user,
             minimal_user: setting.minimal_user,
@@ -281,10 +283,11 @@ export default function Index({ settingBookingRooms, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[820px] text-left text-sm">
+                                <table className="w-full min-w-[900px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Pembayaran</th>
                                             <th className="px-5 py-3 font-semibold">Jumlah User</th>
                                             <th className="px-5 py-3 font-semibold">Minimal User</th>
@@ -299,6 +302,15 @@ export default function Index({ settingBookingRooms, filters }) {
                                             <tr key={setting.id} className="transition hover:bg-emerald-50/40">
                                                 <td className="px-5 py-3.5 text-slate-500">
                                                     {(settingBookingRooms.from ?? 0) + index}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {setting.vanue ? (
+                                                        <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                            {setting.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span className="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold uppercase text-emerald-700 ring-1 ring-emerald-100">
@@ -457,6 +469,7 @@ export default function Index({ settingBookingRooms, filters }) {
                                 onCancel={closeFormModal}
                                 submitLabel={editingSetting ? 'Simpan Perubahan' : 'Simpan Setting'}
                                 pembayaranInputRef={pembayaranInputRef}
+                                vanues={vanues}
                             />
                         </div>
                     </div>

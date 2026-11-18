@@ -366,7 +366,11 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
         });
     };
 
-    const settingAktif = settingBookingRooms[0] ?? null;
+    // Setting room booking mengikuti venue meja yang dipilih; setting tanpa venue berlaku sebagai global.
+    const settingAktif = settingBookingRooms.find((setting) => setting.vanue_id != null && String(setting.vanue_id) === String(vanueTerpilih))
+        ?? settingBookingRooms.find((setting) => setting.vanue_id == null)
+        ?? settingBookingRooms[0]
+        ?? null;
     const jumlahUser = Math.max(1, Number(settingAktif?.jumlah_user) || 1);
     const hargaDibagi = String(settingAktif?.pembayaran ?? '').toLowerCase() === 'all';
     const opsiBooking = settingAktif
@@ -611,12 +615,8 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                     </button>
                                 </div>
                                 <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
-                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-xs font-black text-white">
-                                        {vanueTerpilihObj?.logo_url ? (
-                                            <img src={vanueTerpilihObj.logo_url} alt={vanueTerpilihObj.nama} className="h-full w-full object-cover" />
-                                        ) : (
-                                            (vanueTerpilihObj?.nama || 'V').charAt(0).toUpperCase()
-                                        )}
+                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-emerald-900">
+                                        <img src="/images/meja-mahjong.svg" alt={vanueTerpilihObj?.nama} className="h-full w-full object-cover" />
                                     </span>
                                     <div className="min-w-0">
                                         <p className="truncate text-xs font-bold text-slate-800">{vanueTerpilihObj?.nama || '-'}</p>

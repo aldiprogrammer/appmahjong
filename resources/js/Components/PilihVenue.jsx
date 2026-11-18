@@ -68,7 +68,6 @@ export function jarakKmDari(lat1, lon1, lat2, lon2) {
 }
 
 function VenueCard({ vanue, jumlahMeja, jarakKm, terdekat, onPilih }) {
-    const inisial = (vanue.nama || 'V').trim().charAt(0).toUpperCase();
     const fasilitas = vanue.fasilitas ?? [];
 
     return (
@@ -78,12 +77,13 @@ function VenueCard({ vanue, jumlahMeja, jarakKm, terdekat, onPilih }) {
             className="group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border border-slate-100 bg-white p-3.5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-900/10 active:scale-[0.98] active:shadow-sm"
         >
             <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-emerald-50/70 to-transparent opacity-0 transition group-hover:opacity-100" />
-            <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-lg font-black text-white shadow-md shadow-emerald-900/20">
-                {vanue.logo_url ? (
-                    <img src={vanue.logo_url} alt={vanue.nama} className="h-full w-full object-cover" loading="lazy" />
-                ) : (
-                    inisial
-                )}
+            <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-900 shadow-md shadow-emerald-900/20">
+                <img
+                    src="/images/meja-mahjong.svg"
+                    alt={`Meja mahjong ${vanue.nama}`}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                />
             </span>
             <span className="relative min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-1.5">

@@ -132,7 +132,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                             <span className="flex h-10 w-8 items-center justify-center rounded-lg border-b-2 border-emerald-950/30 bg-gradient-to-b from-white to-emerald-50 text-lg font-black text-rose-600 shadow-md">
                                 中
                             </span>
-                            <span className="text-base font-black tracking-tight sm:text-lg">Mahjong Medan</span>
+                            <span className="text-base font-black tracking-tight sm:text-lg">Medan Mahjong Club </span>
                         </a>
 
                         <ul className="hidden items-center gap-1 md:flex">
@@ -357,7 +357,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     </span>
                                     <div>
                                         <p className="text-sm font-black text-slate-800">Meja Premium</p>
-                                        <p className="text-[11px] font-medium text-slate-500">Mahjong Medan</p>
+                                        <p className="text-[11px] font-medium text-slate-500">Medan Mahjong Club</p>
                                     </div>
                                 </div>
                             </div>
@@ -368,7 +368,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     Tempat Main Mahjong Paling <span className="text-emerald-600">Nyaman</span>
                                 </h2>
                                 <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
-                                    Mahjong Medan adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
+                                    Medan Mahjong Club adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
                                     premium bersurface felt hijau yang lembut, ruangan yang sejuk, dan suasana yang
                                     santai, setiap sesi main jadi lebih seru, baik buat pemula maupun pemain profesional.
                                 </p>
@@ -610,7 +610,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
 
                             <div className="overflow-hidden rounded-[2rem] border border-emerald-100 shadow-xl shadow-emerald-900/10">
                                 <iframe
-                                    title="Lokasi Mahjong Medan"
+                                    title="Lokasi Medan Mahjong club"
                                     src="https://maps.google.com/maps?q=Medan&t=&z=14&ie=UTF8&iwloc=&output=embed"
                                     className="h-[420px] w-full border-0"
                                     loading="lazy"
@@ -630,7 +630,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                 <span className="flex h-10 w-8 items-center justify-center rounded-lg border-b-2 border-emerald-950/30 bg-gradient-to-b from-white to-emerald-50 text-lg font-black text-rose-600 shadow-md">
                                     中
                                 </span>
-                                <span className="text-base font-black tracking-tight">Mahjong Medan</span>
+                                <span className="text-base font-black tracking-tight">Medan Mahjong Club </span>
                             </div>
 
                             <ul className="flex flex-wrap items-center justify-center gap-2">
@@ -664,7 +664,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                             )}
                         </div>
                         <p className="mt-10 text-center text-[11px] text-emerald-300/70">
-                            Mahjong Medan &middot; Booking mudah, main nyaman &middot; &copy; {new Date().getFullYear()}
+                            Medan Mahjong Club &middot; Booking mudah, main nyaman &middot; &copy; {new Date().getFullYear()}
                         </p>
                     </div>
                 </footer>

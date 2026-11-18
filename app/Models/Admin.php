@@ -29,9 +29,12 @@ class Admin extends Model
         'bookings' => 'Booking',
         'penggunas' => 'Pengguna',
         'setting-booking-rooms' => 'Setting Room Booking',
+        'aturan-points' => 'Aturan Point',
+        'mahjong-faan-rules' => 'Mahjong Faan Rules',
         'status-vouchers' => 'Status Voucher',
         'vouchers' => 'Voucher',
         'admins' => 'Akun Admin',
+        'printers' => 'Printer',
     ];
 
     protected $fillable = [

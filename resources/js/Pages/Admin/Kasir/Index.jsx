@@ -1,6 +1,38 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import {
+    hapusPrinterTersimpan,
+    kirimKePrinter,
+    mintaPrinterBluetooth,
+    printerBisaDipakai,
+    printerTersimpan,
+    simpanPrinterTersimpan,
+} from '../../../printer';
+
+/**
+ * Cocokkan printer Bluetooth yang sudah diizinkan browser dengan
+ * printer terdaftar pada venue (dari database).
+ */
+async function printerDariVenue(daftarPrinter) {
+    if (!daftarPrinter?.length || !printerBisaDipakai() || !navigator.bluetooth.getDevices) {
+        return null;
+    }
+
+    try {
+        const perangkat = await navigator.bluetooth.getDevices();
+
+        return perangkat.find((device) =>
+            daftarPrinter.some(
+                (printer) =>
+                    (printer.device_id && device.id === printer.device_id) ||
+                    (printer.nama && device.name === printer.nama),
+            ),
+        ) ?? null;
+    } catch {
+        return null;
+    }
+}
 
 function formatRupiah(value) {
     return new Intl.NumberFormat('id-ID', {
@@ -25,16 +57,6 @@ function formatWaktu(value) {
 }
 
 const LEBAR_STRUK = 32;
-
-const UUID_LAYANAN_PRINTER = [
-    '000018f0-0000-1000-8000-00805f9b34fb',
-    '0000ff00-0000-1000-8000-00805f9b34fb',
-    '0000ffe0-0000-1000-8000-00805f9b34fb',
-    '0000fff0-0000-1000-8000-00805f9b34fb',
-    '0000fee7-0000-1000-8000-00805f9b34fb',
-    '49535343-fe7d-4ae5-8fa9-9fafd205e455',
-    'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-];
 
 function formatAngka(value) {
     return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
@@ -154,86 +176,6 @@ function buatStrukEscPos(pesanan) {
     return hasil;
 }
 
-function printerBisaDipakai() {
-    return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
-}
-
-async function mintaPrinterBluetooth() {
-    return navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: UUID_LAYANAN_PRINTER,
-    });
-}
-
-async function cariKarakteristikTulis(server) {
-    const cariDiLayanan = async (layanan) => {
-        const karakteristik = await layanan.getCharacteristics();
-
-        return karakteristik.find((item) => item.properties.writeWithoutResponse)
-            ?? karakteristik.find((item) => item.properties.write)
-            ?? null;
-    };
-
-    for (const uuid of UUID_LAYANAN_PRINTER) {
-        try {
-            const layanan = await server.getPrimaryService(uuid);
-            const karakteristik = await cariDiLayanan(layanan);
-
-            if (karakteristik) {
-                return karakteristik;
-            }
-        } catch {
-            // Layanan tidak tersedia di printer ini, coba UUID berikutnya.
-        }
-    }
-
-    try {
-        const semuaLayanan = await server.getPrimaryServices();
-
-        for (const layanan of semuaLayanan) {
-            const karakteristik = await cariDiLayanan(layanan);
-
-            if (karakteristik) {
-                return karakteristik;
-            }
-        }
-    } catch {
-        // Biarkan ditangani sebagai karakteristik tidak ditemukan.
-    }
-
-    return null;
-}
-
-async function kirimKePrinter(device, data) {
-    const server = await device.gatt.connect();
-
-    try {
-        const karakteristik = await cariKarakteristikTulis(server);
-
-        if (!karakteristik) {
-            throw new Error('Printer tidak memiliki karakteristik tulis. Pastikan perangkat adalah printer thermal Bluetooth.');
-        }
-
-        const ukuranPotongan = 20;
-
-        for (let posisi = 0; posisi < data.length; posisi += ukuranPotongan) {
-            const potongan = data.slice(posisi, posisi + ukuranPotongan);
-
-            if (karakteristik.properties.writeWithoutResponse) {
-                await karakteristik.writeValueWithoutResponse(potongan);
-            } else {
-                await karakteristik.writeValue(potongan);
-            }
-
-            await new Promise((selesai) => setTimeout(selesai, 20));
-        }
-    } finally {
-        if (device.gatt.connected) {
-            device.gatt.disconnect();
-        }
-    }
-}
-
 const statusStyle = {
     baru: {
         badge: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -297,7 +239,7 @@ function BellOffIcon({ className = 'h-5 w-5' }) {
     );
 }
 
-export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, filters }) {
+export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, menus = [], mejas = [], printers = [], filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [statusFilter, setStatusFilter] = useState(filters?.status ?? '');
@@ -316,10 +258,21 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
     });
     const idBaruRef = useRef(null);
     const audioRef = useRef(null);
-    const printerRef = useRef(null);
     const suaraAktifRef = useRef(suaraAktif);
     const notifikasiTimerRef = useRef(null);
     const suaraTtsTimerRef = useRef(null);
+
+    // ===== Form tambah pesanan (POS kasir) =====
+    const [formBuka, setFormBuka] = useState(false);
+    const [formVanueId, setFormVanueId] = useState(filters?.vanue_id ?? '');
+    const [formTipe, setFormTipe] = useState('dine_in');
+    const [formMeja, setFormMeja] = useState('');
+    const [formNama, setFormNama] = useState('');
+    const [formCatatan, setFormCatatan] = useState('');
+    const [formKeranjang, setFormKeranjang] = useState([]);
+    const [formCariMenu, setFormCariMenu] = useState('');
+    const [formKirim, setFormKirim] = useState(false);
+    const [formError, setFormError] = useState(null);
 
     useEffect(() => {
         suaraAktifRef.current = suaraAktif;
@@ -598,6 +551,122 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
         );
     };
 
+    // ===== Aksi form tambah pesanan =====
+    const bukaFormPesanan = () => {
+        setFormVanueId(filters?.vanue_id ?? (bolehPilihVanue ? '' : String(vanues?.[0]?.id ?? '')));
+        setFormTipe('dine_in');
+        setFormMeja('');
+        setFormNama('');
+        setFormCatatan('');
+        setFormKeranjang([]);
+        setFormCariMenu('');
+        setFormError(null);
+        setFormBuka(true);
+    };
+
+    const menuUntukVenue = menus.filter(
+        (menu) => !formVanueId || String(menu.vanue_id) === String(formVanueId),
+    );
+
+    const menuTerfilter = menuUntukVenue.filter((menu) => {
+        const kata = formCariMenu.trim().toLowerCase();
+
+        if (kata === '') {
+            return true;
+        }
+
+        return menu.nama.toLowerCase().includes(kata)
+            || (menu.kategori ?? '').toLowerCase().includes(kata);
+    });
+
+    const mejaUntukVenue = mejas.filter(
+        (meja) => !formVanueId || String(meja.vanue_id) === String(formVanueId),
+    );
+
+    const kategoriGrup = Object.entries(
+        menuTerfilter.reduce((grup, menu) => {
+            const kunci = menu.kategori ?? 'Lainnya';
+            (grup[kunci] ??= []).push(menu);
+
+            return grup;
+        }, {}),
+    ).map(([kategori, items]) => ({ kategori, items }));
+
+    const punyaVarianSuhu = (menu) => menu.harga_dingin !== null && menu.harga_panas !== null;
+
+    const tambahKeKeranjang = (menu, suhu = null) => {
+        const kunci = `${menu.id}-${suhu ?? 'x'}`;
+        const harga = suhu === 'Panas' ? menu.harga_panas : suhu === 'Dingin' ? menu.harga_dingin : menu.harga;
+
+        setFormKeranjang((keranjang) => {
+            const ada = keranjang.find((item) => item.kunci === kunci);
+
+            if (ada) {
+                return keranjang.map((item) =>
+                    item.kunci === kunci ? { ...item, jumlah: Math.min(item.jumlah + 1, 99) } : item,
+                );
+            }
+
+            return [
+                ...keranjang,
+                {
+                    kunci,
+                    id: menu.id,
+                    nama: menu.nama,
+                    suhu,
+                    harga,
+                    jumlah: 1,
+                },
+            ];
+        });
+    };
+
+    const ubahJumlahKeranjang = (kunci, jumlah) => {
+        if (jumlah < 1) {
+            setFormKeranjang((keranjang) => keranjang.filter((item) => item.kunci !== kunci));
+
+            return;
+        }
+
+        setFormKeranjang((keranjang) =>
+            keranjang.map((item) => (item.kunci === kunci ? { ...item, jumlah: Math.min(jumlah, 99) } : item)),
+        );
+    };
+
+    const totalKeranjang = formKeranjang.reduce((jumlah, item) => jumlah + item.harga * item.jumlah, 0);
+
+    const kirimPesananKasir = () => {
+        setFormError(null);
+        setFormKirim(true);
+
+        router.post(
+            '/admin/kasir',
+            {
+                vanue_id: formVanueId || null,
+                tipe_pesanan: formTipe,
+                nomor_meja: formMeja,
+                atas_nama: formNama,
+                catatan: formCatatan || null,
+                items: formKeranjang.map((item) => ({
+                    id: item.id,
+                    jumlah: item.jumlah,
+                    suhu: item.suhu,
+                })),
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setFormBuka(false);
+                },
+                onError: (errors) => {
+                    const pesanPertama = Object.values(errors ?? {})[0];
+                    setFormError(typeof pesanPertama === 'string' ? pesanPertama : 'Gagal membuat pesanan. Periksa kembali data pesanan.');
+                },
+                onFinish: () => setFormKirim(false),
+            },
+        );
+    };
+
     const cetakStruk = async (pesanan) => {
         if (mencetakId !== null) {
             return;
@@ -616,21 +685,39 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
 
         try {
             const data = buatStrukEscPos(pesanan);
-            let printer = printerRef.current;
+            let printer = await printerTersimpan();
+            let pakaiPrinterTersimpan = printer !== null;
+
+            if (!printer) {
+                // Coba printer yang terdaftar untuk venue ini sebelum meminta pilihan manual.
+                printer = await printerDariVenue(printers);
+                pakaiPrinterTersimpan = printer !== null;
+            }
 
             if (!printer) {
                 printer = await mintaPrinterBluetooth();
-                printerRef.current = printer;
+                pakaiPrinterTersimpan = false;
             }
 
             try {
                 await kirimKePrinter(printer, data);
             } catch {
-                // Printer tersimpan gagal terhubung: minta kasir memilih ulang.
-                printerRef.current = null;
-                printer = await mintaPrinterBluetooth();
-                printerRef.current = printer;
+                // Printer gagal terhubung: kalau printer tersimpan bermasalah,
+                // minta kasir memilih ulang; kalau baru dipilih, coba sekali lagi.
+                if (pakaiPrinterTersimpan) {
+                    hapusPrinterTersimpan();
+                    printer = await mintaPrinterBluetooth();
+                    pakaiPrinterTersimpan = false;
+                } else {
+                    printerRef.current = printer;
+                }
+
                 await kirimKePrinter(printer, data);
+            }
+
+            if (!pakaiPrinterTersimpan) {
+                simpanPrinterTersimpan(printer);
+                printerRef.current = null;
             }
 
             setSuccessMessage(
@@ -640,7 +727,7 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
             printerRef.current = null;
 
             const pesan = error?.name === 'NotFoundError'
-                ? 'Printer tidak dipilih. Klik Cetak Struk lalu pilih printer thermal Bluetooth kamu.'
+                ? 'Printer tidak dipilih. Atur printer utama di menu Pengaturan > Printer.'
                 : error?.name === 'SecurityError'
                     ? 'Akses Bluetooth diblokir browser. Izinkan akses Bluetooth untuk situs ini.'
                     : error?.name === 'NetworkError'
@@ -742,19 +829,32 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
                         <p className="text-sm text-slate-500">Pesanan makanan dan minuman dari pelanggan masuk ke sini secara otomatis. Pesanan selesai bisa langsung dicetak struknya ke printer thermal Bluetooth.</p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={toggleSuara}
-                        aria-pressed={suaraAktif}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-sm transition ${
-                            suaraAktif
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
-                        }`}
-                    >
-                        {suaraAktif ? <BellIcon className="h-4 w-4" /> : <BellOffIcon className="h-4 w-4" />}
-                        Suara {suaraAktif ? 'aktif' : 'mati'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={bukaFormPesanan}
+                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Tambah Pesanan
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={toggleSuara}
+                            aria-pressed={suaraAktif}
+                            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold shadow-sm transition ${
+                                suaraAktif
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+                            }`}
+                        >
+                            {suaraAktif ? <BellIcon className="h-4 w-4" /> : <BellOffIcon className="h-4 w-4" />}
+                            Suara {suaraAktif ? 'aktif' : 'mati'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1051,6 +1151,260 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, fi
                     )}
                 </div>
             </div>
+
+            {formBuka && (
+                <div
+                    className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div className="flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                            <div>
+                                <h2 className="text-base font-bold text-slate-900">Tambah Pesanan</h2>
+                                <p className="text-xs text-slate-500">Buat pesanan manual untuk pelanggan langsung dari kasir.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setFormBuka(false)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                                aria-label="Tutup form"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        <form
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                kirimPesananKasir();
+                            }}
+                            className="flex min-h-0 flex-1 flex-col"
+                        >
+                            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                                {formError && (
+                                    <p className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+                                        {formError}
+                                    </p>
+                                )}
+
+                                <div className="grid gap-3 sm:grid-cols-4">
+                                    {bolehPilihVanue && (
+                                        <select
+                                            value={formVanueId}
+                                            onChange={(event) => {
+                                                setFormVanueId(event.target.value);
+                                                setFormMeja('');
+                                            }}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        >
+                                            <option value="">Pilih venue...</option>
+                                            {vanues.map((vanue) => (
+                                                <option key={vanue.id} value={vanue.id}>
+                                                    {vanue.nama}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    <select
+                                        value={formTipe}
+                                        onChange={(event) => setFormTipe(event.target.value)}
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    >
+                                        <option value="dine_in">Dine In</option>
+                                        <option value="take_away">Take Away</option>
+                                    </select>
+
+                                    <input
+                                        list="daftar-meja-kasir"
+                                        type="text"
+                                        value={formMeja}
+                                        onChange={(event) => setFormMeja(event.target.value)}
+                                        placeholder="Nomor meja"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                    <datalist id="daftar-meja-kasir">
+                                        {mejaUntukVenue.map((meja) => (
+                                            <option key={meja.kode_meja} value={meja.kode_meja}>
+                                                {meja.nama_meja ?? ''}
+                                            </option>
+                                        ))}
+                                    </datalist>
+
+                                    <input
+                                        type="text"
+                                        value={formNama}
+                                        onChange={(event) => setFormNama(event.target.value)}
+                                        placeholder="Nama pemesan"
+                                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                    />
+                                </div>
+
+                                <div className="mt-4">
+                                    <div className="relative">
+                                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" />
+                                            </svg>
+                                        </span>
+                                        <input
+                                            type="text"
+                                            value={formCariMenu}
+                                            onChange={(event) => setFormCariMenu(event.target.value)}
+                                            placeholder="Cari menu..."
+                                            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        />
+                                    </div>
+
+                                    <div className="mt-3 space-y-4">
+                                        {kategoriGrup.map((grup) => (
+                                            <div key={grup.kategori}>
+                                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-emerald-700">
+                                                    {grup.kategori}
+                                                </p>
+                                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                                                    {grup.items.map((menu) => {
+                                                        const varian = punyaVarianSuhu(menu);
+
+                                                        return (
+                                                            <div key={menu.id} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                                                                <p className="truncate text-xs font-semibold text-slate-800">{menu.nama}</p>
+                                                                <p className="text-[11px] text-slate-500">
+                                                                    {formatRupiah(varian ? Math.min(menu.harga_dingin, menu.harga_panas) : menu.harga)}
+                                                                </p>
+
+                                                                {varian ? (
+                                                                    <div className="mt-2 grid grid-cols-2 gap-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => tambahKeKeranjang(menu, 'Dingin')}
+                                                                            className="rounded-lg bg-sky-50 px-1.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                                                        >
+                                                                            + Dingin
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => tambahKeKeranjang(menu, 'Panas')}
+                                                                            className="rounded-lg bg-amber-50 px-1.5 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                                                                        >
+                                                                            + Panas
+                                                                        </button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => tambahKeKeranjang(menu)}
+                                                                        className="mt-2 w-full rounded-lg bg-emerald-50 px-1.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                                                    >
+                                                                        + Tambah
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {menuUntukVenue.length === 0 && (
+                                            <p className="py-6 text-center text-sm text-slate-500">
+                                                {formVanueId ? 'Tidak ada menu aktif untuk venue ini.' : 'Pilih venue terlebih dahulu.'}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Keranjang</p>
+
+                                    {formKeranjang.length === 0 ? (
+                                        <p className="mt-2 rounded-xl bg-slate-50 px-3 py-3 text-center text-xs text-slate-500">
+                                            Belum ada menu dipilih. Klik menu di atas untuk menambahkan.
+                                        </p>
+                                    ) : (
+                                        <ul className="mt-2 divide-y divide-slate-100 rounded-xl border border-slate-200">
+                                            {formKeranjang.map((item) => (
+                                                <li key={item.kunci} className="flex items-center gap-2 px-3 py-2">
+                                                    <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">
+                                                        {item.nama}
+                                                        {item.suhu && (
+                                                            <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ${
+                                                                item.suhu === 'Dingin'
+                                                                    ? 'bg-sky-50 text-sky-700 ring-sky-100'
+                                                                    : 'bg-amber-50 text-amber-700 ring-amber-100'
+                                                            }`}>
+                                                                {item.suhu}
+                                                            </span>
+                                                        )}
+                                                    </span>
+
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => ubahJumlahKeranjang(item.kunci, item.jumlah - 1)}
+                                                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                                            aria-label="Kurangi jumlah"
+                                                        >
+                                                            &minus;
+                                                        </button>
+                                                        <span className="w-6 text-center text-xs font-semibold text-slate-800">{item.jumlah}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => ubahJumlahKeranjang(item.kunci, item.jumlah + 1)}
+                                                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                                            aria-label="Tambah jumlah"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+
+                                                    <span className="w-20 shrink-0 text-right text-xs font-semibold text-slate-700">
+                                                        {formatRupiah(item.harga * item.jumlah)}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <textarea
+                                    value={formCatatan}
+                                    onChange={(event) => setFormCatatan(event.target.value)}
+                                    placeholder="Catatan (opsional)"
+                                    rows={2}
+                                    className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4">
+                                <div>
+                                    <p className="text-[11px] text-slate-500">Total pesanan</p>
+                                    <p className="text-base font-bold text-emerald-700">{formatRupiah(totalKeranjang)}</p>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormBuka(false)}
+                                        disabled={formKirim}
+                                        className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={formKirim || formKeranjang.length === 0}
+                                        className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {formKirim ? 'Menyimpan...' : 'Simpan Pesanan'}
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

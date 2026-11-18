@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AturanPointController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -8,9 +9,11 @@ use App\Http\Controllers\Admin\HargaJamMainController;
 use App\Http\Controllers\Admin\JamMainController;
 use App\Http\Controllers\Admin\KasirController;
 use App\Http\Controllers\Admin\KategoriMenuController;
+use App\Http\Controllers\Admin\MahjongFaanRuleController;
 use App\Http\Controllers\Admin\MejaController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\PenggunaController;
+use App\Http\Controllers\Admin\PrinterController;
 use App\Http\Controllers\Admin\SettingBookingRoomController;
 use App\Http\Controllers\Admin\StatusVoucherController;
 use App\Http\Controllers\Admin\VanueController;
@@ -73,6 +76,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
         Route::get('/kasir', [KasirController::class, 'index'])->name('kasir.index');
         Route::get('/kasir/notifikasi', [KasirController::class, 'notifikasi'])->name('kasir.notifikasi');
+        Route::get('/printers', [PrinterController::class, 'index'])->name('printers.index');
+        Route::post('/printers', [PrinterController::class, 'store'])->name('printers.store');
+        Route::delete('/printers/{printer}', [PrinterController::class, 'destroy'])->name('printers.destroy');
+        Route::post('/kasir', [KasirController::class, 'store'])->name('kasir.store');
         Route::patch('/kasir/{pesanan}/status', [KasirController::class, 'updateStatus'])->name('kasir.status');
         Route::get('mejas/qr-code/semua', [MejaController::class, 'downloadAllQrCodes'])->name('mejas.qr-code.semua');
         Route::get('mejas/{meja}/qr-code/gambar', [MejaController::class, 'qrCodeImage'])->name('mejas.qr-code.gambar');
@@ -91,6 +98,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
         Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
         Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);
+        Route::resource('aturan-points', AturanPointController::class)->except(['create', 'edit', 'show']);
+        Route::resource('mahjong-faan-rules', MahjongFaanRuleController::class)->except(['create', 'edit', 'show']);
         Route::resource('status-vouchers', StatusVoucherController::class)->except(['create', 'edit', 'show']);
         Route::patch('setting-booking-rooms/{settingBookingRoom}/status', [SettingBookingRoomController::class, 'updateStatus'])->name('setting-booking-rooms.status');
         Route::resource('setting-booking-rooms', SettingBookingRoomController::class)->except(['create', 'edit', 'show']);

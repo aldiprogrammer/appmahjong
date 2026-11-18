@@ -187,7 +187,7 @@ class PageController extends Controller
             'settingBookingRooms' => Inertia::defer(fn () => Settingbookingroom::query()
                 ->where('status', 'aktif')
                 ->latest('id')
-                ->get(['id', 'pembayaran', 'jumlah_user', 'minimal_user', 'maksimal_user'])),
+                ->get(['id', 'vanue_id', 'pembayaran', 'jumlah_user', 'minimal_user', 'maksimal_user'])),
             'vouchers' => Inertia::defer(function () use ($pengguna) {
                 if (! $pengguna) {
                     return [];

@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 function BrandIcon() {
@@ -124,6 +124,37 @@ function AdminIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function PeraturanIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+        </svg>
+    );
+}
+
+function AturanPointIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3-9v10.5A2.25 2.25 0 0 1 13.5 21h-9A2.25 2.25 0 0 1 2.25 18.75V5.25A2.25 2.25 0 0 1 4.5 3h6.879a2.25 2.25 0 0 1 1.59.659l3.372 3.372a2.25 2.25 0 0 1 .659 1.59V9m-3 0h-3.75a.75.75 0 0 1-.75-.75V4.5" />
+        </svg>
+    );
+}
+
+function MahjongFaanRuleIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+        </svg>
+    );
+}
+
+function PrinterMenuIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5V4.5a1.5 1.5 0 0 1 1.5-1.5h7.5a1.5 1.5 0 0 1 1.5 1.5v3M6.75 16.5H4.5a1.5 1.5 0 0 1-1.5-1.5v-4.5a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5V15a1.5 1.5 0 0 1-1.5 1.5h-2.25M6.75 13.5h10.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75H6.75a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 .75-.75Z" />
+        </svg>
+    );
+}
 /**
  * Ikon tiap menu panel admin. Kuncinya sama dengan kunci pada prop `adminMenus`
  * (segmen nama rute setelah "admin.").
@@ -140,9 +171,39 @@ const menuIcons = {
     bookings: BookingIcon,
     penggunas: PenggunaIcon,
     'setting-booking-rooms': SettingRoomIcon,
+    'aturan-points': AturanPointIcon,
+    'mahjong-faan-rules': MahjongFaanRuleIcon,
     'status-vouchers': StatusVoucherIcon,
     vouchers: VoucherIcon,
     admins: AdminIcon,
+    printers: PrinterMenuIcon,
+};
+
+/**
+ * Menu yang ditampilkan sebagai submenu di dalam grup menu tertentu.
+ * Kunci sama dengan kunci pada prop `adminMenus`.
+ */
+const menuGroups = {
+    'aturan-points': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
+    'mahjong-faan-rules': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
+    'setting-booking-rooms': {
+        label: 'Pengaturan',
+        icon: SettingRoomIcon,
+    },
+    'status-vouchers': {
+        label: 'Pengaturan',
+        icon: VoucherIcon,
+    },
+    printers: {
+        label: 'Pengaturan',
+        icon: PrinterMenuIcon,
+    },
 };
 
 function MenuIcon() {
@@ -155,9 +216,19 @@ function MenuIcon() {
 
 export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Administrasi Mahjong', children }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [openGroups, setOpenGroups] = useState({});
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const { url, props } = usePage();
     const currentAdmin = props.auth?.admin ?? null;
     const hakAkses = currentAdmin?.hak_akses ?? null;
+
+    const logout = () => {
+        setLoggingOut(true);
+        router.post('/admin/logout', undefined, {
+            onFinish: () => setLoggingOut(false),
+        });
+    };
 
     const today = new Intl.DateTimeFormat('id-ID', {
         day: '2-digit',
@@ -174,6 +245,33 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
         }))
         .filter((menu) => hakAkses === null || hakAkses.includes(menu.key));
     const isActive = (href) => url.startsWith(href);
+
+    const menuSections = [];
+    const grupTercatat = new Set();
+
+    menus.forEach((menu) => {
+        const grup = menuGroups[menu.key];
+
+        if (!grup) {
+            menuSections.push({ type: 'menu', menu });
+
+            return;
+        }
+
+        if (grupTercatat.has(grup.label)) {
+            return;
+        }
+
+        grupTercatat.add(grup.label);
+        menuSections.push({
+            type: 'group',
+            grup,
+            items: menus.filter((item) => menuGroups[item.key]?.label === grup.label),
+        });
+    });
+
+    const grupTerbuka = (grup, items) =>
+        openGroups[grup.label] ?? items.some((item) => isActive(item.href));
 
     return (
         <>
@@ -205,7 +303,74 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                 <nav className="admin-sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-3 py-6">
                     <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-widest text-emerald-300">Menu</p>
 
-                    {menus.map((menu) => {
+                    {menuSections.map((section) => {
+                        if (section.type === 'group') {
+                            const { grup, items } = section;
+                            const GroupIcon = grup.icon;
+                            const grupAktif = items.some((item) => isActive(item.href));
+                            const terbuka = grupTerbuka(grup, items);
+
+                            return (
+                                <div key={grup.label}>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setOpenGroups((previous) => ({ ...previous, [grup.label]: !terbuka }))
+                                        }
+                                        aria-expanded={terbuka}
+                                        className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                                            grupAktif
+                                                ? 'bg-white/10 text-white'
+                                                : 'text-emerald-100 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    >
+                                        <GroupIcon className={`h-5 w-5 ${grupAktif ? 'text-white' : 'text-emerald-200'}`} />
+                                        {grup.label}
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className={`ml-auto h-4 w-4 transition-transform ${terbuka ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth={2}
+                                            stroke="currentColor"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </button>
+
+                                    {terbuka && (
+                                        <div className="mt-1 ml-5 space-y-1 border-l border-white/15 pl-3">
+                                            {items.map((menu) => {
+                                                const Icon = menu.icon;
+                                                const active = isActive(menu.href);
+
+                                                return (
+                                                    <Link
+                                                        key={menu.key}
+                                                        href={menu.href}
+                                                        className={`group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${
+                                                            active
+                                                                ? 'bg-white text-emerald-700 shadow-sm'
+                                                                : 'text-emerald-100 hover:bg-white/10 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        <Icon
+                                                            className={`h-4 w-4 ${active ? 'text-emerald-600' : 'text-emerald-200'}`}
+                                                        />
+                                                        {menu.name}
+                                                        {active && (
+                                                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                        )}
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        const { menu } = section;
                         const Icon = menu.icon;
                         const active = isActive(menu.href);
 
@@ -262,14 +427,13 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                         <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 sm:inline-flex">
                             {today}
                         </span>
-                        <Link
-                            href="/admin/logout"
-                            method="post"
-                            as="button"
+                        <button
+                            type="button"
+                            onClick={() => setShowLogoutModal(true)}
                             className="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
                         >
                             Keluar
-                        </Link>
+                        </button>
                         <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-white py-1 pl-1 pr-3">
                             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold uppercase text-white">
                                 {currentAdmin?.username?.charAt(0) ?? 'A'}
@@ -292,6 +456,49 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                     &copy; {new Date().getFullYear()} Mahjong Admin Panel. Semua hak dilindungi.
                 </footer>
             </div>
+
+            {showLogoutModal && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                        <div className="flex items-start gap-4">
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 ring-1 ring-red-100">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                </svg>
+                            </span>
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-900">Keluar dari panel admin?</h2>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    Apakah Anda ingin keluar? Sesi admin Anda akan diakhiri dan perlu login kembali.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowLogoutModal(false)}
+                                disabled={loggingOut}
+                                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={logout}
+                                disabled={loggingOut}
+                                className="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                            >
+                                {loggingOut ? 'Keluar...' : 'Ya, Keluar'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

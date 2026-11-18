@@ -7,9 +7,33 @@ export default function SettingBookingRoomForm({
     onCancel,
     submitLabel = 'Simpan',
     pembayaranInputRef,
+    vanues = [],
 }) {
     return (
         <form onSubmit={onSubmit} className="space-y-5">
+            <div>
+                <label htmlFor="vanue_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Venue <span className="text-rose-500">*</span>
+                </label>
+                <select
+                    id="vanue_id"
+                    value={data.vanue_id}
+                    onChange={(event) => setData('vanue_id', event.target.value)}
+                    required
+                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                        errors.vanue_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                    }`}
+                >
+                    <option value="">Pilih venue</option>
+                    {vanues.map((vanue) => (
+                        <option key={vanue.id} value={String(vanue.id)}>
+                            {vanue.nama}
+                        </option>
+                    ))}
+                </select>
+                {errors.vanue_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.vanue_id}</p>}
+                <p className="mt-1.5 text-xs text-slate-500">Setting ini hanya berlaku untuk booking di venue yang dipilih.</p>
+            </div>
             <div>
                 <label htmlFor="pembayaran" className="mb-1.5 block text-sm font-medium text-slate-700">
                     Pembayaran <span className="text-rose-500">*</span>

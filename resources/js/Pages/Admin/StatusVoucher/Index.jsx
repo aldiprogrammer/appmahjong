@@ -31,7 +31,7 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ statusVouchers, filters }) {
+export default function Index({ statusVouchers, vanues = [], filters }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
@@ -42,6 +42,7 @@ export default function Index({ statusVouchers, filters }) {
     const statusVoucherInputRef = useRef(null);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        vanue_id: '',
         status_voucher: '',
         jumah_booking: '',
         jumah_jam: '',
@@ -104,6 +105,7 @@ export default function Index({ statusVouchers, filters }) {
     const openEditModal = (statusVoucher) => {
         clearErrors();
         setData({
+            vanue_id: String(statusVoucher.vanue_id ?? ''),
             status_voucher: statusVoucher.status_voucher,
             jumah_booking: statusVoucher.jumah_booking,
             jumah_jam: statusVoucher.jumah_jam,
@@ -271,10 +273,11 @@ export default function Index({ statusVouchers, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[640px] text-left text-sm">
+                                <table className="w-full min-w-[760px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Status Voucher</th>
                                             <th className="px-5 py-3 font-semibold">Jumlah Booking</th>
                                             <th className="px-5 py-3 font-semibold">Jumlah Jam</th>
@@ -289,6 +292,15 @@ export default function Index({ statusVouchers, filters }) {
                                             <tr key={statusVoucher.id} className="transition hover:bg-emerald-50/40">
                                                 <td className="px-5 py-3.5 text-slate-500">
                                                     {(statusVouchers.from ?? 0) + index}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {statusVoucher.vanue ? (
+                                                        <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                            {statusVoucher.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
                                                     <span
@@ -421,6 +433,7 @@ export default function Index({ statusVouchers, filters }) {
                                 onCancel={closeFormModal}
                                 submitLabel={editingStatusVoucher ? 'Simpan Perubahan' : 'Simpan Status Voucher'}
                                 statusVoucherInputRef={statusVoucherInputRef}
+                                vanues={vanues}
                             />
                         </div>
                     </div>
