@@ -41,7 +41,7 @@ const fasilitasDefault = {
     ikon: <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />,
 };
 
-function BadgeFasilitas({ fasilitas }) {
+export function BadgeFasilitas({ fasilitas }) {
     const kata = fasilitas.toLowerCase();
     const meta = fasilitasMeta.find((item) => item.kata.some((k) => kata.includes(k))) ?? fasilitasDefault;
 
@@ -79,8 +79,8 @@ function VenueCard({ vanue, jumlahMeja, jarakKm, terdekat, onPilih }) {
             <span className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-emerald-50/70 to-transparent opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-emerald-900 shadow-md shadow-emerald-900/20">
                 <img
-                    src="/images/meja-mahjong.svg"
-                    alt={`Meja mahjong ${vanue.nama}`}
+                    src={vanue.logo_url || '/images/meja-mahjong.svg'}
+                    alt={`Venue ${vanue.nama}`}
                     className="h-full w-full object-cover"
                     loading="lazy"
                 />

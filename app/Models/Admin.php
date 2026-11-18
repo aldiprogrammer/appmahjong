@@ -32,9 +32,11 @@ class Admin extends Model
         'aturan-points' => 'Aturan Point',
         'mahjong-faan-rules' => 'Mahjong Faan Rules',
         'status-vouchers' => 'Status Voucher',
+        'suplayer-foods' => 'Suplayer Food',
         'vouchers' => 'Voucher',
         'admins' => 'Akun Admin',
         'printers' => 'Printer',
+        'pembayarans' => 'Pembayaran',
     ];
 
     protected $fillable = [

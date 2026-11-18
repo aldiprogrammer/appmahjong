@@ -521,23 +521,34 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
         <>
             <Head title="Booking Mahjong" />
 
-            <header className="relative overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-emerald-600 to-emerald-800 px-5 pb-12 pt-6 text-white">
-                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
-                <div className="relative flex items-center gap-3">
-                    <Link
-                        href="/home"
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"
-                        aria-label="Kembali ke home"
-                    >
-                        <BackIcon />
-                    </Link>
-                    <div>
-                        <h1 className="text-lg font-bold">Booking Mahjong</h1>
-                        <p className="text-xs text-emerald-100">
-                            {vanueId
-                                ? `Langkah ${step} dari 3 \u00b7 ${langkahBooking[step - 1].judul}`
-                                : 'Pilih venue untuk mulai booking'}
-                        </p>
+            <header className="relative overflow-hidden rounded-b-[2rem] text-white">
+                <div className="relative w-full overflow-hidden rounded-b-[2rem] bg-gradient-to-br from-emerald-600 to-emerald-800">
+                    <div className="relative h-40 w-full overflow-hidden rounded-b-[2rem] bg-emerald-950 sm:h-44">
+                        <img
+                            src={vanueTerpilihObj?.banner_url || '/images/meja-mahjong.svg'}
+                            alt={vanueTerpilihObj?.nama || 'Venue'}
+                            className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/95 via-emerald-900/70 to-emerald-900/45" />
+                        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/10" />
+
+                        <div className="absolute left-0 top-0 flex items-center gap-3 p-4">
+                            <Link
+                                href="/home"
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"
+                                aria-label="Kembali ke home"
+                            >
+                                <BackIcon />
+                            </Link>
+                            <div className="min-w-0">
+                                <h1 className="text-lg font-bold">Booking Mahjong</h1>
+                                <p className="text-xs text-emerald-100">
+                                    {vanueId
+                                        ? `Langkah ${step} dari 3 \u00b7 ${langkahBooking[step - 1].judul}`
+                                        : 'Pilih venue untuk mulai booking'}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -546,65 +557,66 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                 {vanueId === '' ? (
                     <PilihVenue vanues={vanues} mejas={pageProps.m} onPilih={pilihVanue} />
                 ) : (
-                <>
-                <BookingStepper step={step} bisaKe={bisaKeStep} onPilih={pindahStep} />
+                    <>
+                        <BookingStepper step={step} bisaKe={bisaKeStep} onPilih={pindahStep} />
 
-                <Deferred
-                    data={deferredKeys}
-                    // fallback wajib truthy di @inertiajs/react (throw jika falsy) — pakai skeleton, bukan null.
-                    fallback={deferredStuck ? <DeferredTimeoutError onReload={retryDeferred} /> : <BookingSkeleton />}
-                >
-                    <div className="space-y-4">
-                        {voucherJamMismatch && step >= 2 && data.jam_main_ids.length > 0 && (
-                            <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                                {voucherJamMessage}
-                            </div>
-                        )}
-                        {hasErrors && (
-                            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                                <p className="font-semibold">Periksa kembali data booking.</p>
-                                <p className="mt-0.5 text-xs text-rose-600">Beberapa data belum lengkap atau tidak valid.</p>
-                            </div>
-                        )}
+                        <Deferred
+                            data={deferredKeys}
+                            // fallback wajib truthy di @inertiajs/react (throw jika falsy) — pakai skeleton, bukan null.
+                            fallback={deferredStuck ? <DeferredTimeoutError onReload={retryDeferred} /> : <BookingSkeleton />}
+                        >
+                            <div className="space-y-4">
+                                {voucherJamMismatch && step >= 2 && data.jam_main_ids.length > 0 && (
+                                    <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                        {voucherJamMessage}
+                                    </div>
+                                )}
+                                {hasErrors && (
+                                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                                        <p className="font-semibold">Periksa kembali data booking.</p>
+                                        <p className="mt-0.5 text-xs text-rose-600">Beberapa data belum lengkap atau tidak valid.</p>
+                                    </div>
+                                )}
 
-                        {step === 1 && (
-                            <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                                <div className="mb-3 flex items-center gap-2">
-                                    <StepBadge>1</StepBadge>
-                                    <h2 className="text-sm font-bold text-slate-800">Tanggal & Meja</h2>
-                                </div>
+                                {step === 1 && (
+                                    <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+                                        <div className="p-4">
+                                            <div className="mb-3 flex items-center gap-2">
+                                                <StepBadge>1</StepBadge>
+                                                <h2 className="text-sm font-bold text-slate-800">Tanggal & Meja</h2>
+                                            </div>
 
-                                <label htmlFor="tgl_main" className="mb-1.5 block text-xs font-medium text-slate-600">
-                                    Pilih tanggal main
-                                </label>
-                                <input
-                                    id="tgl_main"
-                                    type="date"
-                                    value={data.tgl_main}
-                                    min={todayISO()}
-                                    onChange={(event) => setData('tgl_main', event.target.value)}
-                                    className={inputClass('tgl_main')}
-                                />
-                                {errors.tgl_main && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tgl_main}</p>}
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {hariTerpilih && (
-                                        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                            Hari {hariTerpilih}
-                                        </p>
-                                    )}
-                                    {mejaTerpilih && (
-                                        <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                            {mejaTerpilih.nama_meja}
-                                        </p>
-                                    )}
-                                </div>
+                                            <label htmlFor="tgl_main" className="mb-1.5 block text-xs font-medium text-slate-600">
+                                                Pilih tanggal main
+                                            </label>
+                                            <input
+                                                id="tgl_main"
+                                                type="date"
+                                                value={data.tgl_main}
+                                                min={todayISO()}
+                                                onChange={(event) => setData('tgl_main', event.target.value)}
+                                                className={inputClass('tgl_main')}
+                                            />
+                                            {errors.tgl_main && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tgl_main}</p>}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {hariTerpilih && (
+                                                    <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                        Hari {hariTerpilih}
+                                                    </p>
+                                                )}
+                                                {mejaTerpilih && (
+                                                    <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                        {mejaTerpilih.nama_meja}
+                                                    </p>
+                                                )}
+                                            </div>
 
-                                <div className="my-3 border-t border-dashed border-emerald-100" />
+                                            <div className="my-3 border-t border-dashed border-emerald-100" />
 
-                                <div className="mb-2 flex items-center justify-between gap-2">
-                                    <p className="text-xs font-medium text-slate-600">Pilih meja di</p>
+                                            <div className="mb-2 flex items-center justify-between gap-2">
+                                    <p className="text-xs font-medium text-slate-600">Pilih meja</p>
                                     <button
                                         type="button"
                                         onClick={() => setVanueId('')}
@@ -614,491 +626,481 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                         Ganti venue
                                     </button>
                                 </div>
-                                <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
-                                    <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-emerald-900">
-                                        <img src="/images/meja-mahjong.svg" alt={vanueTerpilihObj?.nama} className="h-full w-full object-cover" />
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="truncate text-xs font-bold text-slate-800">{vanueTerpilihObj?.nama || '-'}</p>
-                                        {vanueTerpilihObj?.alamat && (
-                                            <p className="truncate text-[10px] text-slate-500">{vanueTerpilihObj.alamat}</p>
-                                        )}
-                                    </div>
-                                </div>
 
-                                {!data.tgl_main ? (
-                                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                                        Pilih tanggal main terlebih dahulu.
-                                    </div>
-                                ) : mejaVenue.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                                        Belum ada meja tersedia.
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-2.5">
-                                        {mejaVenue.map((meja) => {
-                                            const active = String(data.meja_id) === String(meja.id);
-
-                                            return (
-                                                <button
-                                                    key={meja.id}
-                                                    type="button"
-                                                    onClick={() => setData('meja_id', String(meja.id))}
-                                                    aria-pressed={active}
-                                                    className={`group overflow-hidden rounded-2xl border text-left transition duration-200 ${active
-                                                        ? 'scale-[1.02] border-emerald-600 shadow-lg shadow-emerald-900/25 ring-2 ring-emerald-500/60'
-                                                        : 'border-slate-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-900/10'
-                                                        }`}
-                                                >
-                                                    <div className="relative aspect-[4/3] overflow-hidden bg-emerald-900">
-                                                        <img
-                                                            src="/images/meja-mahjong.svg"
-                                                            alt={`Meja ${meja.nama_meja}`}
-                                                            loading="lazy"
-                                                            className={`h-full w-full object-cover transition duration-500 ${active ? 'scale-110 brightness-110' : 'group-hover:scale-105'
-                                                                }`}
-                                                        />
-                                                        <div
-                                                            className={`absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/10 to-transparent transition ${active ? 'via-emerald-800/40' : ''
-                                                                }`}
-                                                        />
-                                                        {active && (
-                                                            <div className="absolute inset-0 bg-emerald-500/15 ring-2 ring-inset ring-emerald-400/70" />
-                                                        )}
-                                                        <span className="absolute left-1.5 top-1.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 shadow-sm backdrop-blur">
-                                                            {meja.kode_meja || 'MEJA'}
-                                                        </span>
-                                                        {active ? (
-                                                            <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold text-white shadow-md">
-                                                                <CheckIcon className="h-2.5 w-2.5" />
-                                                                Dipilih
-                                                            </span>
-                                                        ) : (
-                                                            <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/80 text-emerald-700 shadow-sm backdrop-blur">
-                                                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                            </span>
-                                                        )}
-                                                        <div className="absolute inset-x-2 bottom-1.5 flex items-end justify-between gap-2">
-                                                            <p className="truncate text-[11px] font-bold text-white drop-shadow">
-                                                                {meja.nama_meja}
-                                                            </p>
-                                                            {active && (
-                                                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-2 ring-white/80">
-                                                                    <CheckIcon className="h-3.5 w-3.5" />
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                                {errors.meja_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.meja_id}</p>}
-                            </section>
-                        )}
-
-                        {step === 2 && (
-                            <>
-                                <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                                    <div className="mb-3 flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <StepBadge>2</StepBadge>
-                                            <h2 className="text-sm font-bold text-slate-800"> Pilih   Jam Main</h2>
-                                        </div>
-                                        {data.jam_main_ids.length > 0 && (
-                                            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                                                {data.jam_main_ids.length} sesi dipilih
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl bg-emerald-50/70 px-3 py-2 text-[11px] font-semibold text-emerald-800">
-                                        <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
-                                            {formatTanggal(data.tgl_main)}
-                                        </span>
-                                        <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
-                                            {mejaTerpilih?.nama_meja || 'Meja belum dipilih'}
-                                        </span>
-                                        {vanueTerpilihObj?.nama && (
-                                            <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
-                                                {vanueTerpilihObj.nama}
-                                            </span>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={() => pindahStep(1)}
-                                            className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
-                                        >
-                                            <EditIcon className="h-3 w-3" />
-                                            Ubah
-                                        </button>
-                                    </div>
-
-                                    {!data.meja_id ? (
-                                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                                            Pilih meja terlebih dahulu.
-                                        </div>
-                                    ) : jamTampil.length === 0 ? (
-                                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
-                                            {data.tgl_main === tanggalSekarang
-                                                ? 'Semua jam main untuk hari ini sudah lewat.'
-                                                : 'Belum ada jam main aktif.'}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <p className="mb-2 text-[11px] text-slate-500">
-                                                Bisa pilih lebih dari satu sesi jam main.
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {jamTampil.map((jam) => {
-                                                    const booked = jamSudahDibooking(jam);
-                                                    const active = !booked && data.jam_main_ids.includes(String(jam.id));
-                                                    const hargaJam = hargaVenue(jam);
-                                                    const diskonJam = Number(hargaJam?.diskon) || 0;
-
-                                                    return (
-                                                        <button
-                                                            key={jam.id}
-                                                            type="button"
-                                                            onClick={() => toggleJam(jam.id)}
-                                                            disabled={booked}
-                                                            aria-pressed={active}
-                                                            aria-disabled={booked}
-                                                            className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${booked
-                                                                ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                                                                : active
-                                                                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                                                                    : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
-                                                                }`}
-                                                        >
-                                                            <span
-                                                                className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${booked
-                                                                    ? 'bg-slate-200 text-slate-400'
-                                                                    : active
-                                                                        ? 'bg-white/20 text-white'
-                                                                        : 'bg-emerald-50 text-emerald-600'
-                                                                    }`}
-                                                            >
-                                                                {active ? <CheckIcon className="h-3 w-3" /> : <ClockIcon className="h-3.5 w-3.5" />}
-                                                            </span>
-                                                            <span className="min-w-0 flex-1">
-                                                                <span className={`block text-xs font-semibold ${booked ? 'line-through' : ''}`}>
-                                                                    {formatTime(jam.jam_mulai)} - {formatTime(jam.jam_selesai)}
-                                                                </span>
-                                                                {booked ? (
-                                                                    <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-rose-500">
-                                                                        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                                                                        Booked
-                                                                    </span>
-                                                                ) : hargaJam ? (
-                                                                    <span
-                                                                        className={`mt-0.5 flex flex-wrap items-center gap-1 text-[10px] font-bold ${active ? 'text-emerald-50' : 'text-emerald-700'
-                                                                            }`}
-                                                                    >
-                                                                        {formatRupiah(hargaJam.harga_akhir)}
-                                                                        {diskonJam > 0 && (
-                                                                            <span
-                                                                                className={`font-medium line-through ${active ? 'text-emerald-200/80' : 'text-slate-400'
-                                                                                    }`}
-                                                                            >
-                                                                                {formatRupiah(hargaJam.harga)}
-                                                                            </span>
-                                                                        )}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span
-                                                                        className={`mt-0.5 block text-[10px] ${active ? 'text-emerald-100' : 'text-slate-400'
-                                                                            }`}
-                                                                    >
-                                                                        Harga belum tersedia
-                                                                    </span>
-                                                                )}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </>
-                                    )}
-                                    {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
-                                </section>
-
-                                {opsiBooking.length > 0 && (
-                                    <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                                        <div className="mb-3 flex items-center gap-2">
-                                            <StepBadge>B</StepBadge>
-                                            <h2 className="text-sm font-bold text-slate-800">Tipe Booking</h2>
-                                        </div>
-                                        <p className="mb-2 text-[11px] text-slate-500">
-                                            Pilih tipe booking sesuai aturan pembayaran yang sedang aktif.
-                                        </p>
-                                        <div className="grid gap-2 sm:grid-cols-2">
-                                            {opsiBooking.map((opsi) => {
-                                                const active = data.tipe_booking === opsi.value;
-
-                                                return (
-                                                    <button
-                                                        key={opsi.value}
-                                                        type="button"
-                                                        onClick={() => setData('tipe_booking', opsi.value)}
-                                                        aria-pressed={active}
-                                                        className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${active
-                                                            ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
-                                                            : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
-                                                            }`}
-                                                    >
-                                                        <span
-                                                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
-                                                                }`}
-                                                        >
-                                                            {active ? <CheckIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
-                                                        </span>
-                                                        <span className="min-w-0 flex-1">
-                                                            <span className="block text-xs font-semibold">{opsi.label}</span>
-                                                            <span className={`mt-0.5 block text-[10px] ${active ? 'text-emerald-50' : 'text-slate-500'}`}>
-                                                                {opsi.description}
-                                                            </span>
-                                                            {total > 0 && (
-                                                                <span className={`mt-1 block text-[11px] font-bold ${active ? 'text-white' : 'text-emerald-700'}`}>
-                                                                    {formatRupiah(opsi.value === 'public' && hargaDibagi ? totalDibayar : total)}
-                                                                    {opsi.value === 'public' && hargaDibagi ? ' / user' : ''}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                        {errors.tipe_booking && (
-                                            <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tipe_booking}</p>
-                                        )}
-                                    </section>
-                                )}
-
-                                {voucherPresetValid && (
-                                    <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
-                                        <p className="text-sm font-semibold text-emerald-800">
-                                            Voucher digunakan: {data.kode_voucher}
-                                        </p>
-                                        <p className="mt-1 text-[11px] text-emerald-700">
-                                            Pilih tepat sesuai kuota jam voucher sebelum melanjutkan booking.
-                                        </p>
-                                    </section>
-                                )}
-
-                                {vouchers.length > 0 && !voucherPresetValid && (
-                                    <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                                        <div className="mb-3 flex items-center gap-2">
-                                            {/* <StepBadge>V</StepBadge> */}
-                                            <h2 className="text-sm font-bold text-slate-800">Gunakan Voucher</h2>
-                                        </div>
-                                        <label htmlFor="kode_voucher" className="mb-1.5 block text-xs font-medium text-slate-600">
-                                            Pilih voucher (opsional)
-                                        </label>
-                                        <select
-                                            id="kode_voucher"
-                                            value={data.kode_voucher}
-                                            onChange={(event) => setData('kode_voucher', event.target.value)}
-                                            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                        >
-                                            <option value="">Tanpa voucher</option>
-                                            {vouchers.map((voucher) => (
-                                                <option key={voucher.id} value={voucher.kode_voucher}>
-                                                    {voucher.kode_voucher} - {voucher.jumah_jam ?? 0} jam gratis
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors.kode_voucher && (
-                                            <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_voucher}</p>
-                                        )}
-                                        <p className="mt-2 text-[11px] text-slate-500">
-                                            {voucherTerpilih
-                                                ? `Pilih tepat ${voucherTerpilih.jumah_jam} sesi jam untuk menggunakan voucher ini.`
-                                                : 'Voucher hanya berlaku untuk jumlah sesi yang sesuai kuota jam voucher.'}
-                                        </p>
-                                    </section>
-                                )}
-                            </>
-                        )}
-
-                        {step === 3 && (
-                            <>
-                                <section className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
-                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold uppercase text-emerald-700">
-                                        {pengguna?.nama_depan?.charAt(0) ?? '?'}
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Booking untuk</p>
-                                        <p className="truncate text-sm font-semibold text-slate-800">{namaPengguna(pengguna) || '-'}</p>
-                                        <p className="text-[11px] text-slate-500">{pengguna?.nowa || '-'}</p>
-                                    </div>
-                                    <Link href="/profil" className="text-[11px] font-bold text-emerald-700">
-                                        Profil
-                                    </Link>
-                                </section>
-
-                                <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 p-4 text-white shadow-lg shadow-emerald-200">
-                                    <div className="flex items-center justify-between">
-                                        <h2 className="text-sm font-bold">Ringkasan Booking</h2>
-                                        <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold">
-                                            {hariTerpilih || 'Pilih tanggal'}
-                                        </span>
-                                    </div>
-
-                                    <div className="mt-3 space-y-2 text-xs text-emerald-100">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <span className="shrink-0">Jam main</span>
-                                            {jamTerpilih.length > 0 ? (
-                                                <div className="flex flex-wrap justify-end gap-1">
-                                                    {jamTerpilih.map((jam) => (
-                                                        <span
-                                                            key={jam.id}
-                                                            className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white"
-                                                        >
-                                                            {formatTime(jam.jam_mulai)} - {formatTime(jam.jam_selesai)}
-                                                        </span>
-                                                    ))}
+                                            {!data.tgl_main ? (
+                                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                                    Pilih tanggal main terlebih dahulu.
+                                                </div>
+                                            ) : mejaVenue.length === 0 ? (
+                                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                                    Belum ada meja tersedia.
                                                 </div>
                                             ) : (
-                                                <span className="font-semibold text-white">Belum dipilih</span>
+                                                <div className="grid grid-cols-2 gap-2.5">
+                                                    {mejaVenue.map((meja) => {
+                                                        const active = String(data.meja_id) === String(meja.id);
+
+                                                        return (
+                                                            <button
+                                                                key={meja.id}
+                                                                type="button"
+                                                                onClick={() => setData('meja_id', String(meja.id))}
+                                                                aria-pressed={active}
+                                                                className={`group overflow-hidden rounded-2xl border text-left transition duration-200 ${active
+                                                                    ? 'scale-[1.02] border-emerald-600 shadow-lg shadow-emerald-900/25 ring-2 ring-emerald-500/60'
+                                                                    : 'border-slate-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-900/10'
+                                                                    }`}
+                                                            >
+                                                                <div className="relative aspect-[4/3] overflow-hidden bg-emerald-900">
+                                                                    <img
+                                                                        src="/images/meja-mahjong.svg"
+                                                                        alt={`Meja ${meja.nama_meja}`}
+                                                                        loading="lazy"
+                                                                        className={`h-full w-full object-cover transition duration-500 ${active ? 'scale-110 brightness-110' : 'group-hover:scale-105'
+                                                                            }`}
+                                                                    />
+                                                                    <div
+                                                                        className={`absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/10 to-transparent transition ${active ? 'via-emerald-800/40' : ''
+                                                                            }`}
+                                                                    />
+                                                                    {active && (
+                                                                        <div className="absolute inset-0 bg-emerald-500/15 ring-2 ring-inset ring-emerald-400/70" />
+                                                                    )}
+                                                                    <span className="absolute left-1.5 top-1.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 shadow-sm backdrop-blur">
+                                                                        {meja.kode_meja || 'MEJA'}
+                                                                    </span>
+                                                                    {active ? (
+                                                                        <span className="absolute right-1.5 top-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-bold text-white shadow-md">
+                                                                            <CheckIcon className="h-2.5 w-2.5" />
+                                                                            Dipilih
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/80 text-emerald-700 shadow-sm backdrop-blur">
+                                                                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                        </span>
+                                                                    )}
+                                                                    <div className="absolute inset-x-2 bottom-1.5 flex items-end justify-between gap-2">
+                                                                        <p className="truncate text-[11px] font-bold text-white drop-shadow">
+                                                                            {meja.nama_meja}
+                                                                        </p>
+                                                                        {active && (
+                                                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-md ring-2 ring-white/80">
+                                                                                <CheckIcon className="h-3.5 w-3.5" />
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             )}
+                                            {errors.meja_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.meja_id}</p>}
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span>Meja</span>
-                                            <span className="text-right font-semibold text-white">
-                                                {mejaTerpilih ? mejaTerpilih.nama_meja : 'Belum dipilih'}
+                                    </section>
+                                )}
+
+                                {step === 2 && (
+                                    <>
+                                        <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                                            <div className="mb-3 flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <StepBadge>2</StepBadge>
+                                                    <h2 className="text-sm font-bold text-slate-800"> Pilih   Jam Main</h2>
+                                                </div>
+                                                {data.jam_main_ids.length > 0 && (
+                                                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                                        {data.jam_main_ids.length} sesi dipilih
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-xl bg-emerald-50/70 px-3 py-2 text-[11px] font-semibold text-emerald-800">
+                                                <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
+                                                    {formatTanggal(data.tgl_main)}
+                                                </span>
+                                                <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
+                                                    {mejaTerpilih?.nama_meja || 'Meja belum dipilih'}
+                                                </span>
                                                 {vanueTerpilihObj?.nama && (
-                                                    <span className="block text-[10px] font-medium text-emerald-200">
+                                                    <span className="rounded-full bg-white px-2 py-0.5 shadow-sm">
                                                         {vanueTerpilihObj.nama}
                                                     </span>
                                                 )}
-                                            </span>
-                                        </div>
-                                        {tipeBookingTerpilih && (
-                                            <div className="flex items-center justify-between">
-                                                <span>Tipe booking</span>
-                                                <span className="font-semibold text-white">{tipeBookingTerpilih.label}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => pindahStep(1)}
+                                                    className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                                                >
+                                                    <EditIcon className="h-3 w-3" />
+                                                    Ubah
+                                                </button>
                                             </div>
+
+                                            {!data.meja_id ? (
+                                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                                    Pilih meja terlebih dahulu.
+                                                </div>
+                                            ) : jamTampil.length === 0 ? (
+                                                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-xs text-slate-500">
+                                                    {data.tgl_main === tanggalSekarang
+                                                        ? 'Semua jam main untuk hari ini sudah lewat.'
+                                                        : 'Belum ada jam main aktif.'}
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="mb-2 text-[11px] text-slate-500">
+                                                        Bisa pilih lebih dari satu sesi jam main.
+                                                    </p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {jamTampil.map((jam) => {
+                                                            const booked = jamSudahDibooking(jam);
+                                                            const active = !booked && data.jam_main_ids.includes(String(jam.id));
+                                                            const hargaJam = hargaVenue(jam);
+                                                            const diskonJam = Number(hargaJam?.diskon) || 0;
+
+                                                            return (
+                                                                <button
+                                                                    key={jam.id}
+                                                                    type="button"
+                                                                    onClick={() => toggleJam(jam.id)}
+                                                                    disabled={booked}
+                                                                    aria-pressed={active}
+                                                                    aria-disabled={booked}
+                                                                    className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${booked
+                                                                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+                                                                        : active
+                                                                            ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                                                                            : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                                                                        }`}
+                                                                >
+                                                                    <span
+                                                                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${booked
+                                                                            ? 'bg-slate-200 text-slate-400'
+                                                                            : active
+                                                                                ? 'bg-white/20 text-white'
+                                                                                : 'bg-emerald-50 text-emerald-600'
+                                                                            }`}
+                                                                    >
+                                                                        {active ? <CheckIcon className="h-3 w-3" /> : <ClockIcon className="h-3.5 w-3.5" />}
+                                                                    </span>
+                                                                    <span className="min-w-0 flex-1">
+                                                                        <span className={`block text-xs font-semibold ${booked ? 'line-through' : ''}`}>
+                                                                            {formatTime(jam.jam_mulai)} - {formatTime(jam.jam_selesai)}
+                                                                        </span>
+                                                                        {booked ? (
+                                                                            <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-rose-500">
+                                                                                <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                                                                Booked
+                                                                            </span>
+                                                                        ) : hargaJam ? (
+                                                                            <span
+                                                                                className={`mt-0.5 flex flex-wrap items-center gap-1 text-[10px] font-bold ${active ? 'text-emerald-50' : 'text-emerald-700'
+                                                                                    }`}
+                                                                            >
+                                                                                {formatRupiah(hargaJam.harga_akhir)}
+                                                                                {diskonJam > 0 && (
+                                                                                    <span
+                                                                                        className={`font-medium line-through ${active ? 'text-emerald-200/80' : 'text-slate-400'
+                                                                                            }`}
+                                                                                    >
+                                                                                        {formatRupiah(hargaJam.harga)}
+                                                                                    </span>
+                                                                                )}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span
+                                                                                className={`mt-0.5 block text-[10px] ${active ? 'text-emerald-100' : 'text-slate-400'
+                                                                                    }`}
+                                                                            >
+                                                                                Harga belum tersedia
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
+                                        </section>
+
+                                        {opsiBooking.length > 0 && (
+                                            <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <StepBadge>B</StepBadge>
+                                                    <h2 className="text-sm font-bold text-slate-800">Tipe Booking</h2>
+                                                </div>
+                                                <p className="mb-2 text-[11px] text-slate-500">
+                                                    Pilih tipe booking sesuai aturan pembayaran yang sedang aktif.
+                                                </p>
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    {opsiBooking.map((opsi) => {
+                                                        const active = data.tipe_booking === opsi.value;
+
+                                                        return (
+                                                            <button
+                                                                key={opsi.value}
+                                                                type="button"
+                                                                onClick={() => setData('tipe_booking', opsi.value)}
+                                                                aria-pressed={active}
+                                                                className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left transition ${active
+                                                                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                                                                    : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300'
+                                                                    }`}
+                                                            >
+                                                                <span
+                                                                    className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-600'
+                                                                        }`}
+                                                                >
+                                                                    {active ? <CheckIcon className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block text-xs font-semibold">{opsi.label}</span>
+                                                                    <span className={`mt-0.5 block text-[10px] ${active ? 'text-emerald-50' : 'text-slate-500'}`}>
+                                                                        {opsi.description}
+                                                                    </span>
+                                                                    {total > 0 && (
+                                                                        <span className={`mt-1 block text-[11px] font-bold ${active ? 'text-white' : 'text-emerald-700'}`}>
+                                                                            {formatRupiah(opsi.value === 'public' && hargaDibagi ? totalDibayar : total)}
+                                                                            {opsi.value === 'public' && hargaDibagi ? ' / user' : ''}
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {errors.tipe_booking && (
+                                                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tipe_booking}</p>
+                                                )}
+                                            </section>
                                         )}
-                                    </div>
 
-                                    <div className="my-3 border-t border-white/15" />
+                                        {voucherPresetValid && (
+                                            <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm">
+                                                <p className="text-sm font-semibold text-emerald-800">
+                                                    Voucher digunakan: {data.kode_voucher}
+                                                </p>
+                                                <p className="mt-1 text-[11px] text-emerald-700">
+                                                    Pilih tepat sesuai kuota jam voucher sebelum melanjutkan booking.
+                                                </p>
+                                            </section>
+                                        )}
 
-                                    {hargaTidakTersedia ? (
-                                        <p className="rounded-xl bg-rose-500/20 px-3 py-2 text-xs font-medium text-rose-100">
-                                            Harga untuk hari dan jam yang dipilih belum tersedia. Silakan pilih jadwal lain.
-                                        </p>
-                                    ) : jamTerpilih.length === 0 ? (
-                                        <p className="text-xs text-emerald-100">Pilih jam main untuk melihat total bayar.</p>
-                                    ) : (
-                                        <div className="space-y-1.5 text-xs">
-                                            <div className="flex items-center justify-between text-emerald-100">
-                                                <span>Harga ({jamTerpilih.length} sesi)</span>
-                                                <span>{formatRupiah(hargaAsli)}</span>
+                                        {vouchers.length > 0 && !voucherPresetValid && (
+                                            <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    {/* <StepBadge>V</StepBadge> */}
+                                                    <h2 className="text-sm font-bold text-slate-800">Gunakan Voucher</h2>
+                                                </div>
+                                                <label htmlFor="kode_voucher" className="mb-1.5 block text-xs font-medium text-slate-600">
+                                                    Pilih voucher (opsional)
+                                                </label>
+                                                <select
+                                                    id="kode_voucher"
+                                                    value={data.kode_voucher}
+                                                    onChange={(event) => setData('kode_voucher', event.target.value)}
+                                                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                                >
+                                                    <option value="">Tanpa voucher</option>
+                                                    {vouchers.map((voucher) => (
+                                                        <option key={voucher.id} value={voucher.kode_voucher}>
+                                                            {voucher.kode_voucher} - {voucher.jumah_jam ?? 0} jam gratis
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {errors.kode_voucher && (
+                                                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_voucher}</p>
+                                                )}
+                                                <p className="mt-2 text-[11px] text-slate-500">
+                                                    {voucherTerpilih
+                                                        ? `Pilih tepat ${voucherTerpilih.jumah_jam} sesi jam untuk menggunakan voucher ini.`
+                                                        : 'Voucher hanya berlaku untuk jumlah sesi yang sesuai kuota jam voucher.'}
+                                                </p>
+                                            </section>
+                                        )}
+                                    </>
+                                )}
+
+                                {step === 3 && (
+                                    <>
+                                        <section className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-sm">
+                                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold uppercase text-emerald-700">
+                                                {pengguna?.nama_depan?.charAt(0) ?? '?'}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Booking untuk</p>
+                                                <p className="truncate text-sm font-semibold text-slate-800">{namaPengguna(pengguna) || '-'}</p>
+                                                <p className="text-[11px] text-slate-500">{pengguna?.nowa || '-'}</p>
                                             </div>
-                                            {totalDiskon > 0 && (
-                                                <div className="flex items-center justify-between text-rose-200">
-                                                    <span>Diskon</span>
-                                                    <span>-{formatRupiah(totalDiskon)}</span>
+                                            <Link href="/profil" className="text-[11px] font-bold text-emerald-700">
+                                                Profil
+                                            </Link>
+                                        </section>
+
+                                        <section className="overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-700 to-emerald-900 p-4 text-white shadow-lg shadow-emerald-200">
+                                            <div className="flex items-center justify-between">
+                                                <h2 className="text-sm font-bold">Ringkasan Booking</h2>
+                                                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold">
+                                                    {hariTerpilih || 'Pilih tanggal'}
+                                                </span>
+                                            </div>
+
+                                            <div className="mt-3 space-y-2 text-xs text-emerald-100">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <span className="shrink-0">Jam main</span>
+                                                    {jamTerpilih.length > 0 ? (
+                                                        <div className="flex flex-wrap justify-end gap-1">
+                                                            {jamTerpilih.map((jam) => (
+                                                                <span
+                                                                    key={jam.id}
+                                                                    className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold text-white"
+                                                                >
+                                                                    {formatTime(jam.jam_mulai)} - {formatTime(jam.jam_selesai)}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="font-semibold text-white">Belum dipilih</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center justify-between">
+                                                    <span>Meja</span>
+                                                    <span className="text-right font-semibold text-white">
+                                                        {mejaTerpilih ? mejaTerpilih.nama_meja : 'Belum dipilih'}
+                                                        {vanueTerpilihObj?.nama && (
+                                                            <span className="block text-[10px] font-medium text-emerald-200">
+                                                                {vanueTerpilihObj.nama}
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                {tipeBookingTerpilih && (
+                                                    <div className="flex items-center justify-between">
+                                                        <span>Tipe booking</span>
+                                                        <span className="font-semibold text-white">{tipeBookingTerpilih.label}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="my-3 border-t border-white/15" />
+
+                                            {hargaTidakTersedia ? (
+                                                <p className="rounded-xl bg-rose-500/20 px-3 py-2 text-xs font-medium text-rose-100">
+                                                    Harga untuk hari dan jam yang dipilih belum tersedia. Silakan pilih jadwal lain.
+                                                </p>
+                                            ) : jamTerpilih.length === 0 ? (
+                                                <p className="text-xs text-emerald-100">Pilih jam main untuk melihat total bayar.</p>
+                                            ) : (
+                                                <div className="space-y-1.5 text-xs">
+                                                    <div className="flex items-center justify-between text-emerald-100">
+                                                        <span>Harga ({jamTerpilih.length} sesi)</span>
+                                                        <span>{formatRupiah(hargaAsli)}</span>
+                                                    </div>
+                                                    {totalDiskon > 0 && (
+                                                        <div className="flex items-center justify-between text-rose-200">
+                                                            <span>Diskon</span>
+                                                            <span>-{formatRupiah(totalDiskon)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-end justify-between pt-1">
+                                                        <span className="text-xs text-emerald-100">
+                                                            {data.tipe_booking === 'public' && hargaDibagi ? 'Total bayar / user' : 'Total bayar'}
+                                                        </span>
+                                                        <span className="text-xl font-bold text-white">
+                                                            {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(totalDibayar)}
+                                                        </span>
+                                                    </div>
+                                                    {data.tipe_booking === 'public' && hargaDibagi && !data.kode_voucher && jumlahUser > 1 && (
+                                                        <p className="text-[10px] text-emerald-100">
+                                                            Harga {formatRupiah(total)} dibagi {jumlahUser} user.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             )}
-                                            <div className="flex items-end justify-between pt-1">
-                                                <span className="text-xs text-emerald-100">
-                                                    {data.tipe_booking === 'public' && hargaDibagi ? 'Total bayar / user' : 'Total bayar'}
-                                                </span>
-                                                <span className="text-xl font-bold text-white">
-                                                    {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(totalDibayar)}
-                                                </span>
-                                            </div>
-                                            {data.tipe_booking === 'public' && hargaDibagi && !data.kode_voucher && jumlahUser > 1 && (
-                                                <p className="text-[10px] text-emerald-100">
-                                                    Harga {formatRupiah(total)} dibagi {jumlahUser} user.
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
 
-                                    <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-emerald-100">
-                                        <span>Tanggal main</span>
+                                            <div className="mt-3 flex items-center justify-between border-t border-white/15 pt-3 text-[11px] text-emerald-100">
+                                                <span>Tanggal main</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => pindahStep(1)}
+                                                    className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-95"
+                                                >
+                                                    {formatTanggal(data.tgl_main)}
+                                                    <EditIcon className="h-3 w-3" />
+                                                </button>
+                                            </div>
+                                        </section>
+
+                                        <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                                            <div className="mb-3 flex items-center gap-2">
+                                                <StepBadge>3</StepBadge>
+                                                <h2 className="text-sm font-bold text-slate-800">Pembayaran</h2>
+                                            </div>
+                                            <p className="text-[11px] leading-relaxed text-slate-500">
+                                                Tekan <span className="font-semibold text-slate-700">Lanjut ke Pembayaran</span> untuk
+                                                membuat booking. Kamu akan diarahkan ke halaman pembayaran untuk transfer dan
+                                                mengunggah bukti bayar.
+                                            </p>
+                                        </section>
+                                    </>
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                    {step > 1 && (
                                         <button
                                             type="button"
-                                            onClick={() => pindahStep(1)}
-                                            className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white ring-1 ring-white/20 transition hover:bg-white/25 active:scale-95"
+                                            onClick={() => pindahStep(step - 1)}
+                                            className="flex items-center justify-center gap-1.5 rounded-2xl border border-emerald-200 bg-white px-4 py-3.5 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
                                         >
-                                            {formatTanggal(data.tgl_main)}
-                                            <EditIcon className="h-3 w-3" />
+                                            Kembali
                                         </button>
-                                    </div>
-                                </section>
+                                    )}
 
-                                <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                                    <div className="mb-3 flex items-center gap-2">
-                                        <StepBadge>3</StepBadge>
-                                        <h2 className="text-sm font-bold text-slate-800">Pembayaran</h2>
-                                    </div>
-                                    <p className="text-[11px] leading-relaxed text-slate-500">
-                                        Tekan <span className="font-semibold text-slate-700">Lanjut ke Pembayaran</span> untuk
-                                        membuat booking. Kamu akan diarahkan ke halaman pembayaran untuk transfer dan
-                                        mengunggah bukti bayar.
+                                    {step < 3 ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => pindahStep(step + 1)}
+                                            disabled={step === 1 ? !step1Lengkap : !step2Lengkap}
+                                            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {step === 1 ? 'Lanjut Pilih Jam Main' : 'Lanjut ke Pembayaran'}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="submit"
+                                            disabled={processing || hargaTidakTersedia || jamTerpilih.length === 0}
+                                            className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}
+                                        </button>
+                                    )}
+                                </div>
+
+                                {step === 1 && !step1Lengkap && (
+                                    <p className="text-center text-[11px] text-slate-400">
+                                        Pilih tanggal dan meja untuk melanjutkan.
                                     </p>
-                                </section>
-                            </>
-                        )}
+                                )}
+                                {step === 2 && !step2Lengkap && (
+                                    <p className="text-center text-[11px] text-slate-400">
+                                        {data.jam_main_ids.length === 0
+                                            ? 'Pilih minimal satu jam main untuk melanjutkan.'
+                                            : 'Pilih tipe booking untuk melanjutkan.'}
+                                    </p>
+                                )}
 
-                        <div className="flex items-center gap-2">
-                            {step > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={() => pindahStep(step - 1)}
-                                    className="flex items-center justify-center gap-1.5 rounded-2xl border border-emerald-200 bg-white px-4 py-3.5 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
-                                >
-                                    Kembali
-                                </button>
-                            )}
-
-                            {step < 3 ? (
-                                <button
-                                    type="button"
-                                    onClick={() => pindahStep(step + 1)}
-                                    disabled={step === 1 ? !step1Lengkap : !step2Lengkap}
-                                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {step === 1 ? 'Lanjut Pilih Jam Main' : 'Lanjut ke Pembayaran'}
-                                </button>
-                            ) : (
-                                <button
-                                    type="submit"
-                                    disabled={processing || hargaTidakTersedia || jamTerpilih.length === 0}
-                                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}
-                                </button>
-                            )}
-                        </div>
-
-                        {step === 1 && !step1Lengkap && (
-                            <p className="text-center text-[11px] text-slate-400">
-                                Pilih tanggal dan meja untuk melanjutkan.
-                            </p>
-                        )}
-                        {step === 2 && !step2Lengkap && (
-                            <p className="text-center text-[11px] text-slate-400">
-                                {data.jam_main_ids.length === 0
-                                    ? 'Pilih minimal satu jam main untuk melanjutkan.'
-                                    : 'Pilih tipe booking untuk melanjutkan.'}
-                            </p>
-                        )}
-
-                        {step === 3 && (
-                            <p className="text-center text-[11px] leading-relaxed text-slate-400">
-                                Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
-                                <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
-                            </p>
-                        )}
-                    </div>
-                </Deferred>
-                </>
+                                {step === 3 && (
+                                    <p className="text-center text-[11px] leading-relaxed text-slate-400">
+                                        Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
+                                        <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
+                                    </p>
+                                )}
+                            </div>
+                        </Deferred>
+                    </>
                 )}
             </form>
         </>

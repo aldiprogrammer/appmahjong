@@ -50,6 +50,12 @@ class VanueController extends Controller
 
         $validated['logo'] = $request->file('logo')->store('vanues', 'public');
 
+        if ($request->hasFile('banner')) {
+            $validated['banner'] = $request->file('banner')->store('vanues', 'public');
+        } else {
+            unset($validated['banner']);
+        }
+
         Vanue::create($this->bersihkanFasilitas($validated));
 
         return redirect()
@@ -73,6 +79,16 @@ class VanueController extends Controller
             unset($validated['logo']);
         }
 
+        if ($request->hasFile('banner')) {
+            if ($vanue->banner) {
+                Storage::disk('public')->delete($vanue->banner);
+            }
+
+            $validated['banner'] = $request->file('banner')->store('vanues', 'public');
+        } else {
+            unset($validated['banner']);
+        }
+
         $vanue->update($this->bersihkanFasilitas($validated));
 
         return redirect()
@@ -88,6 +104,10 @@ class VanueController extends Controller
 
         if ($vanue->logo) {
             Storage::disk('public')->delete($vanue->logo);
+        }
+
+        if ($vanue->banner) {
+            Storage::disk('public')->delete($vanue->banner);
         }
 
         $vanue->delete();
@@ -133,6 +153,7 @@ class VanueController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'status' => ['nullable', 'in:aktif,nonaktif'],
             'logo' => [$logoWajib ? 'required' : 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 
@@ -157,6 +178,9 @@ class VanueController extends Controller
             'logo.image' => 'File logo harus berupa gambar.',
             'logo.mimes' => 'Logo harus berformat JPG, JPEG, PNG, atau WEBP.',
             'logo.max' => 'Ukuran logo maksimal 5 MB.',
+            'banner.image' => 'File banner harus berupa gambar.',
+            'banner.mimes' => 'Banner harus berformat JPG, JPEG, PNG, atau WEBP.',
+            'banner.max' => 'Ukuran banner maksimal 5 MB.',
         ];
     }
 }

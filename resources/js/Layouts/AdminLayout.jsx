@@ -155,6 +155,23 @@ function PrinterMenuIcon({ className = 'h-5 w-5' }) {
         </svg>
     );
 }
+
+function SuplayerFoodIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 7.5V4.75a.75.75 0 0 1 .75-.75h6a.75.75 0 0 1 .75.75V7.5m-7.5 0h7.5m-9 0h10.5A1.5 1.5 0 0 1 18.75 9v9.75a2.25 2.25 0 0 1-2.25 2.25h-9A2.25 2.25 0 0 1 5.25 18.75V9a1.5 1.5 0 0 1 1.5-1.5Zm1.5 0V4.5A1.5 1.5 0 0 1 8.25 3h7.5a1.5 1.5 0 0 1 1.5 1.5v1.5" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12h19.5M5.25 12v2.25M18.75 12v2.25" />
+        </svg>
+    );
+}
+
+function PembayaranIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6h15.5A.75.75 0 0 1 18 6.75v8.25a.75.75 0 0 1-.75.75H2.25a.75.75 0 0 1-.75-.75V6.75a.75.75 0 0 1 .75-.75zm15-2.25A2.25 2.25 0 0 0 13.5 3.75h-3A2.25 2.25 0 0 0 8.25 6v.008h.02A2.25 2.25 0 0 0 11.25 8.25h3a2.25 2.25 0 0 0 2.25-2.25v-8.5zM4.5 9a.75.75 0 0 1-.75.75H1.5a.75.75 0 0 1 0-1.5h2.25a.75.75 0 0 1 .75.75zm16.5 0a.75.75 0 0 0-1.5 0v8.5a2.25 2.25 0 0 0 2.25 2.25h3a2.25 2.25 0 0 0 2.25-2.25v-8.5a2.25 2.25 0 0 0-2.25-2.25z" />
+        </svg>
+    );
+}
 /**
  * Ikon tiap menu panel admin. Kuncinya sama dengan kunci pada prop `adminMenus`
  * (segmen nama rute setelah "admin.").
@@ -177,6 +194,8 @@ const menuIcons = {
     vouchers: VoucherIcon,
     admins: AdminIcon,
     printers: PrinterMenuIcon,
+    'suplayer-foods': SuplayerFoodIcon,
+    pembayarans: PembayaranIcon,
 };
 
 /**
@@ -203,6 +222,10 @@ const menuGroups = {
     printers: {
         label: 'Pengaturan',
         icon: PrinterMenuIcon,
+    },
+    pembayarans: {
+        label: 'Pengaturan',
+        icon: PembayaranIcon,
     },
 };
 

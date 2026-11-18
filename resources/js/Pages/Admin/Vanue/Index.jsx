@@ -43,12 +43,14 @@ export default function Index({ vanues, filters }) {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [logoPreview, setLogoPreview] = useState(null);
+    const [bannerPreview, setBannerPreview] = useState(null);
     const namaInputRef = useRef(null);
 
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
         nama: '',
         alamat: '',
         logo: null,
+        banner: null,
         fasilitas: [],
         latitude: '',
         longitude: '',
@@ -60,8 +62,11 @@ export default function Index({ vanues, filters }) {
             if (logoPreview?.startsWith('blob:')) {
                 URL.revokeObjectURL(logoPreview);
             }
+            if (bannerPreview?.startsWith('blob:')) {
+                URL.revokeObjectURL(bannerPreview);
+            }
         };
-    }, [logoPreview]);
+    }, [logoPreview, bannerPreview]);
 
     useEffect(() => {
         setSuccessMessage(flash?.success ?? null);
@@ -113,6 +118,7 @@ export default function Index({ vanues, filters }) {
         clearErrors();
         setEditingVanue(null);
         setLogoPreview(null);
+        setBannerPreview(null);
         setFormOpen(true);
     };
 
@@ -122,12 +128,14 @@ export default function Index({ vanues, filters }) {
             nama: vanue.nama,
             alamat: vanue.alamat,
             logo: null,
+            banner: null,
             fasilitas: vanue.fasilitas ?? [],
             latitude: vanue.latitude ?? '',
             longitude: vanue.longitude ?? '',
             status: vanue.status ?? 'aktif',
         });
         setLogoPreview(vanue.logo_url ?? null);
+        setBannerPreview(vanue.banner_url ?? null);
         setEditingVanue(vanue);
         setFormOpen(true);
     };
@@ -140,6 +148,7 @@ export default function Index({ vanues, filters }) {
         setFormOpen(false);
         setEditingVanue(null);
         setLogoPreview(null);
+        setBannerPreview(null);
         reset();
         clearErrors();
     };
@@ -149,6 +158,13 @@ export default function Index({ vanues, filters }) {
 
         setData('logo', file);
         setLogoPreview(file ? URL.createObjectURL(file) : (editingVanue?.logo_url ?? null));
+    };
+
+    const handleBannerChange = (event) => {
+        const file = event.target.files?.[0] ?? null;
+
+        setData('banner', file);
+        setBannerPreview(file ? URL.createObjectURL(file) : (editingVanue?.banner_url ?? null));
     };
 
     const submitForm = (event) => {
@@ -161,6 +177,7 @@ export default function Index({ vanues, filters }) {
                 setFormOpen(false);
                 setEditingVanue(null);
                 setLogoPreview(null);
+                setBannerPreview(null);
                 reset();
             },
         };
@@ -488,6 +505,8 @@ export default function Index({ vanues, filters }) {
                                 isEditing={Boolean(editingVanue)}
                                 logoPreview={logoPreview}
                                 onLogoChange={handleLogoChange}
+                                bannerPreview={bannerPreview}
+                                onBannerChange={handleBannerChange}
                                 namaInputRef={namaInputRef}
                             />
                         </div>

@@ -10,12 +10,14 @@ class Vanue extends Model
 {
     protected $appends = [
         'logo_url',
+        'banner_url',
     ];
 
     protected $fillable = [
         'nama',
         'alamat',
         'logo',
+        'banner',
         'fasilitas',
         'latitude',
         'longitude',
@@ -41,6 +43,11 @@ class Vanue extends Model
     protected function logoUrl(): Attribute
     {
         return Attribute::get(fn (): ?string => $this->logo ? asset('storage/'.$this->logo) : null);
+    }
+
+    protected function bannerUrl(): Attribute
+    {
+        return Attribute::get(fn (): ?string => $this->banner ? asset('storage/'.$this->banner) : null);
     }
 
     public function admins(): HasMany

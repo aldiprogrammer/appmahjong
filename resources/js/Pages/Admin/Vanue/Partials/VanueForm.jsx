@@ -19,6 +19,8 @@ export default function VanueForm({
     isEditing = false,
     logoPreview,
     onLogoChange,
+    bannerPreview,
+    onBannerChange,
     namaInputRef,
 }) {
     const [fasilitasBaru, setFasilitasBaru] = useState('');
@@ -258,6 +260,46 @@ export default function VanueForm({
                             {isEditing && ' Biarkan kosong jika tidak ingin mengganti logo.'}
                         </p>
                         {errors.logo && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.logo}</p>}
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label htmlFor="banner" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Banner Venue <span className="text-xs font-normal text-slate-400">(opsional, tampil di halaman booking)</span>
+                </label>
+                <div className="flex items-start gap-4">
+                    <span className="flex h-24 w-36 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300">
+                        {bannerPreview ? (
+                            <img src={bannerPreview} alt="Pratinjau banner venue" className="h-full w-full object-cover" />
+                        ) : (
+                            <ImagePlaceholder />
+                        )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <input
+                            id="banner"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={onBannerChange}
+                            className="block w-full cursor-pointer rounded-xl border border-slate-200 bg-white text-sm text-slate-500 shadow-sm file:mr-3 file:cursor-pointer file:rounded-l-xl file:border-0 file:bg-emerald-50 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                        />
+                        <p className="mt-1.5 text-xs text-slate-500">
+                            JPG, PNG, atau WEBP. Maksimal 5 MB. Rasio lebar (mis. 16:9).
+                        </p>
+                        {bannerPreview && (
+                            <button
+                                type="button"
+                                onClick={onBannerChange}
+                                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-rose-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                                Hapus banner
+                            </button>
+                        )}
+                        {errors.banner && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.banner}</p>}
                     </div>
                 </div>
             </div>

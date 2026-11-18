@@ -109,7 +109,7 @@ class PageController extends Controller
             'vanues' => Vanue::query()
                 ->where('status', Vanue::STATUS_AKTIF)
                 ->orderBy('nama')
-                ->get(['id', 'nama', 'alamat', 'logo', 'fasilitas', 'latitude', 'longitude']),
+                ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']),
             'mejas' => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id']),
         ]);
     }
@@ -169,7 +169,7 @@ class PageController extends Controller
             'vanues' => Vanue::query()
                 ->where('status', Vanue::STATUS_AKTIF)
                 ->orderBy('nama')
-                ->get(['id', 'nama', 'alamat', 'logo', 'fasilitas', 'latitude', 'longitude']),
+                ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']),
             'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id'])),
             'jamMains' => Inertia::defer(fn () => jam_main::query()
                 ->where('status', 'aktif')
