@@ -54,7 +54,7 @@ export default function NotifikasiPengguna() {
     const wadahRef = useRef(null);
 
     const muat = useCallback(async () => {
-        if (! pengguna?.id) {
+        if (!pengguna?.id) {
             return;
         }
 
@@ -67,7 +67,7 @@ export default function NotifikasiPengguna() {
                 },
             });
 
-            if (! response.ok) {
+            if (!response.ok) {
                 return;
             }
 
@@ -82,7 +82,7 @@ export default function NotifikasiPengguna() {
     }, [pengguna?.id]);
 
     useEffect(() => {
-        if (! pengguna?.id) {
+        if (!pengguna?.id) {
             return undefined;
         }
 
@@ -103,12 +103,12 @@ export default function NotifikasiPengguna() {
     }, [pengguna?.id, muat]);
 
     useEffect(() => {
-        if (! terbuka) {
+        if (!terbuka) {
             return undefined;
         }
 
         const tutupDiLuar = (event) => {
-            if (wadahRef.current && ! wadahRef.current.contains(event.target)) {
+            if (wadahRef.current && !wadahRef.current.contains(event.target)) {
                 setTerbuka(false);
             }
         };
@@ -119,7 +119,7 @@ export default function NotifikasiPengguna() {
     }, [terbuka]);
 
     useEffect(() => {
-        if (! oneSignalAppId || ! pengguna?.id) {
+        if (!oneSignalAppId || !pengguna?.id) {
             return;
         }
 
@@ -158,7 +158,7 @@ export default function NotifikasiPengguna() {
             }
         });
 
-        if (! document.getElementById('onesignal-web-sdk')) {
+        if (!document.getElementById('onesignal-web-sdk')) {
             const script = document.createElement('script');
             script.id = 'onesignal-web-sdk';
             script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
@@ -168,7 +168,7 @@ export default function NotifikasiPengguna() {
     }, [oneSignalAppId, pengguna?.id, muat]);
 
     const aktifkanPush = () => {
-        if (! window.OneSignalDeferred) {
+        if (!window.OneSignalDeferred) {
             return;
         }
 
@@ -193,7 +193,7 @@ export default function NotifikasiPengguna() {
     };
 
     const tandaiDibaca = async (item) => {
-        if (! item.dibaca) {
+        if (!item.dibaca) {
             const berhasil = await kirimPost(`/notifikasi-pengguna/${item.id}/dibaca`);
 
             if (berhasil) {
@@ -217,7 +217,7 @@ export default function NotifikasiPengguna() {
         }
     };
 
-    if (! pengguna) {
+    if (!pengguna) {
         return null;
     }
 
@@ -226,9 +226,9 @@ export default function NotifikasiPengguna() {
             <button
                 type="button"
                 onClick={() => {
-                    setTerbuka((sebelumnya) => ! sebelumnya);
+                    setTerbuka((sebelumnya) => !sebelumnya);
 
-                    if (! terbuka) {
+                    if (!terbuka) {
                         setMemuat(true);
                         muat();
                     }
@@ -268,14 +268,14 @@ export default function NotifikasiPengguna() {
                             {statusPush === 'aktif' ? (
                                 <p className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
                                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                    Push notification aktif di perangkat ini.
+                                    Notifikasi  aktif di perangkat ini.
                                 </p>
                             ) : (
                                 <>
                                     <p className="text-[11px] leading-relaxed text-amber-800">
                                         {izinNotifikasi === 'granted'
-                                            ? 'Izin notifikasi sudah diberikan, tetapi perangkat ini belum terdaftar untuk push. Muat ulang halaman ini.'
-                                            : 'Aktifkan notifikasi push agar tetap menerima kabar booking saat aplikasi ditutup.'}
+                                            ? 'Izin notifikasi sudah diberikan, tetapi perangkat ini belum terdaftar untuk mendapatkan notifikasi. Muat ulang halaman ini.'
+                                            : 'Aktifkan notifikasi agar tetap menerima kabar booking saat aplikasi ditutup.'}
                                     </p>
                                     {izinNotifikasi !== 'granted' && (
                                         <button
@@ -304,14 +304,12 @@ export default function NotifikasiPengguna() {
                                     key={item.id}
                                     type="button"
                                     onClick={() => tandaiDibaca(item)}
-                                    className={`flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition last:border-0 hover:bg-emerald-50/60 ${
-                                        item.dibaca ? 'bg-white' : 'bg-emerald-50/40'
-                                    }`}
+                                    className={`flex w-full items-start gap-3 border-b border-slate-50 px-4 py-3 text-left transition last:border-0 hover:bg-emerald-50/60 ${item.dibaca ? 'bg-white' : 'bg-emerald-50/40'
+                                        }`}
                                 >
                                     <span
-                                        className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                                            item.dibaca ? 'bg-slate-300' : 'bg-emerald-500'
-                                        }`}
+                                        className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.dibaca ? 'bg-slate-300' : 'bg-emerald-500'
+                                            }`}
                                     />
                                     <span className="min-w-0">
                                         <span className="block text-xs font-bold text-slate-800">{item.judul}</span>

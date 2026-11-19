@@ -576,6 +576,55 @@ class PaymentFlowTest extends TestCase
                 ->has('pembayaran.bookings', 1));
     }
 
+    public function test_hapus_sesi_menghilangkan_diskon_paket_dan_harga_kembali_normal(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $jamKetiga = jam_main::create(['jam_mulai' => '12:00', 'jam_selesai' => '13:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+        $this->buatHarga($jamKetiga, $tanggal);
+
+        $hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][$tanggal->dayOfWeek];
+
+        paket_hargajammain::create([
+            'vanue_id' => null,
+            'hari' => $hari,
+            'minimal_jam' => 3,
+            'jam_mulai' => '00:00',
+            'jam_selesai' => '00:00',
+            'diskon_persen' => 20,
+        ]);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id, (string) $jamKetiga->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $bookings = Booking::query()->orderBy('jam_mulai')->get();
+        $kodePembayaran = $bookings->first()->kode_pembayaran;
+
+        $bookings->each(fn (Booking $booking) => $this->assertSame('40000', $booking->total_harga));
+
+        $dihapus = $bookings->first();
+        $tersisa = $bookings->slice(1)->values();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, $dihapus]))
+            ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $tersisa->each(fn (Booking $booking) => $this->assertSame('50000', $booking->refresh()->total_harga));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->where('pembayaran.subtotal', 100000)
+                ->where('pembayaran.diskon', 0)
+                ->where('pembayaran.total', 100000)
+                ->has('pembayaran.bookings', 2));
+    }
+
     public function test_deleting_last_session_cancels_pembayaran_and_returns_to_riwayat(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();

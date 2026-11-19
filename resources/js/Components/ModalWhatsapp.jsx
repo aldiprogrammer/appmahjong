@@ -44,8 +44,7 @@ export default function ModalWhatsapp({ nilaiAwal = '' }) {
                         Lengkapi Nomor WhatsApp
                     </h2>
                     <p className="mt-1 text-xs leading-relaxed text-emerald-100">
-                        Nomor WhatsApp wajib diisi sebelum kamu bisa booking meja atau bergabung ke room.
-                        Kami memakainya untuk menghubungi kamu terkait booking dan pembayaran.
+                        Nomor WhatsApp wajib diisi sebelum kamu bisa booking meja. Kami memakainya untuk menghubungi kamu terkait booking dan pembayaran.
                     </p>
                 </div>
 
@@ -64,9 +63,8 @@ export default function ModalWhatsapp({ nilaiAwal = '' }) {
                             value={data.nowa}
                             onChange={(event) => setData('nowa', event.target.value)}
                             placeholder="08xxxxxxxxxx"
-                            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 ${
-                                errors.nowa ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
-                            }`}
+                            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-600/10 ${errors.nowa ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                                }`}
                         />
                         {errors.nowa && (
                             <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.nowa}</p>

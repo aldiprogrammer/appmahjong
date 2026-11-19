@@ -21,6 +21,7 @@ use App\Services\BuktiPembayaranService;
 use App\Services\NotifikasiBookingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -843,21 +844,102 @@ class PageController extends Controller
 
         $booking->update(['status_hapus' => '1']);
 
-        $sisaSesi = Booking::query()
+        $sisaBookings = Booking::query()
             ->where('kode_pembayaran', $kodePembayaran)
             ->where('id_pengguna', (string) $pengguna->id)
             ->where('status_hapus', '!=', '1')
-            ->count();
+            ->orderBy('jam_mulai')
+            ->get();
 
-        if ($sisaSesi === 0) {
+        if ($sisaBookings->isEmpty()) {
             return redirect()
                 ->route('riwayat')
                 ->with('success', 'Semua sesi booking dihapus. Silakan buat booking baru.');
         }
 
+        // Diskon paket hanya berlaku selama sesi tersisa masih memenuhi syarat
+        // paket. Bila tidak lagi memenuhi, harga sesi kembali normal.
+        $this->hitungUlangHargaSesi($sisaBookings);
+
         return redirect()
             ->route('booking.pembayaran', $kodePembayaran)
             ->with('success', 'Sesi booking berhasil dihapus. Total bayar sudah diperbarui.');
+    }
+
+    /**
+     * Hitung ulang total harga sesi yang masih tersisa pada satu pembayaran.
+     * Diskon paket dipertahankan hanya bila seluruh sesi tersisa masih berada
+     * dalam rentang dan memenuhi minimal jam paket. Bila tidak, tiap sesi
+     * dikembalikan ke harga normal (`harga_akhir`).
+     *
+     * @param  Collection<int, Booking>  $bookings
+     */
+    private function hitungUlangHargaSesi(Collection $bookings): void
+    {
+        $semuaJamMain = jam_main::query()->get();
+
+        $cariJamMain = function (Booking $booking) use ($semuaJamMain): ?jam_main {
+            return $semuaJamMain->first(fn (jam_main $jamMain): bool => substr((string) $jamMain->jam_mulai, 0, 5) === substr((string) $booking->jam_mulai, 0, 5)
+                && substr((string) $jamMain->jam_selesai, 0, 5) === substr((string) $booking->jam_selesai, 0, 5));
+        };
+
+        $sesiPerVenue = $bookings->groupBy(
+            fn (Booking $booking): string => (string) $this->mejaDariKode((string) $booking->id_meja)?->vanue_id,
+        );
+
+        foreach ($sesiPerVenue as $vanueId => $sesiVenue) {
+            $vanueId = $vanueId === '' ? null : $vanueId;
+            $pertama = $sesiVenue->first();
+            $hari = $this->hariIndonesia(Carbon::parse($pertama->tgl_main));
+
+            $jamMains = $sesiVenue
+                ->map($cariJamMain)
+                ->filter()
+                ->unique(fn (jam_main $jamMain): string => (string) $jamMain->id)
+                ->values();
+
+            $adaVoucher = $sesiVenue->contains(fn (Booking $booking): bool => filled($booking->kode_voucher));
+
+            $paketAktif = $adaVoucher ? null : paket_hargajammain::terbaik(
+                paket_hargajammain::query()
+                    ->where('hari', $hari)
+                    ->where('vanue_id', $vanueId)
+                    ->get(),
+                $jamMains,
+            );
+            $persenPaket = (float) ($paketAktif?->diskon_persen ?? 0);
+
+            $hargaPerJam = hargajammain::query()
+                ->where('vanue_id', $vanueId)
+                ->where('hari', $hari)
+                ->whereIn('jam_main_id', $jamMains->pluck('id')->all())
+                ->get()
+                ->keyBy(fn (hargajammain $harga): string => (string) $harga->jam_main_id);
+
+            foreach ($sesiVenue as $sesi) {
+                if (filled($sesi->kode_voucher)) {
+                    continue;
+                }
+
+                $jamMain = $cariJamMain($sesi);
+                $harga = $jamMain ? $hargaPerJam->get((string) $jamMain->id) : null;
+
+                if (! $harga) {
+                    continue;
+                }
+
+                $totalHarga = (int) $harga->harga_akhir;
+
+                if ($persenPaket > 0) {
+                    $totalHarga = max(
+                        0,
+                        $totalHarga - (int) round($totalHarga * $persenPaket / 100),
+                    );
+                }
+
+                $sesi->update(['total_harga' => (string) $totalHarga]);
+            }
+        }
     }
 
     public function riwayat(Request $request): Response
