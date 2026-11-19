@@ -50,7 +50,7 @@ export default function RoomBooking({ pengguna = null, rooms = [] }) {
         }
 
         // Nomor WhatsApp wajib diisi; modal akan tampil di atas halaman.
-        if (! pengguna?.nowa) {
+        if (!pengguna?.nowa) {
             return;
         }
 
@@ -101,7 +101,7 @@ export default function RoomBooking({ pengguna = null, rooms = [] }) {
                     </span>
                     <div>
                         <h1 className="text-lg font-bold">Room Booking</h1>
-                        <p className="text-xs text-emerald-100">Gabung room public yang masih punya slot.</p>
+                        <p className="text-xs text-emerald-100">Gabung room & temukan teman main baru disini.</p>
                     </div>
                 </div>
             </header>
@@ -123,9 +123,9 @@ export default function RoomBooking({ pengguna = null, rooms = [] }) {
                         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
                             <RoomIcon className="h-7 w-7" />
                         </span>
-                        <h2 className="mt-4 text-sm font-bold text-slate-800">Belum ada room public</h2>
+                        <h2 className="mt-4 text-sm font-bold text-slate-800">Belum ada room bermain</h2>
                         <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-500">
-                            Room public yang dibuat lewat Public Booking akan muncul di sini dan bisa kamu ikuti.
+                            Room bermain akan muncul di sini jika ada pengguna yang sedang ingin mencari teman bermain
                         </p>
                     </div>
                 ) : (
@@ -141,9 +141,8 @@ export default function RoomBooking({ pengguna = null, rooms = [] }) {
                                         <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-100">
                                             Room {room.kode_room}
                                         </p>
-                                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                                            penuh ? 'bg-rose-500/90 text-white' : 'bg-white/90 text-emerald-700'
-                                        }`}>
+                                        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${penuh ? 'bg-rose-500/90 text-white' : 'bg-white/90 text-emerald-700'
+                                            }`}>
                                             {penuh ? 'Penuh' : `${room.sisa_slot} slot tersisa`}
                                         </span>
                                     </div>
@@ -210,7 +209,7 @@ export default function RoomBooking({ pengguna = null, rooms = [] }) {
                 )}
             </div>
 
-            {pengguna && ! pengguna.nowa && <ModalWhatsapp />}
+            {pengguna && !pengguna.nowa && <ModalWhatsapp />}
         </>
     );
 }
