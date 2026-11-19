@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-APP_DIR="/home/u107214145/domains/fabricoasia.com/mahjong"
-WEB_DIR="/home/u107214145/domains/fabricoasia.com/public_html/mahjong"
+APP_DIR="/home/u107214145/domains/789mahjongsociety.com/mahjong"
+WEB_DIR="/home/u107214145/domains/789mahjongsociety.com/public_html"
 BRANCH="main"
 
 echo "   DEPLOY LARAVEL"
@@ -81,9 +81,9 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-require __DIR__.'/../../mahjong/vendor/autoload.php';
+require __DIR__.'/../mahjong/vendor/autoload.php';
 
-$app = require_once __DIR__.'/../../mahjong/bootstrap/app.php';
+$app = require_once __DIR__.'/../mahjong/bootstrap/app.php';
 
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
