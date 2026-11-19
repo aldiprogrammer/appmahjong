@@ -6,6 +6,7 @@ use App\Models\hargajammain;
 use App\Models\jam_main;
 use App\Models\Meja;
 use App\Models\Pengguna;
+use App\Models\Vanue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -68,6 +69,38 @@ class BookingDeferredPropsTest extends TestCase
 
         $this->assertIsArray($props['mejas']);
         $this->assertIsArray($props['vouchers']);
+    }
+
+    public function test_vanue_tunggal_langsung_mengarahkan_ke_pilihan_meja(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $vanue = Vanue::create([
+            'nama' => 'Venue Tunggal',
+            'alamat' => 'Jl. Contoh',
+            'logo' => 'vanues/tunggal.png',
+            'status' => Vanue::STATUS_AKTIF,
+        ]);
+
+        $response = $this
+            ->withSession(['pengguna_id' => $pengguna->id])
+            ->get('/booking', $this->inertiaHeaders());
+
+        $response->assertOk();
+        $this->assertSame((string) $vanue->id, (string) $response->json('props.vanueAwalId'));
+    }
+
+    public function test_lebih_dari_satu_vanue_tidak_memilih_vanue_otomatis(): void
+    {
+        $pengguna = $this->buatPengguna();
+        Vanue::create(['nama' => 'Venue A', 'alamat' => 'Jl. A', 'logo' => 'vanues/a.png', 'status' => Vanue::STATUS_AKTIF]);
+        Vanue::create(['nama' => 'Venue B', 'alamat' => 'Jl. B', 'logo' => 'vanues/b.png', 'status' => Vanue::STATUS_AKTIF]);
+
+        $response = $this
+            ->withSession(['pengguna_id' => $pengguna->id])
+            ->get('/booking', $this->inertiaHeaders());
+
+        $response->assertOk();
+        $this->assertNull($response->json('props.vanueAwalId'));
     }
 
     private function buatPengguna(): Pengguna

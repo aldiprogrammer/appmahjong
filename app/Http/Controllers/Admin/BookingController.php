@@ -34,7 +34,7 @@ class BookingController extends Controller
 
         $bookings = Booking::query()
             ->with([
-                'pengguna:id,nama_depan,nama_balakang',
+                'pengguna:id,nama_depan,nama_balakang,nowa',
                 'meja:id,kode_meja,nama_meja,vanue_id',
                 'meja.vanue:id,nama',
             ])
@@ -105,7 +105,12 @@ class BookingController extends Controller
 
     public function approve(Booking $booking): RedirectResponse
     {
-        $booking->update(['status_booking' => '200']);
+        // Menyetujui booking berarti pembayarannya ikut dianggap terverifikasi.
+        $booking->update([
+            'status_booking' => '200',
+            'status_pembayaran' => 'lunas',
+            'dibayar_pada' => $booking->dibayar_pada ?? now(),
+        ]);
 
         if (filled($booking->kode_voucher)) {
             Voucher::query()

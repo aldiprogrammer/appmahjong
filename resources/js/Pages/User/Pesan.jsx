@@ -125,9 +125,10 @@ function iconKategori(nama = '') {
     return GridIcon;
 }
 
-export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAwal = null, vanues = [], mejas = [] }) {
+export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAwal = null, vanues = [], vanueAwalId = null, mejas = [] }) {
     const { flash } = usePage().props;
-    const [vanueId, setVanueId] = useState(mejaAwal?.vanue_id ?? '');
+    // Bila hanya ada satu venue aktif (vanueAwalId), langsung tampilkan menunya.
+    const [vanueId, setVanueId] = useState(mejaAwal?.vanue_id ?? (vanueAwalId ? String(vanueAwalId) : ''));
     const [kategori, setKategori] = useState('semua');
     const [pencarian, setPencarian] = useState('');
     const [keranjang, setKeranjang] = useState([]);
@@ -348,7 +349,7 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                     </div>
 
                     <div className="mt-2.5 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {!mejaAwal && (
+                        {!mejaAwal && vanues.length > 1 && (
                             <button
                                 type="button"
                                 onClick={() => {

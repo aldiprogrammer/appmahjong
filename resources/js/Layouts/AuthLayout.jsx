@@ -108,7 +108,7 @@ function Brand({ dark = false }) {
             </span>
             <span className="leading-tight">
                 <span className={`block text-[11px] font-bold uppercase tracking-[0.28em] ${dark ? 'text-[#e8cf94]' : 'text-emerald-800'}`}>
-                    Medan Mahjong Club
+                    789 Mahjong Society
                 </span>
 
             </span>
@@ -208,7 +208,7 @@ export default function AuthLayout({ title, subtitle, badge, mode = 'login', chi
                         </div>
 
                         <p className="text-[10px] font-bold uppercase tracking-[0.38em] text-[#d4af6a]">
-                            Medan Mahjong Club
+                            789 Mahjong Society
                         </p>
                         <h2 className="mt-3 text-[2.1rem] font-bold leading-[1.15] tracking-tight text-white">
                             Bermain Mahjong

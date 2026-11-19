@@ -44,6 +44,16 @@ function namaPengguna(pengguna) {
     return [pengguna.nama_depan, pengguna.nama_balakang].filter(Boolean).join(' ').trim();
 }
 
+function nomorWhatsApp(value) {
+    const digit = String(value ?? '').replace(/\D/g, '');
+
+    if (!digit) {
+        return '';
+    }
+
+    return digit.startsWith('0') ? `62${digit.slice(1)}` : digit;
+}
+
 function statusMeta(status) {
     if (status === '200') {
         return {
@@ -319,6 +329,7 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                                             <th className="px-5 py-3 font-semibold">Kode Booking</th>
                                             <th className="px-5 py-3 font-semibold">Tgl Booking</th>
                                             <th className="px-5 py-3 font-semibold">Pengguna</th>
+                                            <th className="px-5 py-3 font-semibold">WhatsApp</th>
                                             <th className="px-5 py-3 font-semibold">Meja</th>
                                             <th className="px-5 py-3 font-semibold">Jadwal Main</th>
                                             <th className="px-5 py-3 font-semibold">Pembayaran</th>
@@ -381,6 +392,24 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3.5">
+                                                        {booking.pengguna?.nowa ? (
+                                                            <a
+                                                                href={`https://wa.me/${nomorWhatsApp(booking.pengguna.nowa)}`}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.347-.347.52-.52.174-.174.232-.298.347-.497.116-.198.058-.371-.058-.52-.116-.148-.694-1.669-.95-2.276-.199-.46-.4-.46-.58-.46-.15 0-.32-.02-.49-.02-.173 0-.454.065-.692.32-.238.256-.907.885-.907 2.158 0 1.272.928 2.502 1.058 2.675.13.174 1.828 2.792 4.43 3.915.62.268 1.103.428 1.48.548.622.198 1.188.17 1.635.103.499-.074 1.536-.627 1.753-1.234.217-.606.217-1.125.152-1.234-.065-.108-.238-.173-.497-.322z" />
+                                                                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01a8.21 8.21 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23z" />
+                                                                </svg>
+                                                                {booking.pengguna.nowa}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3.5">
                                                         {booking.meja ? (
                                                             <>
                                                                 <p className="font-medium text-slate-700">
@@ -429,7 +458,7 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <div className="flex flex-wrap items-center justify-end gap-2">
-                                                            {['menunggu_verifikasi', 'bayar_di_tempat'].includes(booking.status_pembayaran) && (
+                                                            {booking.status_booking !== '200' && ['menunggu_verifikasi', 'bayar_di_tempat'].includes(booking.status_pembayaran) && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => verifikasiPembayaran(booking)}

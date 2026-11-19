@@ -358,6 +358,31 @@ class PaymentFlowTest extends TestCase
         $this->assertNotNull($booking->dibayar_pada);
     }
 
+    public function test_approving_booking_menandai_pembayaran_lunas(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->assertSame('belum_bayar', $booking->status_pembayaran);
+
+        $this->withSession(['admin_id' => 1])
+            ->patch(route('admin.bookings.approve', $booking))
+            ->assertRedirect();
+
+        $booking->refresh();
+
+        $this->assertSame('200', $booking->status_booking);
+        $this->assertSame('lunas', $booking->status_pembayaran);
+        $this->assertNotNull($booking->dibayar_pada);
+    }
+
     public function test_admin_deleted_booking_hides_it_and_releases_the_time_slot(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
@@ -394,6 +419,24 @@ class PaymentFlowTest extends TestCase
         $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
         $this->assertCount(2, $bookings);
         $this->assertSame('0', $newBooking->status_hapus);
+    }
+
+    public function test_admin_booking_index_menampilkan_nomor_whatsapp_pengguna(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $this->withSession(['admin_id' => 1])
+            ->get(route('admin.bookings.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Booking/Index')
+                ->has('bookings.data', 1)
+                ->where('bookings.data.0.pengguna.nowa', '081234567890'));
     }
 
     public function test_reapproving_voucher_booking_marks_voucher_as_used_again(): void

@@ -284,7 +284,7 @@ function BookingSkeleton() {
 }
 
 // mejas/jamMains/hargas/bookedSlots/settingBookingRooms/vouchers/paketHargas sengaja di-default agar aman saat deferred (belum dimuat).
-export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [], paketHargas = [] }) {
+export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [], paketHargas = [] }) {
     // Default destrukturisasi menyembunyikan undefined, cek status deferred via page props.
     const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers', 'paketHargas'];
     const pageProps = usePage().props;
@@ -302,7 +302,11 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
     });
 
     const [step, setStep] = useState(1);
-    const [vanueId, setVanueId] = useState('');
+    // Bila venue aktif hanya satu (vanueAwalId dari server), langsung tampilkan
+    // pilihan meja tanpa melewati halaman pilih venue.
+    const [vanueId, setVanueId] = useState(() =>
+        vanueAwalId ? String(vanueAwalId) : '',
+    );
     const [sekarang, setSekarang] = useState(() => new Date());
 
     useEffect(() => {
@@ -717,14 +721,16 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
 
                                             <div className="mb-2 flex items-center justify-between gap-2">
                                     <p className="text-xs font-medium text-slate-600">Pilih meja</p>
-                                    <button
-                                        type="button"
-                                        onClick={() => setVanueId('')}
-                                        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100 active:scale-95"
-                                    >
-                                        <EditIcon className="h-2.5 w-2.5" />
-                                        Ganti venue
-                                    </button>
+                                    {vanues.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setVanueId('')}
+                                            className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-100 transition hover:bg-emerald-100 active:scale-95"
+                                        >
+                                            <EditIcon className="h-2.5 w-2.5" />
+                                            Ganti venue
+                                        </button>
+                                    )}
                                 </div>
 
                                             {!data.tgl_main ? (

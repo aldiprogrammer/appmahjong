@@ -106,15 +106,20 @@ class PageController extends Controller
                 'harga_panas' => $menu->harga_panas !== null ? (int) $menu->harga_panas : null,
             ]);
 
+        $vanues = Vanue::query()
+            ->where('status', Vanue::STATUS_AKTIF)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']);
+
         return Inertia::render('User/Pesan', [
             'pengguna' => $this->currentPengguna($request),
             'kategoriMenus' => $kategoriMenus,
             'menus' => $menus,
             'mejaAwal' => $mejaAwal,
-            'vanues' => Vanue::query()
-                ->where('status', Vanue::STATUS_AKTIF)
-                ->orderBy('nama')
-                ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']),
+            'vanues' => $vanues,
+            // Bila hanya ada satu venue aktif, halaman pesan langsung menampilkan
+            // menu venue tersebut tanpa melewati langkah pilih venue.
+            'vanueAwalId' => $vanues->count() === 1 ? (string) $vanues->first()->id : null,
             'mejas' => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id']),
         ]);
     }
@@ -169,12 +174,17 @@ class PageController extends Controller
     {
         $pengguna = $this->currentPengguna($request);
 
+        $vanues = Vanue::query()
+            ->where('status', Vanue::STATUS_AKTIF)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']);
+
         return Inertia::render('User/Booking', [
             'pengguna' => $pengguna,
-            'vanues' => Vanue::query()
-                ->where('status', Vanue::STATUS_AKTIF)
-                ->orderBy('nama')
-                ->get(['id', 'nama', 'alamat', 'logo', 'banner', 'fasilitas', 'latitude', 'longitude']),
+            'vanues' => $vanues,
+            // Bila hanya ada satu venue aktif, halaman langsung membuka pilihan
+            // meja venue tersebut tanpa melewati langkah pilih venue.
+            'vanueAwalId' => $vanues->count() === 1 ? (string) $vanues->first()->id : null,
             'mejas' => Inertia::defer(fn () => Meja::query()->orderBy('nama_meja')->get(['id', 'kode_meja', 'nama_meja', 'vanue_id'])),
             'jamMains' => Inertia::defer(fn () => jam_main::query()
                 ->where('status', 'aktif')

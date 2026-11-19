@@ -465,7 +465,9 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
                                         <StatusBadge status={booking.status_booking} />
-                                        <PaymentBadge status={booking.status_pembayaran} />
+                                        {!(booking.status_pembayaran === 'menunggu_verifikasi' && booking.status_booking !== '200') && (
+                                            <PaymentBadge status={booking.status_pembayaran} />
+                                        )}
                                     </div>
                                 </div>
 

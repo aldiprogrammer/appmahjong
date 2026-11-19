@@ -19,6 +19,7 @@ class Admin extends Model
      */
     public const MENU_AKSES = [
         'dashboard' => 'Dashboard',
+        'bookings' => 'Booking',
         'kasir' => 'Kasir',
         'mejas' => 'Meja',
         'vanues' => 'Venue',
@@ -26,7 +27,6 @@ class Admin extends Model
         'harga-jam-mains' => 'Harga Jam Main',
         'kategori-menus' => 'Kategori Menu',
         'menus' => 'Menu',
-        'bookings' => 'Booking',
         'penggunas' => 'Pengguna',
         'setting-booking-rooms' => 'Setting Room Booking',
         'aturan-points' => 'Aturan Point',
