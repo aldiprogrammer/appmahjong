@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Admin;
+use App\Models\Pengguna;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -39,8 +40,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'adminMenus' => fn () => $request->routeIs('admin.*') ? Admin::MENU_AKSES : null,
+            'oneSignalAppId' => fn () => config('services.onesignal.app_id'),
             'auth' => [
                 'admin' => fn () => $this->adminAktif($request),
+                'pengguna' => fn () => $this->penggunaAktif($request),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
@@ -48,6 +51,31 @@ class HandleInertiaRequests extends Middleware
                 'booking_success' => fn () => $request->session()->get('booking_success'),
                 'pesanan_sukses' => fn () => $request->session()->get('pesanan_sukses'),
             ],
+        ];
+    }
+
+    /**
+     * Pengguna yang sedang masuk pada halaman user, null untuk tamu.
+     *
+     * @return array{id: int, nama: string}|null
+     */
+    private function penggunaAktif(Request $request): ?array
+    {
+        $id = $request->session()->get('pengguna_id');
+
+        if (! $id) {
+            return null;
+        }
+
+        $pengguna = Pengguna::query()->find($id, ['id', 'nama_depan', 'nama_balakang']);
+
+        if ($pengguna === null) {
+            return null;
+        }
+
+        return [
+            'id' => $pengguna->id,
+            'nama' => trim($pengguna->nama_depan.' '.$pengguna->nama_balakang),
         ];
     }
 

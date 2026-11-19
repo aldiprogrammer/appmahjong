@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\VanueScope;
 use App\Http\Controllers\Controller;
 use App\Models\hargajammain;
 use App\Models\jam_main;
+use App\Models\paket_hargajammain;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -42,6 +43,12 @@ class HargaJamMainController extends Controller
             'jamMains' => jam_main::query()
                 ->orderBy('jam_mulai')
                 ->get(['id', 'jam_mulai', 'jam_selesai', 'status']),
+            'paketHargas' => paket_hargajammain::query()
+                ->with('vanue:id,nama')
+                ->when($vanueTerbatas !== null, fn ($query) => $query->where('vanue_id', $vanueTerbatas))
+                ->orderBy('minimal_jam')
+                ->latest()
+                ->get(),
             'vanues' => $this->daftarVanueTersedia($request),
             'filters' => [
                 'search' => $search,
@@ -127,6 +134,77 @@ class HargaJamMainController extends Controller
             ->with('success', 'Data harga jam main berhasil dihapus.');
     }
 
+    public function storePaket(Request $request): RedirectResponse
+    {
+        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
+        $vanueTarget = $vanueTerbatas ?? $this->vanueDariInput($request);
+
+        $aturan = $this->aturanValidasiPaket();
+
+        if ($vanueTerbatas === null) {
+            $aturan['vanue_id'] = ['nullable', 'integer', Rule::exists('vanues', 'id')];
+        }
+
+        $validated = $request->validate($aturan, $this->pesanValidasiPaket());
+
+        foreach ($validated['hari_list'] as $hari) {
+            paket_hargajammain::create([
+                'vanue_id' => $vanueTarget,
+                'hari' => $hari,
+                'minimal_jam' => $validated['minimal_jam'],
+                'jam_mulai' => $validated['jam_mulai'],
+                'jam_selesai' => $validated['jam_selesai'],
+                'diskon_persen' => $validated['diskon_persen'],
+            ]);
+        }
+
+        $jumlah = count($validated['hari_list']);
+        $pesan = $jumlah === 1
+            ? 'Paket diskon berhasil ditambahkan.'
+            : "Paket diskon berhasil ditambahkan untuk {$jumlah} hari.";
+
+        return redirect()
+            ->route('admin.harga-jam-mains.index')
+            ->with('success', $pesan);
+    }
+
+    public function updatePaket(Request $request, paket_hargajammain $paket): RedirectResponse
+    {
+        $this->batasiAksesVanue(
+            $request,
+            $paket->vanue_id !== null ? (int) $paket->vanue_id : null,
+        );
+
+        // Venue paket tidak berubah saat edit, hanya aturannya.
+        $validated = $request->validate($this->aturanValidasiPaket(), $this->pesanValidasiPaket());
+
+        $paket->update([
+            'hari' => $validated['hari_list'][0],
+            'minimal_jam' => $validated['minimal_jam'],
+            'jam_mulai' => $validated['jam_mulai'],
+            'jam_selesai' => $validated['jam_selesai'],
+            'diskon_persen' => $validated['diskon_persen'],
+        ]);
+
+        return redirect()
+            ->route('admin.harga-jam-mains.index')
+            ->with('success', 'Paket diskon berhasil diperbarui.');
+    }
+
+    public function destroyPaket(Request $request, paket_hargajammain $paket): RedirectResponse
+    {
+        $this->batasiAksesVanue(
+            $request,
+            $paket->vanue_id !== null ? (int) $paket->vanue_id : null,
+        );
+
+        $paket->delete();
+
+        return redirect()
+            ->route('admin.harga-jam-mains.index')
+            ->with('success', 'Paket diskon berhasil dihapus.');
+    }
+
     /**
      * Venue tujuan saat menambah harga, null bila harga tanpa venue.
      */
@@ -173,6 +251,49 @@ class HargaJamMainController extends Controller
             'diskon.numeric' => 'Diskon harus berupa angka.',
             'diskon.min' => 'Diskon tidak boleh negatif.',
             'diskon.lte' => 'Diskon tidak boleh lebih besar dari harga.',
+            'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
+            'vanue_id.exists' => 'Venue yang dipilih tidak ditemukan.',
+        ];
+    }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    private function aturanValidasiPaket(): array
+    {
+        return [
+            'hari_list' => ['required', 'array', 'min:1'],
+            'hari_list.*' => ['required', 'string', 'distinct', Rule::in(self::HARI)],
+            'minimal_jam' => ['required', 'integer', 'min:1', 'max:168'],
+            'jam_mulai' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'jam_selesai' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
+            'diskon_persen' => ['required', 'numeric', 'min:0', 'max:100'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function pesanValidasiPaket(): array
+    {
+        return [
+            'hari_list.required' => 'Hari wajib dipilih.',
+            'hari_list.min' => 'Pilih minimal satu hari.',
+            'hari_list.*.required' => 'Hari tidak boleh kosong.',
+            'hari_list.*.distinct' => 'Hari tidak boleh dipilih dua kali.',
+            'hari_list.*.in' => 'Pilihan hari tidak valid.',
+            'minimal_jam.required' => 'Minimal jam wajib diisi.',
+            'minimal_jam.integer' => 'Minimal jam harus berupa angka bulat.',
+            'minimal_jam.min' => 'Minimal jam minimal 1.',
+            'minimal_jam.max' => 'Minimal jam tidak boleh lebih dari 168.',
+            'jam_mulai.required' => 'Jam mulai wajib diisi.',
+            'jam_mulai.regex' => 'Format jam mulai tidak valid (HH:MM).',
+            'jam_selesai.required' => 'Jam selesai wajib diisi.',
+            'jam_selesai.regex' => 'Format jam selesai tidak valid (HH:MM).',
+            'diskon_persen.required' => 'Diskon persen wajib diisi.',
+            'diskon_persen.numeric' => 'Diskon persen harus berupa angka.',
+            'diskon_persen.min' => 'Diskon persen tidak boleh negatif.',
+            'diskon_persen.max' => 'Diskon persen tidak boleh lebih dari 100.',
             'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
             'vanue_id.exists' => 'Venue yang dipilih tidak ditemukan.',
         ];

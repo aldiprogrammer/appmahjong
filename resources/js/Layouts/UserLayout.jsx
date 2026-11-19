@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import ScanMejaButton from './ScanMejaButton';
+import NotifikasiPengguna from '../Components/NotifikasiPengguna';
 
 function HomeIcon({ className = 'h-5 w-5' }) {
     return (
@@ -66,6 +67,12 @@ export default function UserLayout({ children }) {
     return (
         <div className="min-h-screen bg-emerald-950/95 sm:bg-[#e8f4ed] sm:py-6">
             <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#f6faf7] shadow-2xl sm:min-h-[calc(100vh-3rem)] sm:rounded-[2rem] sm:border sm:border-emerald-100">
+                <div className="sticky top-0 z-30 flex h-0 justify-end pr-4">
+                    <div className="pointer-events-auto mt-3">
+                        <NotifikasiPengguna />
+                    </div>
+                </div>
+
                 <main className="flex-1">{children}</main>
 
                 <nav className="sticky bottom-0 z-40 border-t border-emerald-100/70 bg-white/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_-18px_rgba(6,78,59,0.28)] backdrop-blur-md sm:rounded-b-[2rem]">

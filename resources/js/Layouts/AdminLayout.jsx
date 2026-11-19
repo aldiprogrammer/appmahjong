@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import NotifikasiAdmin from '../Components/NotifikasiAdmin';
 
 function BrandIcon() {
     return (
@@ -447,6 +448,7 @@ export default function AdminLayout({ title = 'Dashboard', subtitle = 'Panel Adm
                     </div>
 
                     <div className="ml-auto flex items-center gap-3">
+                        <NotifikasiAdmin />
                         <span className="hidden rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-100 sm:inline-flex">
                             {today}
                         </span>

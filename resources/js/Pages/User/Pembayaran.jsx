@@ -86,8 +86,33 @@ function TableIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+function BankIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h18M14.25 3 21 9.75M3 16.5h18M9.75 21 3 14.25" />
+        </svg>
+    );
+}
+
+function QrisIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h4.5v4.5h-4.5zM15.75 4.5h4.5v4.5h-4.5zM3.75 15h4.5v4.5h-4.5zM9 9h1.5v1.5H9zM13.5 9H15v1.5h-1.5zM9 13.5h1.5V15H9zM13.5 12h1.5v1.5h-1.5zM16.5 15h1.5v1.5h-1.5zM19.5 18h1.5v1.5h-1.5z" />
+        </svg>
+    );
+}
+
+function DownloadIcon({ className = 'h-4 w-4' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+    );
+}
+
 export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     const { flash } = usePage().props;
+    const metodePembayaran = pengaturanPembayaran?.metode ?? [];
     const [previewBukti, setPreviewBukti] = useState(null);
     const [setuju, setSetuju] = useState(false);
     const meta = statusMeta(pembayaran.status_pembayaran);
@@ -96,7 +121,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     const bisaHapusSesi = !lunas && pembayaran.status_pembayaran !== 'menunggu_verifikasi';
 
     const { data, setData, post, processing, errors } = useForm({
-        sistem_pembayaran: 'transfer',
+        sistem_pembayaran: metodePembayaran[0]?.metode ?? 'transfer',
         bukti_pembayaran: null,
     });
 
@@ -113,7 +138,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
         return () => URL.revokeObjectURL(url);
     }, [data.bukti_pembayaran]);
 
-    const buktiWajib = data.sistem_pembayaran === 'transfer';
+    const buktiWajib = ['transfer', 'qris'].includes(data.sistem_pembayaran);
     const buktiTersedia = Boolean(data.bukti_pembayaran) || Boolean(pembayaran.bukti_pembayaran_url);
     const buktiKurang = buktiWajib && !buktiTersedia;
 
@@ -166,7 +191,19 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
         });
     };
 
-    const bank = pengaturanPembayaran?.bank ?? {};
+    const metodeTerpilih =
+        metodePembayaran.find((item) => item.metode === data.sistem_pembayaran) ?? metodePembayaran[0] ?? null;
+    const bank =
+        metodeTerpilih?.metode === 'transfer'
+            ? {
+                  name: metodeTerpilih.bank,
+                  account_number: metodeTerpilih.norek,
+                  account_holder: metodeTerpilih.atas_nama,
+              }
+            : {};
+    const qrisUrl = metodeTerpilih?.metode === 'qris' ? metodeTerpilih.qris_image_url : null;
+    const ekstensiQris = qrisUrl ? (qrisUrl.split('?')[0].split('.').pop() || 'png').toLowerCase() : 'png';
+    const namaFileQris = `qris-${pembayaran.kode_pembayaran}.${ekstensiQris}`;
     const [nomorTersalin, setNomorTersalin] = useState(false);
 
     const salinNomorRekening = async () => {
@@ -273,7 +310,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                 </div>
                                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                                     <span className="text-xs font-bold text-emerald-700">
-                                        {formatRupiah(booking.total_harga)}
+                                        {formatRupiah(booking.harga)}
                                     </span>
                                     {bisaHapusSesi && (
                                         <button
@@ -290,6 +327,27 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    <div className="mt-3 space-y-1.5 rounded-xl border border-emerald-100 bg-white px-3.5 py-3">
+                        <div className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                            <span>Harga asli ({pembayaran.bookings.length} sesi)</span>
+                            <span className="font-semibold text-slate-800">{formatRupiah(pembayaran.subtotal)}</span>
+                        </div>
+                        {pembayaran.diskon > 0 && (
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                                <span className="text-emerald-700">{pembayaran.label_diskon ?? 'Diskon'}</span>
+                                <span className="font-semibold text-emerald-700">
+                                    -{formatRupiah(pembayaran.diskon)}
+                                </span>
+                            </div>
+                        )}
+                        <div className="flex items-center justify-between gap-3 border-t border-dashed border-emerald-100 pt-1.5">
+                            <span className="text-xs font-bold text-slate-800">Total dibayar</span>
+                            <span className="text-sm font-bold text-emerald-700">
+                                {formatRupiah(pembayaran.total)}
+                            </span>
+                        </div>
                     </div>
 
                     {bisaHapusSesi && (
@@ -344,38 +402,67 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
 
                         {pembayaran.status_pembayaran === 'bayar_di_tempat' && (
                             <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs leading-relaxed text-sky-700">
-                                Pembayaran tunai tidak lagi tersedia. Silakan transfer ke rekening di bawah ini
-                                dan unggah bukti pembayarannya.
+                                Pembayaran tunai tidak lagi tersedia. Silakan bayar melalui metode di bawah ini dan
+                                unggah bukti pembayarannya.
                             </div>
                         )}
 
                         <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                             <h2 className="mb-3 text-sm font-bold text-slate-800">Metode Pembayaran</h2>
 
-                            <button
-                                type="button"
-                                onClick={() => setData('sistem_pembayaran', 'transfer')}
-                                className="flex w-full items-center gap-3 rounded-xl border border-emerald-600 bg-emerald-600 px-3 py-2.5 text-left text-white shadow-sm transition hover:bg-emerald-700"
-                            >
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h18M14.25 3 21 9.75M3 16.5h18M9.75 21 3 14.25" />
-                                    </svg>
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-xs font-bold">Transfer Bank</span>
-                                    <span className="block text-[10px] text-emerald-100">
-                                        Transfer ke rekening resmi di bawah ini
-                                    </span>
-                                </span>
-                                <CheckIcon className="h-5 w-5 shrink-0" />
-                            </button>
+                            <div className="space-y-2">
+                                {metodePembayaran.map((metode) => {
+                                    const aktif = data.sistem_pembayaran === metode.metode;
+                                    const qris = metode.metode === 'qris';
+
+                                    return (
+                                        <button
+                                            key={metode.id}
+                                            type="button"
+                                            onClick={() => setData('sistem_pembayaran', metode.metode)}
+                                            aria-pressed={aktif}
+                                            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left shadow-sm transition ${
+                                                aktif
+                                                    ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
+                                                    : 'border-emerald-100 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                                                    aktif ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-600'
+                                                }`}
+                                            >
+                                                {qris ? <QrisIcon /> : <BankIcon />}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block text-xs font-bold">
+                                                    {qris ? 'QRIS' : `Transfer ${metode.bank ? metode.bank : 'Bank'}`}
+                                                </span>
+                                                <span
+                                                    className={`block text-[10px] ${
+                                                        aktif ? 'text-emerald-100' : 'text-slate-500'
+                                                    }`}
+                                                >
+                                                    {qris
+                                                        ? 'Scan kode QRIS lalu unggah bukti'
+                                                        : 'Transfer ke rekening resmi venue'}
+                                                </span>
+                                            </span>
+                                            {aktif ? (
+                                                <CheckIcon className="h-5 w-5 shrink-0" />
+                                            ) : (
+                                                <span className="h-4 w-4 shrink-0 rounded-full border-2 border-slate-300" />
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
 
                             {errors.sistem_pembayaran && (
                                 <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.sistem_pembayaran}</p>
                             )}
 
-                            {data.sistem_pembayaran === 'transfer' && (
+                            {metodeTerpilih?.metode === 'transfer' && (
                                 bankTerisi ? (
                                     <div className="mt-3 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white shadow-sm">
                                         <div className="flex items-center gap-3 border-b border-emerald-100/80 px-4 py-3">
@@ -448,6 +535,39 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                     </div>
                                 )
                             )}
+
+                            {metodeTerpilih?.metode === 'qris' && (
+                                <div className="mt-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-4 text-center shadow-sm">
+                                    <p className="text-xs font-bold text-slate-800">Scan QRIS</p>
+                                    {qrisUrl ? (
+                                        <img
+                                            src={qrisUrl}
+                                            alt="Kode QRIS pembayaran"
+                                            className="mx-auto mt-3 h-56 w-56 rounded-xl bg-white object-contain p-2 ring-1 ring-emerald-100"
+                                        />
+                                    ) : (
+                                        <p className="mt-3 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-[11px] leading-relaxed text-slate-600">
+                                            Gambar QRIS belum tersedia. Sementara, hubungi admin untuk kode QRIS
+                                            pembayaran.
+                                        </p>
+                                    )}
+                                    {qrisUrl && (
+                                        <a
+                                            href={qrisUrl}
+                                            download={namaFileQris}
+                                            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+                                        >
+                                            <DownloadIcon />
+                                            Download QRIS
+                                        </a>
+                                    )}
+                                    <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
+                                        Scan dengan aplikasi bank atau e-wallet, bayar{' '}
+                                        <span className="font-bold text-slate-700">{formatRupiah(pembayaran.total)}</span>,
+                                        lalu unggah bukti pembayaran di bawah.
+                                    </p>
+                                </div>
+                            )}
                         </section>
 
                         {buktiWajib && (
@@ -485,7 +605,7 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                         {data.bukti_pembayaran ? data.bukti_pembayaran.name : 'Pilih gambar bukti pembayaran'}
                                     </span>
                                     <span className="text-[10px] text-slate-500">
-                                        Format JPG, JPEG, atau PNG. Maksimal 2 MB.
+                                        Format JPG, JPEG, atau PNG. Maksimal 10 MB.
                                     </span>
                                 </label>
                                 {errors.bukti_pembayaran && (

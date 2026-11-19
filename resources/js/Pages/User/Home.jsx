@@ -17,14 +17,6 @@ function namaPengguna(pengguna) {
     return [pengguna.nama_depan, pengguna.nama_balakang].filter(Boolean).join(' ') || 'Tamu';
 }
 
-function BellIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
-        </svg>
-    );
-}
-
 function SearchIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -174,14 +166,6 @@ export default function Home({ pengguna, hargas }) {
                                 <p className="text-xs text-emerald-200">Main nyaman, booking mudah</p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"
-                            aria-label="Notifikasi"
-                        >
-                            <BellIcon />
-                            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-emerald-700" />
-                        </button>
                     </div>
 
                     <div className="mt-7">

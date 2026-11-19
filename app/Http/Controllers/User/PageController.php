@@ -9,12 +9,16 @@ use App\Models\jam_main;
 use App\Models\Kategorimenu;
 use App\Models\Meja;
 use App\Models\Menu;
+use App\Models\NotifikasiBooking;
+use App\Models\paket_hargajammain;
+use App\Models\Pembayaran;
 use App\Models\Pengguna;
 use App\Models\Settingbookingroom;
 use App\Models\Statusvoucher;
 use App\Models\Vanue;
 use App\Models\Voucher;
 use App\Services\BuktiPembayaranService;
+use App\Services\NotifikasiBookingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use chillerlan\QRCode\QRCode;
 use Illuminate\Http\JsonResponse;
@@ -179,6 +183,9 @@ class PageController extends Controller
                 ->orderBy('hari')
                 ->orderBy('harga')
                 ->get(['id', 'jam_main_id', 'hari', 'harga', 'diskon', 'harga_akhir', 'vanue_id'])),
+            'paketHargas' => Inertia::defer(fn () => paket_hargajammain::query()
+                ->orderBy('minimal_jam')
+                ->get(['id', 'vanue_id', 'hari', 'minimal_jam', 'diskon_persen'])),
             'bookedSlots' => Inertia::defer(fn () => Booking::query()
                 ->where('status_hapus', '!=', '1')
                 ->where('status_booking', '!=', '400')
@@ -232,6 +239,12 @@ class PageController extends Controller
             return redirect()->guest(route('login'));
         }
 
+        if (blank($pengguna->nowa)) {
+            throw ValidationException::withMessages([
+                'nowa' => 'Isi nomor WhatsApp terlebih dahulu sebelum melakukan booking.',
+            ]);
+        }
+
         $validated['tipe_booking'] = $this->resolveTipeBooking($validated['tipe_booking'] ?? null);
 
         $settingBookingRoom = $this->settingBookingRoomAktif();
@@ -277,6 +290,18 @@ class PageController extends Controller
             ->get()
             ->keyBy(fn (hargajammain $harga) => (string) $harga->jam_main_id);
 
+        // Paket diskon berlaku bila seluruh sesi pilihan slot berada di dalam rentang
+        // jam paket, total durasi memenuhi syarat minimal jam, pada hari dan venue
+        // yang sama. Voucher tidak bertumpuk dengan paket.
+        $paketAktif = paket_hargajammain::terbaik(
+            paket_hargajammain::query()
+                ->where('hari', $hari)
+                ->where('vanue_id', $meja->vanue_id)
+                ->get(),
+            $jamMains->values(),
+        );
+        $persenPaket = $voucher === null ? (float) ($paketAktif?->diskon_persen ?? 0) : 0.0;
+
         do {
             $kodePembayaran = 'PAY-'.$tanggal->format('Ymd').'-'.strtoupper(Str::random(5));
         } while (Booking::query()->where('kode_pembayaran', $kodePembayaran)->exists());
@@ -294,11 +319,8 @@ class PageController extends Controller
             } while (Booking::query()->where('kode_room', $kodeRoom)->exists());
         }
 
-        $kodeBookings = DB::transaction(function () use ($validated, $pengguna, $meja, $tanggal, $jamMains, $hargaPerJam, $kodePembayaran, $voucher, $settingBookingRoom, $kodeRoom, $kapasitasUser, $modePembayaran): array {
+        $kodeBookings = DB::transaction(function () use ($validated, $pengguna, $meja, $tanggal, $jamMains, $hargaPerJam, $kodePembayaran, $voucher, $kodeRoom, $kapasitasUser, $modePembayaran, $persenPaket): array {
             $kodeBookings = [];
-            $jumlahUser = max(1, (int) ($settingBookingRoom?->jumlah_user ?? 1));
-            $bagiHarga = $validated['tipe_booking'] === 'public'
-                && strtolower((string) ($settingBookingRoom?->pembayaran)) === 'all';
 
             foreach ($validated['jam_main_ids'] as $jamMainId) {
                 $jamMain = $jamMains->get((string) $jamMainId);
@@ -341,8 +363,11 @@ class PageController extends Controller
 
                 $totalHarga = (string) $harga->harga_akhir;
 
-                if ($bagiHarga) {
-                    $totalHarga = (string) (int) round(((int) $harga->harga_akhir) / $jumlahUser);
+                if ($persenPaket > 0) {
+                    $totalHarga = (string) max(
+                        0,
+                        (int) $harga->harga_akhir - (int) round((int) $harga->harga_akhir * $persenPaket / 100),
+                    );
                 }
 
                 Booking::create([
@@ -381,6 +406,9 @@ class PageController extends Controller
         });
 
         $jumlahSesi = count($kodeBookings);
+
+        $this->catatNotifikasiBookingMasuk($meja, $jumlahSesi, $kodeBookings[0] ?? null);
+
         $pesan = $jumlahSesi === 1
             ? 'Booking berhasil dibuat. Lanjutkan ke pembayaran untuk mengunci jadwalmu.'
             : "{$jumlahSesi} sesi booking berhasil dibuat. Lanjutkan ke pembayaran untuk mengunci jadwalmu.";
@@ -459,6 +487,10 @@ class PageController extends Controller
 
         if (! $pengguna) {
             return redirect()->guest(route('login'));
+        }
+
+        if (blank($pengguna->nowa)) {
+            return back()->with('error', 'Lengkapi nomor WhatsApp terlebih dahulu sebelum bergabung ke room.');
         }
 
         $roomBookings = Booking::query()
@@ -547,6 +579,13 @@ class PageController extends Controller
             return $kodeBookings;
         });
 
+        $this->catatNotifikasiBookingMasuk(
+            $this->mejaDariKode((string) $roomBookings->first()->id_meja),
+            count($kodeBookings),
+            $kodeBookings[0] ?? null,
+            NotifikasiBooking::TIPE_ROOM,
+        );
+
         if ($gratis) {
             return redirect()
                 ->route('riwayat')
@@ -556,6 +595,105 @@ class PageController extends Controller
         return redirect()
             ->route('booking.pembayaran', $kodePembayaran)
             ->with('success', 'Berhasil bergabung ke room. Lanjutkan pembayaran untuk mengunci kursimu.');
+    }
+
+    /**
+     * Catat notifikasi booking masuk ke panel admin untuk venue meja terkait.
+     */
+    private function catatNotifikasiBookingMasuk(
+        ?Meja $meja,
+        int $jumlahSesi,
+        ?string $kodeBooking,
+        string $tipe = NotifikasiBooking::TIPE_BOOKING,
+    ): void {
+        if ($meja === null || $meja->vanue_id === null || $kodeBooking === null || $jumlahSesi < 1) {
+            return;
+        }
+
+        $sesi = Booking::query()
+            ->where('kode_booking', $kodeBooking)
+            ->first(['tgl_main', 'jam_mulai', 'jam_selesai']);
+
+        $namaMeja = $meja->nama_meja ?: ($meja->kode_meja ?: (string) $meja->id);
+        $tanggal = $sesi?->tgl_main
+            ? Carbon::parse($sesi->tgl_main)->translatedFormat('d M Y')
+            : '-';
+        $jam = $sesi
+            ? substr((string) $sesi->jam_mulai, 0, 5).' - '.substr((string) $sesi->jam_selesai, 0, 5)
+            : '-';
+
+        $judul = $tipe === NotifikasiBooking::TIPE_ROOM
+            ? 'Anggota room baru bergabung'
+            : 'Booking baru masuk';
+
+        $pesan = $jumlahSesi === 1
+            ? "{$judul} untuk meja {$namaMeja} pada {$tanggal} pukul {$jam}. Kode booking: {$kodeBooking}."
+            : "{$jumlahSesi} sesi booking baru untuk meja {$namaMeja} pada {$tanggal} pukul {$jam}. Kode booking: {$kodeBooking}.";
+
+        app(NotifikasiBookingService::class)->catatBookingMasuk(
+            (int) $meja->vanue_id,
+            $judul,
+            $pesan,
+            $kodeBooking,
+            $tipe,
+        );
+    }
+
+    /**
+     * Cari meja berdasarkan kode meja (fallback ke id meja).
+     */
+    private function mejaDariKode(string $idMeja): ?Meja
+    {
+        return Meja::query()
+            ->where('kode_meja', $idMeja)
+            ->orWhere('id', ctype_digit($idMeja) ? (int) $idMeja : 0)
+            ->first();
+    }
+
+    /**
+     * Metode pembayaran untuk venue meja booking, diambil dari tabel pembayarans.
+     * Bila venue belum punya data, gunakan konfigurasi payment sebagai cadangan.
+     *
+     * @return array<int, array{id: int|string, metode: string, bank: string|null, atas_nama: string|null, norek: string|null, qris_image_url: string|null}>
+     */
+    private function metodePembayaranVenue(?int $vanueId): array
+    {
+        $daftar = collect();
+
+        if ($vanueId !== null) {
+            $daftar = Pembayaran::query()
+                ->where('id_venue', (string) $vanueId)
+                ->get()
+                ->map(fn (Pembayaran $pembayaran): array => [
+                    'id' => $pembayaran->id,
+                    'metode' => $pembayaran->metode_pembayaran,
+                    'bank' => $pembayaran->bank,
+                    'atas_nama' => $pembayaran->atas_nama,
+                    'norek' => $pembayaran->norek,
+                    'qris_image_url' => $pembayaran->qris_image
+                        ? asset('storage/'.$pembayaran->qris_image)
+                        : null,
+                ]);
+        }
+
+        if ($daftar->isEmpty()) {
+            $bank = config('payment.bank');
+
+            $daftar = collect([[
+                'id' => 'config',
+                'metode' => 'transfer',
+                'bank' => $bank['name'] ?? null,
+                'atas_nama' => $bank['account_holder'] ?? null,
+                'norek' => $bank['account_number'] ?? null,
+                'qris_image_url' => config('payment.qris.image'),
+            ]]);
+        }
+
+        // Transfer ditampilkan lebih dulu, lalu QRIS.
+        return $daftar
+            ->sortBy(fn (array $item): int => $item['metode'] === 'transfer' ? 0 : 1)
+            ->values()
+            ->all();
     }
 
     public function pembayaran(Request $request, string $kodePembayaran): Response
@@ -576,6 +714,17 @@ class PageController extends Controller
         abort_if($bookings->isEmpty(), 404);
 
         $pertama = $bookings->first();
+        $totalBayar = (int) $bookings->sum(fn (Booking $booking) => (int) $booking->total_harga);
+        $subtotal = (int) $bookings->sum(fn (Booking $booking) => (int) $booking->harga);
+        $diskon = max(0, $subtotal - $totalBayar);
+
+        // Label diskon menyesuaikan sumbernya: voucher atau paket jam main.
+        $labelDiskon = $pertama->sistem_pembayaran === 'voucher'
+            ? 'Diskon voucher'
+            : 'Diskon paket';
+
+        $mejaBooking = $this->mejaDariKode((string) $pertama->id_meja);
+        $metodePembayaran = $this->metodePembayaranVenue($mejaBooking?->vanue_id);
 
         return Inertia::render('User/Pembayaran', [
             'pengguna' => $pengguna,
@@ -585,7 +734,10 @@ class PageController extends Controller
                 'sistem_pembayaran' => $pertama->sistem_pembayaran,
                 'bukti_pembayaran_url' => $pertama->bukti_pembayaran_url,
                 'dibayar_pada' => optional($pertama->dibayar_pada)->toDateTimeString(),
-                'total' => (int) $bookings->sum(fn (Booking $booking) => (int) $booking->total_harga),
+                'subtotal' => $subtotal,
+                'diskon' => $diskon,
+                'label_diskon' => $labelDiskon,
+                'total' => $totalBayar,
                 'bookings' => $bookings->map(fn (Booking $booking): array => [
                     'id' => $booking->id,
                     'kode_booking' => $booking->kode_booking,
@@ -593,12 +745,12 @@ class PageController extends Controller
                     'tgl_main' => $booking->tgl_main,
                     'jam_mulai' => substr((string) $booking->jam_mulai, 0, 5),
                     'jam_selesai' => substr((string) $booking->jam_selesai, 0, 5),
+                    'harga' => (int) $booking->harga,
                     'total_harga' => (int) $booking->total_harga,
                 ])->values(),
             ],
             'pengaturanPembayaran' => [
-                'bank' => config('payment.bank'),
-                'qris_image' => config('payment.qris.image'),
+                'metode' => $metodePembayaran,
             ],
         ]);
     }
@@ -624,19 +776,19 @@ class PageController extends Controller
         }
 
         $validated = $request->validate([
-            'sistem_pembayaran' => ['required', Rule::in(['transfer'])],
+            'sistem_pembayaran' => ['required', Rule::in(['transfer', 'qris'])],
             'bukti_pembayaran' => [
                 'required',
                 'image',
                 'mimes:jpg,jpeg,png',
-                'max:2048',
+                'max:10240',
             ],
         ], [
             'sistem_pembayaran.in' => 'Metode pembayaran tidak valid.',
             'bukti_pembayaran.required' => 'Bukti pembayaran wajib diunggah.',
             'bukti_pembayaran.image' => 'Bukti pembayaran harus berupa gambar.',
             'bukti_pembayaran.mimes' => 'Bukti pembayaran harus berformat JPG, JPEG, atau PNG.',
-            'bukti_pembayaran.max' => 'Ukuran bukti pembayaran maksimal 2 MB.',
+            'bukti_pembayaran.max' => 'Ukuran bukti pembayaran maksimal 10 MB.',
         ]);
 
         $buktiPembayaran = app(BuktiPembayaranService::class)->simpan($request->file('bukti_pembayaran'));

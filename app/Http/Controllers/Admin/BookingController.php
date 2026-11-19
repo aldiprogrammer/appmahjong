@@ -9,6 +9,7 @@ use App\Models\Meja;
 use App\Models\Pengguna;
 use App\Models\Statusvoucher;
 use App\Models\Voucher;
+use App\Services\NotifikasiPenggunaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +115,13 @@ class BookingController extends Controller
 
         $this->issueVouchers($booking);
 
+        app(NotifikasiPenggunaService::class)->catat(
+            $booking->id_pengguna,
+            'Booking disetujui',
+            "Booking {$booking->kode_booking} telah disetujui. Sampai jumpa di meja!",
+            $booking->kode_booking,
+        );
+
         return back()->with('success', "Booking {$booking->kode_booking} berhasil disetujui.");
     }
 
@@ -183,6 +191,13 @@ class BookingController extends Controller
                 ->where('kode_voucher', $booking->kode_voucher)
                 ->update(['tanggal_digunakan' => '']);
         }
+
+        app(NotifikasiPenggunaService::class)->catat(
+            $booking->id_pengguna,
+            'Booking ditolak',
+            "Booking {$booking->kode_booking} ditolak. Silakan hubungi admin bila perlu bantuan.",
+            $booking->kode_booking,
+        );
 
         return back()->with('success', "Booking {$booking->kode_booking} berhasil ditolak.");
     }

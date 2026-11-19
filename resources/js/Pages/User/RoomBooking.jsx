@@ -3,6 +3,7 @@ import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import { useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
+import ModalWhatsapp from '../../Components/ModalWhatsapp';
 
 function formatTanggal(value) {
     if (!value) {
@@ -39,12 +40,17 @@ function RoomIcon({ className = 'h-5 w-5' }) {
     );
 }
 
-export default function RoomBooking({ rooms = [] }) {
+export default function RoomBooking({ pengguna = null, rooms = [] }) {
     const { flash } = usePage().props;
     const [joining, setJoining] = useState(null);
 
     const joinRoom = (room) => {
         if (joining) {
+            return;
+        }
+
+        // Nomor WhatsApp wajib diisi; modal akan tampil di atas halaman.
+        if (! pengguna?.nowa) {
             return;
         }
 
@@ -203,6 +209,8 @@ export default function RoomBooking({ rooms = [] }) {
                     })
                 )}
             </div>
+
+            {pengguna && ! pengguna.nowa && <ModalWhatsapp />}
         </>
     );
 }

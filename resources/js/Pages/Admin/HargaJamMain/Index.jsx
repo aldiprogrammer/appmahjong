@@ -2,6 +2,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import AdminLayout from '../../../Layouts/AdminLayout';
 import HargaJamMainForm from './Partials/HargaJamMainForm';
+import PaketDiskonForm from './Partials/PaketDiskonForm';
 
 function formatTime(value) {
     if (!value) {
@@ -44,7 +45,7 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ hargaJamMains, jamMains = [], vanues = [], filters }) {
+export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], vanues = [], filters }) {
     const { flash, auth } = usePage().props;
     const currentAdmin = auth?.admin ?? null;
     const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
@@ -54,6 +55,10 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
     const [deleting, setDeleting] = useState(false);
     const [formOpen, setFormOpen] = useState(false);
     const [editingHarga, setEditingHarga] = useState(null);
+    const [paketFormOpen, setPaketFormOpen] = useState(false);
+    const [editingPaket, setEditingPaket] = useState(null);
+    const [paketDeleteTarget, setPaketDeleteTarget] = useState(null);
+    const [paketDeleting, setPaketDeleting] = useState(false);
     const jamMainSelectRef = useRef(null);
 
     const hasJamMains = jamMains.length > 0;
@@ -65,6 +70,24 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
         hari_list: ['Senin'],
         harga: '',
         diskon: '0',
+    });
+
+    const {
+        data: paketData,
+        setData: setPaketData,
+        post: postPaket,
+        put: putPaket,
+        processing: paketProcessing,
+        errors: paketErrors,
+        reset: resetPaket,
+        clearErrors: clearPaketErrors,
+    } = useForm({
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
+        hari_list: ['Senin'],
+        minimal_jam: '',
+        jam_mulai: '00:00',
+        jam_selesai: '00:00',
+        diskon_persen: '',
     });
 
     useEffect(() => {
@@ -82,24 +105,27 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
     }, [formOpen]);
 
     useEffect(() => {
-        if (!formOpen && !deleteTarget) {
+        if (!formOpen && !deleteTarget && !paketFormOpen && !paketDeleteTarget) {
             return;
         }
 
         const handleEscape = (event) => {
-            if (event.key !== 'Escape' || processing || deleting) {
+            if (event.key !== 'Escape' || processing || deleting || paketProcessing || paketDeleting) {
                 return;
             }
 
             setFormOpen(false);
             setEditingHarga(null);
             setDeleteTarget(null);
+            setPaketFormOpen(false);
+            setEditingPaket(null);
+            setPaketDeleteTarget(null);
         };
 
         window.addEventListener('keydown', handleEscape);
 
         return () => window.removeEventListener('keydown', handleEscape);
-    }, [formOpen, deleteTarget, processing, deleting]);
+    }, [formOpen, deleteTarget, paketFormOpen, paketDeleteTarget, processing, deleting, paketProcessing, paketDeleting]);
 
     const submitSearch = (event) => {
         event.preventDefault();
@@ -179,6 +205,73 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
             preserveScroll: true,
             onSuccess: () => setDeleteTarget(null),
             onFinish: () => setDeleting(false),
+        });
+    };
+
+    const openCreatePaketModal = () => {
+        resetPaket();
+        clearPaketErrors();
+        setEditingPaket(null);
+        setPaketFormOpen(true);
+    };
+
+    const openEditPaketModal = (paket) => {
+        clearPaketErrors();
+        setPaketData({
+            vanue_id: paket.vanue?.id ? String(paket.vanue.id) : '',
+            hari_list: [paket.hari ?? 'Senin'],
+            minimal_jam: String(paket.minimal_jam ?? ''),
+            jam_mulai: paket.jam_mulai ?? '00:00',
+            jam_selesai: paket.jam_selesai ?? '00:00',
+            diskon_persen: String(paket.diskon_persen ?? ''),
+        });
+        setEditingPaket(paket);
+        setPaketFormOpen(true);
+    };
+
+    const closePaketFormModal = () => {
+        if (paketProcessing) {
+            return;
+        }
+
+        setPaketFormOpen(false);
+        setEditingPaket(null);
+        resetPaket();
+        clearPaketErrors();
+    };
+
+    const submitPaketForm = (event) => {
+        event.preventDefault();
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPaketFormOpen(false);
+                setEditingPaket(null);
+                resetPaket();
+            },
+        };
+
+        if (editingPaket) {
+            putPaket(`/admin/harga-jam-mains/paket/${editingPaket.id}`, options);
+
+            return;
+        }
+
+        postPaket('/admin/harga-jam-mains/paket', options);
+    };
+
+    const confirmDeletePaket = () => {
+        if (!paketDeleteTarget) {
+            return;
+        }
+
+        setPaketDeleting(true);
+
+        router.delete(`/admin/harga-jam-mains/paket/${paketDeleteTarget.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setPaketDeleteTarget(null),
+            onFinish: () => setPaketDeleting(false),
         });
     };
 
@@ -431,6 +524,125 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
                         </>
                     )}
                 </div>
+
+                <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
+                    <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                        <div>
+                            <h2 className="text-base font-semibold text-slate-900">Paket Diskon</h2>
+                            <p className="text-sm text-slate-500">
+                                Diskon persen otomatis saat total durasi slot booking memenuhi syarat minimal jam.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={openCreatePaketModal}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Tambah Paket
+                        </button>
+                    </div>
+
+                    {paketHargas.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+                            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
+                                <EmptyIcon />
+                            </span>
+                            <h3 className="mt-4 text-sm font-semibold text-slate-800">Belum ada paket diskon</h3>
+                            <p className="mt-1 max-w-sm text-sm text-slate-500">
+                                Contoh: booking minimal 3 jam dapat diskon 5% pada hari tertentu.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={openCreatePaketModal}
+                                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Tambah Paket
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[840px] text-left text-sm">
+                                <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
+                                    <tr>
+                                        <th className="px-5 py-3 font-semibold">No</th>
+                                        <th className="px-5 py-3 font-semibold">Minimal Jam</th>
+                                        <th className="px-5 py-3 font-semibold">Rentang Jam</th>
+                                        <th className="px-5 py-3 font-semibold">Hari</th>
+                                        <th className="px-5 py-3 font-semibold">Venue</th>
+                                        <th className="px-5 py-3 font-semibold">Diskon</th>
+                                        <th className="px-5 py-3 text-right font-semibold">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-emerald-50">
+                                    {paketHargas.map((paket, index) => (
+                                        <tr key={paket.id} className="transition hover:bg-emerald-50/40">
+                                            <td className="px-5 py-3.5 text-slate-500">{index + 1}</td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                                    ≥ {paket.minimal_jam} jam
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                                                    {paket.jam_mulai} - {paket.jam_selesai}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5 font-medium text-slate-800">{paket.hari}</td>
+                                            <td className="px-5 py-3.5">
+                                                {paket.vanue ? (
+                                                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                                                        </svg>
+                                                        {paket.vanue.nama}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                        Semua venue
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="font-semibold text-rose-600">{paket.diskon_persen}%</span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditPaketModal(paket)}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125" />
+                                                        </svg>
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPaketDeleteTarget(paket)}
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-rose-100 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                                        </svg>
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {formOpen && (
@@ -529,6 +741,107 @@ export default function Index({ hargaJamMains, jamMains = [], vanues = [], filte
                                     </svg>
                                 )}
                                 {deleting ? 'Menghapus...' : 'Ya, Hapus'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {paketFormOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            closePaketFormModal();
+                        }
+                    }}
+                >
+                    <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+                        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
+                            <div>
+                                <h2 className="text-base font-semibold text-slate-900">
+                                    {editingPaket ? 'Edit Paket Diskon' : 'Tambah Paket Diskon'}
+                                </h2>
+                                <p className="mt-0.5 text-sm text-slate-500">
+                                    {editingPaket
+                                        ? `Perbarui paket ${editingPaket.hari} minimal ${editingPaket.minimal_jam} jam.`
+                                        : 'Tentukan minimal jam, hari, dan persen diskonnya.'}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closePaketFormModal}
+                                disabled={paketProcessing}
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-60"
+                                aria-label="Tutup modal"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
+                            <PaketDiskonForm
+                                data={paketData}
+                                setData={setPaketData}
+                                errors={paketErrors}
+                                processing={paketProcessing}
+                                onSubmit={submitPaketForm}
+                                onCancel={closePaketFormModal}
+                                submitLabel={editingPaket ? 'Simpan Perubahan' : 'Simpan Paket'}
+                                multiple={!editingPaket}
+                                vanues={vanues}
+                                isVenueScoped={isVenueScoped}
+                                vanueTerkunci={isVenueScoped || Boolean(editingPaket)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {paketDeleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+                        <div className="flex items-start gap-4">
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3h.008v.008H12v-.008ZM12 3.75 2.25 20.25h19.5L12 3.75Z" />
+                                </svg>
+                            </span>
+                            <div className="min-w-0">
+                                <h2 className="text-base font-semibold text-slate-900">Hapus paket ini?</h2>
+                                <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                                    Paket{' '}
+                                    <span className="font-semibold text-slate-700">
+                                        ≥ {paketDeleteTarget.minimal_jam} jam ({paketDeleteTarget.jam_mulai} -{' '}
+                                        {paketDeleteTarget.jam_selesai}, {paketDeleteTarget.hari},{' '}
+                                        {paketDeleteTarget.diskon_persen}%)
+                                    </span>{' '}
+                                    akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setPaketDeleteTarget(null)}
+                                disabled={paketDeleting}
+                                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeletePaket}
+                                disabled={paketDeleting}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {paketDeleting && (
+                                    <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4Z" />
+                                    </svg>
+                                )}
+                                {paketDeleting ? 'Menghapus...' : 'Ya, Hapus'}
                             </button>
                         </div>
                     </div>

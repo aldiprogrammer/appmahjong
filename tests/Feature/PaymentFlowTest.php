@@ -6,9 +6,12 @@ use App\Models\Booking;
 use App\Models\hargajammain;
 use App\Models\jam_main;
 use App\Models\Meja;
+use App\Models\paket_hargajammain;
+use App\Models\Pembayaran;
 use App\Models\Pengguna;
 use App\Models\Settingbookingroom;
 use App\Models\Statusvoucher;
+use App\Models\Vanue;
 use App\Models\Voucher;
 use App\Services\BuktiPembayaranService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,6 +42,163 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('belum_bayar', $booking->status_pembayaran);
         $this->assertSame('', $booking->sistem_pembayaran);
         $this->assertSame('0', $booking->status_booking);
+    }
+
+    public function test_pembayaran_menampilkan_harga_asli_diskon_dan_total_paket(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $jamKetiga = jam_main::create(['jam_mulai' => '12:00', 'jam_selesai' => '13:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+        $this->buatHarga($jamKetiga, $tanggal);
+
+        $hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][$tanggal->dayOfWeek];
+
+        paket_hargajammain::create([
+            'vanue_id' => null,
+            'hari' => $hari,
+            'minimal_jam' => 3,
+            'jam_mulai' => '00:00',
+            'jam_selesai' => '00:00',
+            'diskon_persen' => 20,
+        ]);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id, (string) $jamKetiga->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $kodePembayaran = Booking::query()->firstOrFail()->kode_pembayaran;
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->where('pembayaran.subtotal', 150000)
+                ->where('pembayaran.diskon', 30000)
+                ->where('pembayaran.label_diskon', 'Diskon paket')
+                ->where('pembayaran.total', 120000)
+                ->has('pembayaran.bookings', 3)
+                ->where('pembayaran.bookings.0.harga', 50000)
+                ->where('pembayaran.bookings.0.total_harga', 40000));
+    }
+
+    public function test_metode_pembayaran_diambil_dari_tabel_pembayaran_sesuai_venue(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $vanue = Vanue::create(['nama' => 'Vanue Utama', 'alamat' => 'Jl. A', 'logo' => 'vanues/a.png']);
+        $vanueLain = Vanue::create(['nama' => 'Vanue Lain', 'alamat' => 'Jl. B', 'logo' => 'vanues/b.png']);
+
+        $meja->update(['vanue_id' => $vanue->id]);
+        hargajammain::query()->update(['vanue_id' => $vanue->id]);
+
+        Pembayaran::create([
+            'id_venue' => (string) $vanue->id,
+            'metode_pembayaran' => 'transfer',
+            'bank' => 'BCA',
+            'atas_nama' => 'Mahjong Medan',
+            'norek' => '1234567890',
+        ]);
+        Pembayaran::create([
+            'id_venue' => (string) $vanue->id,
+            'metode_pembayaran' => 'qris',
+            'qris_image' => 'pembayarans/qris-utama.png',
+        ]);
+        Pembayaran::create([
+            'id_venue' => (string) $vanueLain->id,
+            'metode_pembayaran' => 'transfer',
+            'bank' => 'BRI',
+            'atas_nama' => 'Vanue Lain',
+            'norek' => '999999',
+        ]);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $kodePembayaran = Booking::query()->firstOrFail()->kode_pembayaran;
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->has('pengaturanPembayaran.metode', 2)
+                ->where('pengaturanPembayaran.metode.0.metode', 'transfer')
+                ->where('pengaturanPembayaran.metode.0.bank', 'BCA')
+                ->where('pengaturanPembayaran.metode.0.norek', '1234567890')
+                ->where('pengaturanPembayaran.metode.1.metode', 'qris')
+                ->where('pengaturanPembayaran.metode.1.qris_image_url', asset('storage/pembayarans/qris-utama.png')));
+    }
+
+    public function test_user_bisa_mengirim_bukti_dengan_metode_qris(): void
+    {
+        Storage::fake('public');
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
+                'sistem_pembayaran' => 'qris',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti-qris.png'),
+            ])
+            ->assertRedirect(route('riwayat'));
+
+        $this->assertSame('qris', $booking->refresh()->sistem_pembayaran);
+        $this->assertSame('menunggu_verifikasi', $booking->status_pembayaran);
+    }
+
+    public function test_booking_ditolak_bila_nomor_whatsapp_kosong(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $pengguna->update(['nowa' => '']);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertSessionHasErrors('nowa');
+
+        $this->assertDatabaseCount('bookings', 0);
+    }
+
+    public function test_bukti_pembayaran_lebih_dari_2mb_tetap_diterima(): void
+    {
+        Storage::fake('public');
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ])->assertRedirect();
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()
+                    ->image('bukti-besar.jpg', 600, 600)
+                    ->size(5120),
+            ])
+            ->assertRedirect(route('riwayat'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('menunggu_verifikasi', $booking->refresh()->status_pembayaran);
     }
 
     public function test_booking_with_voucher_rejects_fewer_selected_hours(): void
@@ -543,7 +703,7 @@ class PaymentFlowTest extends TestCase
         $booking = Booking::query()->firstOrFail();
 
         $this->assertSame('public', $booking->tipe_booking);
-        $this->assertSame('12500', $booking->total_harga);
+        $this->assertSame('50000', $booking->total_harga);
     }
 
     public function test_booking_saves_private_tipe_with_full_price(): void
@@ -593,7 +753,7 @@ class PaymentFlowTest extends TestCase
         $bookingPemilik = Booking::query()->firstOrFail();
 
         $this->assertNotNull($bookingPemilik->kode_room);
-        $this->assertSame('12500', $bookingPemilik->total_harga);
+        $this->assertSame('50000', $bookingPemilik->total_harga);
 
         $penggunaLain = Pengguna::create([
             'kode_user' => 'PG-TEST02',
@@ -615,8 +775,47 @@ class PaymentFlowTest extends TestCase
         $response->assertRedirect(route('booking.pembayaran', $bookingPendatang->kode_pembayaran));
         $this->assertSame($bookingPemilik->kode_room, $bookingPendatang->kode_room);
         $this->assertSame('public', $bookingPendatang->tipe_booking);
-        $this->assertSame('12500', $bookingPendatang->total_harga);
+        $this->assertSame('50000', $bookingPendatang->total_harga);
         $this->assertSame('belum_bayar', $bookingPendatang->status_pembayaran);
+    }
+
+    public function test_join_room_ditolak_bila_nomor_whatsapp_kosong(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        Settingbookingroom::create([
+            'pembayaran' => 'all',
+            'jumlah_user' => '4',
+            'minimal_user' => '2',
+            'maksimal_user' => '8',
+            'status' => 'aktif',
+        ]);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'tipe_booking' => 'public',
+        ]);
+
+        $bookingPemilik = Booking::query()->firstOrFail();
+
+        $penggunaLain = Pengguna::create([
+            'kode_user' => 'PG-NOWA-KOSONG',
+            'nama_depan' => 'Budi',
+            'nama_balakang' => 'Tester',
+            'email' => 'budi-nowa-kosong@example.com',
+            'nowa' => '',
+            'password' => bcrypt('password'),
+            'status' => 'aktif',
+        ]);
+
+        $this->withSession(['pengguna_id' => $penggunaLain->id])
+            ->post(route('room.booking.join', $bookingPemilik->kode_room))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, Booking::query()->count());
     }
 
     public function test_pengguna_lain_join_room_one_tanpa_bayar(): void

@@ -4,6 +4,7 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { useEffect, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 import PilihVenue from '../../Components/PilihVenue';
+import ModalWhatsapp from '../../Components/ModalWhatsapp';
 
 const hariMap = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -35,6 +36,64 @@ function todayISO() {
     const day = String(now.getDate()).padStart(2, '0');
 
     return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function menitDariJam(value) {
+    const bagian = String(value ?? '').slice(0, 5).split(':');
+
+    return (Number(bagian[0]) || 0) * 60 + (Number(bagian[1]) || 0);
+}
+
+// Durasi satu slot dalam menit, menangani slot yang melewati tengah malam.
+function durasiSlotMenit(jam) {
+    const mulai = menitDariJam(jam?.jam_mulai);
+    const selesai = menitDariJam(jam?.jam_selesai);
+    const durasi = selesai - mulai;
+
+    return durasi > 0 ? durasi : durasi + 24 * 60;
+}
+
+// Tampilan durasi dalam jam tanpa angka desimal yang tidak perlu (mis. 3 atau 1.5).
+function tampilDurasi(menit) {
+    const jam = menit / 60;
+
+    return Number.isInteger(jam) ? String(jam) : jam.toFixed(1).replace('.', ',');
+}
+
+// Rentang jam paket dalam menit; jam selesai <= jam mulai berarti lewat tengah malam.
+function rentangPaketMenit(jamMulai, jamSelesai) {
+    const mulai = menitDariJam(jamMulai);
+    let selesai = menitDariJam(jamSelesai);
+
+    if (selesai <= mulai) {
+        selesai += 24 * 60;
+    }
+
+    return [mulai, selesai];
+}
+
+// Seluruh sesi harus berada di dalam rentang paket agar diskon berlaku.
+function sesiDalamRentang(slots, jamMulai, jamSelesai) {
+    const [rentangMulai, rentangSelesai] = rentangPaketMenit(jamMulai, jamSelesai);
+
+    // Rentang seharian penuh (00:00 - 00:00) selalu mencakup semua sesi.
+    if (rentangSelesai - rentangMulai >= 24 * 60) {
+        return true;
+    }
+
+    return slots.every((jam) => {
+        let mulai = menitDariJam(jam?.jam_mulai);
+        let selesai = menitDariJam(jam?.jam_selesai);
+
+        if (selesai <= mulai) {
+            selesai += 24 * 60;
+        }
+
+        // Geseran satu hari menangkap sesi dini hari pada rentang lewat tengah malam.
+        return [0, 24 * 60].some(
+            (geser) => mulai + geser >= rentangMulai && selesai + geser <= rentangSelesai,
+        );
+    });
 }
 
 function formatTanggal(value) {
@@ -224,10 +283,10 @@ function BookingSkeleton() {
     );
 }
 
-// mejas/jamMains/hargas/bookedSlots/settingBookingRooms/vouchers sengaja di-default agar aman saat deferred (belum dimuat).
-export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [] }) {
+// mejas/jamMains/hargas/bookedSlots/settingBookingRooms/vouchers/paketHargas sengaja di-default agar aman saat deferred (belum dimuat).
+export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = [], hargas = [], bookedSlots = [], settingBookingRooms = [], vouchers = [], paketHargas = [] }) {
     // Default destrukturisasi menyembunyikan undefined, cek status deferred via page props.
-    const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers'];
+    const deferredKeys = ['mejas', 'jamMains', 'hargas', 'bookedSlots', 'settingBookingRooms', 'vouchers', 'paketHargas'];
     const pageProps = usePage().props;
     const bookingDataDimuat = deferredKeys.every((key) => pageProps[key] !== undefined);
 
@@ -344,6 +403,44 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
     const voucherJamMismatch = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
     const voucherJamMessage = 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.';
 
+    // Paket diskon berlaku saat seluruh sesi terpilih berada di dalam rentang jam
+    // paket dan total durasi memenuhi syarat minimal jam pada hari dan venue yang
+    // sama. Voucher tidak bertumpuk dengan paket.
+    const totalDurasiMenit = jamTerpilih.reduce((jumlah, jam) => jumlah + durasiSlotMenit(jam), 0);
+    const paketCocok = (paket) =>
+        paket.hari === hariTerpilih &&
+        String(paket.vanue_id ?? '') === String(vanueTerpilih ?? '') &&
+        totalDurasiMenit >= Number(paket.minimal_jam) * 60 &&
+        sesiDalamRentang(jamTerpilih, paket.jam_mulai, paket.jam_selesai);
+    const paketAktif = voucherTerpilih
+        ? null
+        : (paketHargas.filter(paketCocok).sort(
+                (a, b) =>
+                    Number(b.diskon_persen) - Number(a.diskon_persen) ||
+                    Number(a.minimal_jam) - Number(b.minimal_jam),
+            )[0] ?? null);
+    const persenPaket = Number(paketAktif?.diskon_persen) || 0;
+    const paketBerikutnya = voucherTerpilih
+        ? null
+        : (paketHargas
+                .filter(
+                    (paket) =>
+                        paket.hari === hariTerpilih &&
+                        String(paket.vanue_id ?? '') === String(vanueTerpilih ?? '') &&
+                        totalDurasiMenit < Number(paket.minimal_jam) * 60 &&
+                        sesiDalamRentang(jamTerpilih, paket.jam_mulai, paket.jam_selesai),
+                )
+                .sort(
+                    (a, b) =>
+                        Number(a.minimal_jam) - Number(b.minimal_jam) ||
+                        Number(b.diskon_persen) - Number(a.diskon_persen),
+                )[0] ?? null);
+    const totalSetelahPaket = rincian.reduce(
+        (jumlah, item) => jumlah + Math.max(0, item.total - Math.round((item.total * persenPaket) / 100)),
+        0,
+    );
+    const diskonPaket = total - totalSetelahPaket;
+
     const tampilkanPeringatanDurasiVoucher = () => {
         Swal.fire({
             icon: 'warning',
@@ -371,9 +468,7 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
         ?? settingBookingRooms.find((setting) => setting.vanue_id == null)
         ?? settingBookingRooms[0]
         ?? null;
-    const jumlahUser = Math.max(1, Number(settingAktif?.jumlah_user) || 1);
-    const hargaDibagi = String(settingAktif?.pembayaran ?? '').toLowerCase() === 'all';
-    const opsiBooking = settingAktif
+    const hargaDibagi = String(settingAktif?.pembayaran ?? '').toLowerCase() === 'all';    const opsiBooking = settingAktif
         ? [
             {
                 value: 'public',
@@ -391,9 +486,9 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
         : [];
     const opsiBookingKey = opsiBooking.map((opsi) => opsi.value).join(',');
     const tipeBookingTerpilih = opsiBooking.find((opsi) => opsi.value === data.tipe_booking);
-    const totalDibayar = data.tipe_booking === 'public' && hargaDibagi
-        ? rincian.reduce((jumlah, item) => jumlah + Math.round(item.total / jumlahUser), 0)
-        : total;
+    // Setiap pemain pada public booking membayar penuh sesuai harga meja per jam,
+    // bukan dibagi rata dengan jumlah slot user pada setting room.
+    const totalDibayar = totalSetelahPaket;
 
     const step1Lengkap = Boolean(data.tgl_main && data.meja_id);
     const step2Lengkap = data.jam_main_ids.length > 0 && (opsiBooking.length === 0 || Boolean(data.tipe_booking));
@@ -498,6 +593,11 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
 
     const submit = (event) => {
         event.preventDefault();
+
+        // Modal wajib nomor WhatsApp tampil di atas halaman; jangan kirim booking.
+        if (! pengguna?.nowa) {
+            return;
+        }
 
         // Enter pada input step 1/2 hanya memajukan langkah, bukan membuat booking.
         if (step < 3) {
@@ -824,6 +924,23 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                                 </>
                                             )}
                                             {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
+
+                                            {totalDurasiMenit > 0 && !voucherTerpilih && (
+                                                <p
+                                                    className={`mt-2 rounded-xl px-3 py-2 text-[11px] font-medium ${diskonPaket > 0
+                                                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                                                        : paketBerikutnya
+                                                            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+                                                            : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100'
+                                                        }`}
+                                                >
+                                                    {diskonPaket > 0
+                                                        ? `Total ${tampilDurasi(totalDurasiMenit)} jam — paket ≥ ${paketAktif?.minimal_jam} jam (${paketAktif?.jam_mulai} - ${paketAktif?.jam_selesai}) aktif, diskon ${persenPaket}% diterapkan.`
+                                                        : paketBerikutnya
+                                                            ? `Total ${tampilDurasi(totalDurasiMenit)} jam. Pilih ${tampilDurasi(paketBerikutnya.minimal_jam * 60 - totalDurasiMenit)} jam lagi untuk diskon ${paketBerikutnya.diskon_persen}% (paket ≥ ${paketBerikutnya.minimal_jam} jam, ${paketBerikutnya.jam_mulai} - ${paketBerikutnya.jam_selesai}).`
+                                                            : `Total ${tampilDurasi(totalDurasiMenit)} jam.`}
+                                                </p>
+                                            )}
                                         </section>
 
                                         {opsiBooking.length > 0 && (
@@ -863,7 +980,7 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                                                     </span>
                                                                     {total > 0 && (
                                                                         <span className={`mt-1 block text-[11px] font-bold ${active ? 'text-white' : 'text-emerald-700'}`}>
-                                                                            {formatRupiah(opsi.value === 'public' && hargaDibagi ? totalDibayar : total)}
+                                                                            {formatRupiah(opsi.value === 'public' && hargaDibagi ? totalDibayar : totalSetelahPaket)}
                                                                             {opsi.value === 'public' && hargaDibagi ? ' / user' : ''}
                                                                         </span>
                                                                     )}
@@ -1005,6 +1122,15 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                                             <span>-{formatRupiah(totalDiskon)}</span>
                                                         </div>
                                                     )}
+                                                    {diskonPaket > 0 && (
+                                                        <div className="flex items-center justify-between text-rose-200">
+                                                            <span>
+                                                                Diskon paket ({persenPaket}% · ≥ {paketAktif?.minimal_jam} jam ·{' '}
+                                                                {paketAktif?.jam_mulai} - {paketAktif?.jam_selesai})
+                                                            </span>
+                                                            <span>-{formatRupiah(diskonPaket)}</span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-end justify-between pt-1">
                                                         <span className="text-xs text-emerald-100">
                                                             {data.tipe_booking === 'public' && hargaDibagi ? 'Total bayar / user' : 'Total bayar'}
@@ -1013,9 +1139,9 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                                                             {data.kode_voucher ? 'Gratis (Voucher)' : formatRupiah(totalDibayar)}
                                                         </span>
                                                     </div>
-                                                    {data.tipe_booking === 'public' && hargaDibagi && !data.kode_voucher && jumlahUser > 1 && (
+                                                    {data.tipe_booking === 'public' && hargaDibagi && !data.kode_voucher && (
                                                         <p className="text-[10px] text-emerald-100">
-                                                            Harga {formatRupiah(total)} dibagi {jumlahUser} user.
+                                                            Setiap pemain membayar sesuai harga meja per jam.
                                                         </p>
                                                     )}
                                                 </div>
@@ -1103,6 +1229,8 @@ export default function Booking({ pengguna, vanues = [], mejas = [], jamMains = 
                     </>
                 )}
             </form>
+
+            {pengguna && ! pengguna.nowa && <ModalWhatsapp />}
         </>
     );
 }

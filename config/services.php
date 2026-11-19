@@ -28,6 +28,17 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', env('APP_URL').'/auth/google/callback'),
     ],
 
+    'onesignal' => [
+        /*
+         * OneSignal dipakai untuk mengirim push notification booking masuk
+         * ke perangkat admin panel. Isi ONESIGNAL_APP_ID dan
+         * ONESIGNAL_REST_API_KEY agar push aktif; tanpa keduanya notifikasi
+         * tetap tampil di dalam panel admin.
+         */
+        'app_id' => env('ONESIGNAL_APP_ID'),
+        'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
