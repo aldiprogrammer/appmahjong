@@ -118,7 +118,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
 
     return (
         <>
-            <Head title="Landing" />
+            <Head title="789 Mahjong Society" />
 
             <div className="min-h-screen bg-[#f6faf7]">
                 {/* Navbar */}
@@ -129,10 +129,12 @@ export default function Landing({ pengguna, mejas, hargas }) {
                             onClick={(event) => handleAnchor(event, 'home')}
                             className="flex items-center gap-2.5 text-white"
                         >
-                            <span className="flex h-10 w-8 items-center justify-center rounded-lg border-b-2 border-emerald-950/30 bg-gradient-to-b from-white to-emerald-50 text-lg font-black text-rose-600 shadow-md">
-                                中
-                            </span>
-                            <span className="text-base font-black tracking-tight sm:text-lg">Medan Mahjong Club </span>
+                            <img
+                                src="/images/landing/logo.jpg"
+                                alt="Logo 789 Mahjong Society"
+                                className="h-10 w-10 rounded-lg object-cover shadow-md"
+                            />
+                            <span className="text-base font-black tracking-tight sm:text-lg">789 Mahjong Society </span>
                         </a>
 
                         <ul className="hidden items-center gap-1 md:flex">
@@ -357,7 +359,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     </span>
                                     <div>
                                         <p className="text-sm font-black text-slate-800">Meja Premium</p>
-                                        <p className="text-[11px] font-medium text-slate-500">Medan Mahjong Club</p>
+                                        <p className="text-[11px] font-medium text-slate-500">789 Mahjong Society</p>
                                     </div>
                                 </div>
                             </div>
@@ -368,7 +370,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     Tempat Main Mahjong Paling <span className="text-emerald-600">Nyaman</span>
                                 </h2>
                                 <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
-                                    Medan Mahjong Club adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
+                                    89 Mahjong Society adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
                                     premium bersurface felt hijau yang lembut, ruangan yang sejuk, dan suasana yang
                                     santai, setiap sesi main jadi lebih seru, baik buat pemula maupun pemain profesional.
                                 </p>
@@ -556,7 +558,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">Alamat</p>
                                             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                                                Jl.setia Ujung/Bintang Terang NO. 38 KM 13.8, Puji Mulyo, Binjai, Kabupaten Deliserdang Sumatera Utara 20351<br />
+                                                Jl.Madong Lubis No 789, Sumatera Utara 20351<br />
 
                                             </p>
                                         </div>
@@ -570,7 +572,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">Jam Buka</p>
                                             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                                                Setiap hari, 06.00 – 00.00 WIB
+                                                Setiap hari, 08.00 – 00.00 WIB
                                             </p>
                                         </div>
                                     </li>
@@ -583,7 +585,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                         <div>
                                             <p className="text-sm font-bold text-slate-800">Kontak</p>
                                             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                                                WhatsApp: +62    812-0000-0000<br />
+                                                WhatsApp: +6289522078908<br />
 
                                             </p>
                                         </div>
@@ -627,10 +629,12 @@ export default function Landing({ pengguna, mejas, hargas }) {
                     <div className="mx-auto max-w-6xl px-4 sm:px-6">
                         <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
                             <div className="flex items-center gap-2.5">
-                                <span className="flex h-10 w-8 items-center justify-center rounded-lg border-b-2 border-emerald-950/30 bg-gradient-to-b from-white to-emerald-50 text-lg font-black text-rose-600 shadow-md">
-                                    中
-                                </span>
-                                <span className="text-base font-black tracking-tight">Medan Mahjong Club </span>
+                                <img
+                                    src="/images/landing/logo.jpg"
+                                    alt="Logo 789 Mahjong Society"
+                                    className="h-10 w-10 rounded-lg object-cover shadow-md"
+                                />
+                                <span className="text-base font-black tracking-tight">789 Mahjong Society</span>
                             </div>
 
                             <ul className="flex flex-wrap items-center justify-center gap-2">
@@ -664,7 +668,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                             )}
                         </div>
                         <p className="mt-10 text-center text-[11px] text-emerald-300/70">
-                            Medan Mahjong Club &middot; Booking mudah, main nyaman &middot; &copy; {new Date().getFullYear()}
+                            789 Mahjong Society &middot; Booking mudah, main nyaman &middot; &copy; {new Date().getFullYear()}
                         </p>
                     </div>
                 </footer>

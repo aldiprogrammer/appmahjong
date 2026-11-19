@@ -392,10 +392,10 @@ export default function Home({ pengguna, hargas }) {
                             <div className="relative flex h-full flex-col">
                                 <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ring-1 ring-white/30">
                                     <FoodIcon className="h-3.5 w-3.5" />
-                                    Kuliner
+                                    Snack & Drink
                                 </span>
                                 <h3 className="mt-3 text-xl font-black leading-tight">
-                                    Main Jalan,<br />Laper Tetap Kejawab
+                                    Main Mahjong,<br />Sambil Pesan Makanan
                                 </h3>
                                 <p className="mt-1.5 text-[11px] leading-relaxed text-orange-50">
                                     Makanan, minuman, dan snack diantar ke mejamu.
