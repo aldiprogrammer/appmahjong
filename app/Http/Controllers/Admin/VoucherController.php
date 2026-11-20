@@ -85,7 +85,9 @@ class VoucherController extends Controller
                 'id' => $booking->id,
                 'kode_booking' => $booking->kode_booking,
                 'kode_pembayaran' => $booking->kode_pembayaran,
-                'pengguna' => $booking->pengguna ? trim($booking->pengguna->nama_depan.' '.$booking->pengguna->nama_balakang) : '-',
+                'pengguna' => $booking->pengguna
+                    ? trim($booking->pengguna->nama_depan.' '.$booking->pengguna->nama_balakang)
+                    : ($booking->nama_pengguna ?: '-'),
                 'id_meja' => $booking->id_meja,
                 'tgl_main' => $booking->tgl_main,
                 'jam_mulai' => substr((string) $booking->jam_mulai, 0, 5),

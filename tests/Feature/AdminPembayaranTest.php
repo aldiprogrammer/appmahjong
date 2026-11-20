@@ -63,8 +63,25 @@ class AdminPembayaranTest extends TestCase
             ->post('/admin/pembayarans', [
                 'id_venue' => $vanue->id,
                 'metode_pembayaran' => 'qris',
+                'atas_nama' => 'Mahjong Medan',
             ])
             ->assertSessionHasErrors('qris_image');
+
+        $this->assertDatabaseCount('pembayarans', 0);
+    }
+
+    public function test_metode_qris_wajib_memiliki_atas_nama(): void
+    {
+        $vanue = $this->buatVanue();
+        $admin = $this->buatAdmin(null, 'super_admin');
+
+        $this->masukSebagai($admin)
+            ->post('/admin/pembayarans', [
+                'id_venue' => $vanue->id,
+                'metode_pembayaran' => 'qris',
+                'qris_image' => UploadedFile::fake()->image('qris.jpg'),
+            ])
+            ->assertSessionHasErrors('atas_nama');
 
         $this->assertDatabaseCount('pembayarans', 0);
     }
@@ -93,6 +110,7 @@ class AdminPembayaranTest extends TestCase
             ->post('/admin/pembayarans', [
                 'id_venue' => $vanue->id,
                 'metode_pembayaran' => 'qris',
+                'atas_nama' => 'Mahjong Medan',
                 'qris_image' => UploadedFile::fake()->image('qris.jpg'),
             ])
             ->assertRedirect()
@@ -101,6 +119,7 @@ class AdminPembayaranTest extends TestCase
         $this->assertDatabaseHas('pembayarans', [
             'id_venue' => (string) $vanue->id,
             'metode_pembayaran' => 'qris',
+            'atas_nama' => 'Mahjong Medan',
         ]);
     }
 }

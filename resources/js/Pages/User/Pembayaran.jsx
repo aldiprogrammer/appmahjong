@@ -308,10 +308,45 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                                     <span className="text-xs font-bold text-emerald-700">
                                         {formatRupiah(booking.harga)}
                                     </span>
+                                    {(() => {
+                                        const diskonPaket = Number(booking.diskon_paket) || 0;
+                                        const total = Number(booking.total_harga) || 0;
+                                        const diskonVoucher = booking.pakai_voucher
+                                            ? Math.max(0, Number(booking.harga) - total)
+                                            : 0;
+                                        const diskonJam = booking.pakai_voucher
+                                            ? 0
+                                            : Math.max(0, Number(booking.harga) - total - diskonPaket);
+
+                                        return (
+                                            <>
+                                                {diskonJam > 0 && (
+                                                    <span className="text-[10px] font-semibold text-rose-500">
+                                                        Diskon -{formatRupiah(diskonJam)}
+                                                    </span>
+                                                )}
+                                                {diskonPaket > 0 && (
+                                                    <span className="text-[10px] font-semibold text-rose-500">
+                                                        Diskon paket ({booking.diskon_paket_persen}%) -{formatRupiah(diskonPaket)}
+                                                    </span>
+                                                )}
+                                                {diskonVoucher > 0 && (
+                                                    <span className="text-[10px] font-semibold text-rose-500">
+                                                        Diskon voucher -{formatRupiah(diskonVoucher)}
+                                                    </span>
+                                                )}
+                                                {(diskonJam > 0 || diskonPaket > 0 || diskonVoucher > 0) && (
+                                                    <span className="text-xs font-bold text-slate-800">
+                                                        {formatRupiah(total)}
+                                                    </span>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                     {bisaHapusSesi && (
                                         <button
                                             type="button"
@@ -539,6 +574,12 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                             {metodeTerpilih?.metode === 'qris' && (
                                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-white p-4 text-center shadow-sm">
                                     <p className="text-xs font-bold text-slate-800">Scan QRIS</p>
+                                    {metodeTerpilih?.atas_nama && (
+                                        <p className="mt-1 text-[11px] text-slate-500">
+                                            Atas nama:{' '}
+                                            <span className="font-bold text-slate-800">{metodeTerpilih.atas_nama}</span>
+                                        </p>
+                                    )}
                                     {qrisUrl ? (
                                         <img
                                             src={qrisUrl}

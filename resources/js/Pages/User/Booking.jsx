@@ -424,21 +424,6 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                     Number(a.minimal_jam) - Number(b.minimal_jam),
             )[0] ?? null);
     const persenPaket = Number(paketAktif?.diskon_persen) || 0;
-    const paketBerikutnya = voucherTerpilih
-        ? null
-        : (paketHargas
-                .filter(
-                    (paket) =>
-                        paket.hari === hariTerpilih &&
-                        String(paket.vanue_id ?? '') === String(vanueTerpilih ?? '') &&
-                        totalDurasiMenit < Number(paket.minimal_jam) * 60 &&
-                        sesiDalamRentang(jamTerpilih, paket.jam_mulai, paket.jam_selesai),
-                )
-                .sort(
-                    (a, b) =>
-                        Number(a.minimal_jam) - Number(b.minimal_jam) ||
-                        Number(b.diskon_persen) - Number(a.diskon_persen),
-                )[0] ?? null);
     const totalSetelahPaket = rincian.reduce(
         (jumlah, item) => jumlah + Math.max(0, item.total - Math.round((item.total * persenPaket) / 100)),
         0,
@@ -932,19 +917,8 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                             {jamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{jamError}</p>}
 
                                             {totalDurasiMenit > 0 && !voucherTerpilih && (
-                                                <p
-                                                    className={`mt-2 rounded-xl px-3 py-2 text-[11px] font-medium ${diskonPaket > 0
-                                                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-                                                        : paketBerikutnya
-                                                            ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
-                                                            : 'bg-slate-50 text-slate-500 ring-1 ring-slate-100'
-                                                        }`}
-                                                >
-                                                    {diskonPaket > 0
-                                                        ? `Total ${tampilDurasi(totalDurasiMenit)} jam — paket ≥ ${paketAktif?.minimal_jam} jam (${paketAktif?.jam_mulai} - ${paketAktif?.jam_selesai}) aktif, diskon ${persenPaket}% diterapkan.`
-                                                        : paketBerikutnya
-                                                            ? `Total ${tampilDurasi(totalDurasiMenit)} jam. Pilih ${tampilDurasi(paketBerikutnya.minimal_jam * 60 - totalDurasiMenit)} jam lagi untuk diskon ${paketBerikutnya.diskon_persen}% (paket ≥ ${paketBerikutnya.minimal_jam} jam, ${paketBerikutnya.jam_mulai} - ${paketBerikutnya.jam_selesai}).`
-                                                            : `Total ${tampilDurasi(totalDurasiMenit)} jam.`}
+                                                <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-[11px] font-medium text-slate-500 ring-1 ring-slate-100">
+                                                    Total {tampilDurasi(totalDurasiMenit)} jam.
                                                 </p>
                                             )}
                                         </section>

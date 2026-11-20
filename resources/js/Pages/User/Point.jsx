@@ -2,6 +2,16 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
+function ambilXsrfToken() {
+    const cookie = document.cookie
+        .split('; ')
+        .find((baris) => baris.startsWith('XSRF-TOKEN='));
+
+    return cookie ? decodeURIComponent(cookie.split('=').slice(1).join('=')) : '';
+}
+
+const KUNCI_KODE_BOOKING = 'mahjong_kode_booking';
+
 const GRUP_KARTU = [
     { key: 'w', nama: 'Wan', warna: 'bg-rose-50 text-rose-700 ring-rose-200' },
     { key: 't', nama: 'Tong', warna: 'bg-sky-50 text-sky-700 ring-sky-200' },
@@ -85,7 +95,7 @@ export default function Point({
     pendingScan = null,
     riwayat = [],
     kartu = [],
-    pointPerHand = 10,
+    chickenScoring = 'Chow 1 point · Pung 2 point · Kong 3 point',
     scoringModes = [],
     hkMinFaan = 3,
     hkMaxFaan = 14,
@@ -94,6 +104,16 @@ export default function Point({
     const fileRef = useRef(null);
     const [preview, setPreview] = useState(null);
     const [mengunggah, setMengunggah] = useState(false);
+    const [kodeBooking, setKodeBooking] = useState(() => {
+        if (typeof window === 'undefined') {
+            return '';
+        }
+
+        return window.localStorage.getItem(KUNCI_KODE_BOOKING) ?? '';
+    });
+    const [modalKodeTerbuka, setModalKodeTerbuka] = useState(false);
+    const [memeriksaKode, setMemeriksaKode] = useState(false);
+    const [galatKode, setGalatKode] = useState('');
     const [tiles, setTiles] = useState(pendingScan?.tiles ?? []);
     const [mode, setMode] = useState(pendingScan?.scoring_mode ?? 'chicken');
     const [seatWind, setSeatWind] = useState(pendingScan?.seat_wind ?? '');
@@ -165,6 +185,109 @@ export default function Point({
         };
     };
 
+    const bukaModalKode = () => {
+        setGalatKode('');
+        setModalKodeTerbuka(true);
+    };
+
+    const simpanKodeBooking = (kode) => {
+        setKodeBooking(kode);
+
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(KUNCI_KODE_BOOKING, kode);
+        }
+    };
+
+    const periksaKodeBooking = async (kode) => {
+        const response = await fetch('/point/cek-booking', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': ambilXsrfToken(),
+            },
+            body: JSON.stringify({ kode_booking: kode }),
+        });
+        const hasil = await response.json().catch(() => ({}));
+
+        return {
+            valid: response.ok && Boolean(hasil.valid),
+            message: hasil.message || 'Kode booking tidak valid.',
+        };
+    };
+
+    const lanjutkanScan = async (event) => {
+        event.preventDefault();
+
+        const kode = kodeBooking.trim();
+
+        if (!kode) {
+            setGalatKode('Kode booking wajib diisi sebelum scan point.');
+
+            return;
+        }
+
+        setMemeriksaKode(true);
+        setGalatKode('');
+
+        try {
+            const hasil = await periksaKodeBooking(kode);
+
+            if (!hasil.valid) {
+                setGalatKode(hasil.message);
+
+                return;
+            }
+
+            simpanKodeBooking(kode);
+            setModalKodeTerbuka(false);
+
+            setTimeout(() => fileRef.current?.click(), 0);
+        } catch {
+            setGalatKode('Gagal memeriksa kode booking. Periksa koneksi lalu coba lagi.');
+        } finally {
+            setMemeriksaKode(false);
+        }
+    };
+
+    /**
+     * Kode yang sudah tersimpan langsung dipakai untuk membuka kamera tanpa
+     * perlu mengetik ulang; user tetap bisa mengganti lewat modal.
+     */
+    const bukaScan = async () => {
+        const kode = kodeBooking.trim();
+
+        if (!kode) {
+            bukaModalKode();
+
+            return;
+        }
+
+        setMemeriksaKode(true);
+        setGalatKode('');
+
+        try {
+            const hasil = await periksaKodeBooking(kode);
+
+            if (!hasil.valid) {
+                setGalatKode(hasil.message);
+                setModalKodeTerbuka(true);
+
+                return;
+            }
+
+            simpanKodeBooking(kode);
+            setTimeout(() => fileRef.current?.click(), 0);
+        } catch {
+            setGalatKode('Gagal memeriksa kode booking. Periksa koneksi lalu coba lagi.');
+            setModalKodeTerbuka(true);
+        } finally {
+            setMemeriksaKode(false);
+        }
+    };
+
     const pilihFoto = (event) => {
         const file = event.target.files?.[0];
 
@@ -172,7 +295,15 @@ export default function Point({
             return;
         }
 
-        if (mode === 'hk' && !seatWind) {
+        if (!kodeBooking) {
+            event.target.value = '';
+            setGalatKode('Kode booking wajib diisi sebelum scan point.');
+            setModalKodeTerbuka(true);
+
+            return;
+        }
+
+        if (!seatWind) {
             event.target.value = '';
 
             return;
@@ -183,6 +314,7 @@ export default function Point({
 
         const formData = new FormData();
         formData.append('image', file);
+        formData.append('kode_booking', kodeBooking);
         formData.append('mode', mode);
 
         Object.entries(dataOpsi()).forEach(([kunci, nilai]) => formData.append(kunci, nilai));
@@ -315,6 +447,12 @@ export default function Point({
                     </div>
                 )}
 
+                {errors?.kode_booking && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium leading-relaxed text-rose-700">
+                        {errors.kode_booking}
+                    </div>
+                )}
+
                 {errors?.seat_wind && (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium leading-relaxed text-rose-700">
                         {errors.seat_wind}
@@ -330,8 +468,8 @@ export default function Point({
                             <h2 className="text-sm font-bold text-slate-800">Scan Susunan Mahjong</h2>
                             <p className="mt-1 text-xs leading-relaxed text-slate-500">
                                 {mode === 'hk'
-                                    ? `Foto susunan kartu. AI (Gemini) membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Di bawah ${hkMinFaan} faan belum bisa menang.`
-                                    : `Foto susunan kartu. AI (Gemini) mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Setiap chicken hand yang benar bernilai ${pointPerHand} point.`}
+                                    ? `Foto susunan kartu.Sistem akan membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Di bawah ${hkMinFaan} faan belum bisa menang.`
+                                    : `Foto susunan kartu. Sistem akan mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Point dihitung per meld: ${chickenScoring}. Pair dan bunga tidak dihitung.`}
                             </p>
                         </div>
                     </div>
@@ -358,41 +496,41 @@ export default function Point({
                         </div>
                     </div>
 
-                    {mode === 'hk' && (
-                        <div className="px-4 pt-4">
-                            <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                    Posisi duduk <span className="text-rose-500">*</span>
-                                </p>
-                                <span className="text-[10px] font-semibold text-fuchsia-700">+1 faan jika pung angin cocok</span>
-                            </div>
-                            <div className="mt-2 grid grid-cols-4 gap-2">
-                                {POSISI_DUDUK.map((item) => (
-                                    <button
-                                        key={item.value}
-                                        type="button"
-                                        onClick={() => ubahOpsi({ seatWind: item.value })}
-                                        className={`rounded-xl border px-2 py-2 text-center transition ${seatWind === item.value
-                                            ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
-                                            : 'border-slate-200 bg-white hover:border-fuchsia-200'
-                                            }`}
-                                    >
-                                        <span className={`block text-lg font-black leading-none ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-700'}`}>
-                                            {item.hanzi}
-                                        </span>
-                                        <span className={`mt-1 block text-[10px] font-bold ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-500'}`}>
-                                            {item.label}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                            {!seatWind && (
-                                <p className="mt-1.5 text-[10px] font-semibold text-rose-500">
-                                    Pilih posisi duduk dulu sebelum upload atau memfoto susunan mahjong.
-                                </p>
-                            )}
+                    <div className="px-4 pt-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                Posisi duduk <span className="text-rose-500">*</span>
+                            </p>
+                            <span className="text-[10px] font-semibold text-fuchsia-700">
+                                {mode === 'hk' ? '+1 faan jika pung angin cocok' : 'Wajib dipilih sebelum scan'}
+                            </span>
                         </div>
-                    )}
+                        <div className="mt-2 grid grid-cols-4 gap-2">
+                            {POSISI_DUDUK.map((item) => (
+                                <button
+                                    key={item.value}
+                                    type="button"
+                                    onClick={() => ubahOpsi({ seatWind: item.value })}
+                                    className={`rounded-xl border px-2 py-2 text-center transition ${seatWind === item.value
+                                        ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
+                                        : 'border-slate-200 bg-white hover:border-fuchsia-200'
+                                        }`}
+                                >
+                                    <span className={`block text-lg font-black leading-none ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-700'}`}>
+                                        {item.hanzi}
+                                    </span>
+                                    <span className={`mt-1 block text-[10px] font-bold ${seatWind === item.value ? 'text-fuchsia-700' : 'text-slate-500'}`}>
+                                        {item.label}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                        {!seatWind && (
+                            <p className="mt-1.5 text-[10px] font-semibold text-rose-500">
+                                Pilih posisi duduk dulu sebelum upload atau memfoto susunan mahjong.
+                            </p>
+                        )}
+                    </div>
 
                     <div className="px-4 pb-4 pt-3">
                         <input
@@ -405,23 +543,39 @@ export default function Point({
                         />
                         <button
                             type="button"
-                            onClick={() => fileRef.current?.click()}
-                            disabled={mengunggah || (mode === 'hk' && !seatWind)}
+                            onClick={bukaScan}
+                            disabled={mengunggah || memeriksaKode || !seatWind}
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
                             <ScanIcon className="h-4 w-4" />
-                            {mengunggah
-                                ? 'Memindai...'
-                                : mode === 'hk' && !seatWind
-                                    ? 'Pilih Posisi Duduk Dulu'
-                                    : pendingScan
-                                        ? 'Scan Ulang'
-                                        : 'Buka Kamera / Pilih Foto'}
+                            {memeriksaKode
+                                ? 'Memeriksa Kode...'
+                                : mengunggah
+                                    ? 'Memindai...'
+                                    : !seatWind
+                                        ? 'Pilih Posisi Duduk Dulu'
+                                        : pendingScan
+                                            ? 'Scan Ulang'
+                                            : 'Buka Kamera / Pilih Foto'}
                         </button>
                         <p className="mt-2 text-center text-[10px] leading-relaxed text-slate-400">
                             Pastikan seluruh kartu terlihat jelas, tidak terpotong, dan pencahayaan cukup.
                             Proses deteksi biasanya 5-20 detik.
                         </p>
+                        {kodeBooking && (
+                            <p className="mt-1.5 text-center text-[10px] leading-relaxed text-slate-500">
+                                Kode booking tersimpan:{' '}
+                                <span className="font-bold text-slate-700">{kodeBooking}</span>
+                                <button
+                                    type="button"
+                                    onClick={bukaModalKode}
+                                    disabled={memeriksaKode || mengunggah}
+                                    className="ml-1.5 font-bold text-emerald-700 underline decoration-emerald-300 underline-offset-2 transition hover:text-emerald-800 disabled:opacity-60"
+                                >
+                                    Ganti
+                                </button>
+                            </p>
+                        )}
                     </div>
                 </section>
 
@@ -431,7 +585,7 @@ export default function Point({
                             <div>
                                 <h2 className="text-sm font-bold text-slate-800">Hasil Scan</h2>
                                 <p className="mt-0.5 text-[10px] text-slate-400">
-                                    {pendingScan.scoring_mode === 'hk' ? `HK Klasik ${hkMinFaan}-${hkMaxFaan} faan` : 'Chicken Hand 10 point'} · Periksa dan setujui sebelum point masuk.
+                                    {pendingScan.scoring_mode === 'hk' ? `HK Klasik ${hkMinFaan}-${hkMaxFaan} faan` : `Chicken Hand · ${chickenScoring}`} · Periksa dan setujui sebelum point masuk.
                                 </p>
                             </div>
                             <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ring-1 ${pendingScan.is_winning_hand
@@ -743,6 +897,60 @@ export default function Point({
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {modalKodeTerbuka && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:items-center">
+                    <form onSubmit={lanjutkanScan} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                                <ScanIcon className="h-5 w-5" />
+                            </span>
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-900">Masukkan Kode Booking</h2>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    Scan point hanya bisa dilakukan pada hari booking, maksimal{' '}
+                                    <span className="font-semibold text-slate-700">30 menit</span> setelah jam main
+                                    berakhir. Kode akan diingat di perangkat ini agar tidak perlu diketik ulang.
+                                </p>
+                            </div>
+                        </div>
+
+                        <label htmlFor="kode_booking_scan" className="mt-4 block text-[11px] font-semibold text-slate-600">
+                            Kode Booking
+                        </label>
+                        <input
+                            id="kode_booking_scan"
+                            type="text"
+                            value={kodeBooking}
+                            onChange={(event) => setKodeBooking(event.target.value)}
+                            placeholder="Contoh: BKG-20261120-ABCDE"
+                            autoComplete="off"
+                            className={`mt-1 w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                                galatKode ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white focus:border-emerald-500'
+                            }`}
+                        />
+                        {galatKode && <p className="mt-1.5 text-xs font-medium text-rose-600">{galatKode}</p>}
+
+                        <div className="mt-5 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setModalKodeTerbuka(false)}
+                                disabled={memeriksaKode}
+                                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={memeriksaKode}
+                                className="flex-[1.2] rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                                {memeriksaKode ? 'Memeriksa...' : 'Lanjutkan Scan'}
+                            </button>
+                        </div>
+                    </form>
                 </div>
             )}
         </>

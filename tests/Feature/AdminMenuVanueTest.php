@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin;
 use App\Models\Kategorimenu;
 use App\Models\Menu;
+use App\Models\SuplayerFood;
 use App\Models\Vanue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -273,5 +274,71 @@ class AdminMenuVanueTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(2, Menu::query()->count());
+    }
+
+    private function buatSuplayer(Vanue $vanue, string $kode): SuplayerFood
+    {
+        return SuplayerFood::create([
+            'vanue_id' => $vanue->id,
+            'kode_suplayer' => $kode,
+            'nama_suplayer' => 'Suplayer '.$kode,
+            'alamat' => 'Jl. Suplayer No. 1',
+            'nowa' => '08123456789',
+            'email' => strtolower($kode).'@contoh.com',
+            'password' => 'rahasia',
+            'tangggl_daftar' => '2026-11-20',
+        ]);
+    }
+
+    public function test_pilihan_suplayer_mengikuti_venue_menu(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $surabaya = $this->buatVanue('Mahjong Center Surabaya');
+        $kategoriJakarta = $this->buatKategori('Makanan', $jakarta);
+        $this->buatSuplayer($jakarta, 'SPJKT');
+        $this->buatSuplayer($surabaya, 'SPSBY');
+        $adminJakarta = $this->adminVenue($jakarta, 'admin_jakarta');
+
+        $this->masukSebagai($adminJakarta)
+            ->get('/admin/menus')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('suplayerFoods', 1)
+                ->where('suplayerFoods.0.kode_suplayer', 'SPJKT')
+            );
+
+        $suplayerJakarta = SuplayerFood::query()->where('kode_suplayer', 'SPJKT')->firstOrFail();
+
+        $this->masukSebagai($adminJakarta)
+            ->post('/admin/menus', $this->dataMenu($kategoriJakarta) + [
+                'vanue_id' => $jakarta->id,
+                'suplayer_id' => $suplayerJakarta->id,
+            ])
+            ->assertRedirect(route('admin.menus.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('menus', [
+            'nama' => 'Nasi Goreng',
+            'vanue_id' => $jakarta->id,
+            'suplayer_id' => $suplayerJakarta->id,
+        ]);
+    }
+
+    public function test_menu_tidak_boleh_memakai_suplayer_dari_venue_lain(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $surabaya = $this->buatVanue('Mahjong Center Surabaya');
+        $kategoriJakarta = $this->buatKategori('Makanan', $jakarta);
+        $suplayerSurabaya = $this->buatSuplayer($surabaya, 'SPSBY');
+        $superAdmin = $this->superAdmin();
+
+        $this->masukSebagai($superAdmin)
+            ->post('/admin/menus', $this->dataMenu($kategoriJakarta) + [
+                'vanue_id' => $jakarta->id,
+                'suplayer_id' => $suplayerSurabaya->id,
+            ])
+            ->assertSessionHasErrors('suplayer_id');
+
+        $this->assertSame(0, Menu::query()->count());
     }
 }

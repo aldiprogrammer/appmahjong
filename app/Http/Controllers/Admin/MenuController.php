@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\VanueScope;
 use App\Http\Controllers\Controller;
 use App\Models\Kategorimenu;
 use App\Models\Menu;
+use App\Models\SuplayerFood;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +26,7 @@ class MenuController extends Controller
         $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
 
         $menus = Menu::query()
-            ->with(['kategori', 'vanue'])
+            ->with(['kategori', 'vanue', 'suplayer'])
             ->when($vanueTerbatas !== null, fn ($query) => $query->where('vanue_id', $vanueTerbatas))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
@@ -51,6 +52,10 @@ class MenuController extends Controller
             'menus' => $menus,
             'kategoriMenus' => $kategoriMenus,
             'vanues' => $this->daftarVanueTersedia($request),
+            'suplayerFoods' => SuplayerFood::query()
+                ->when($vanueTerbatas !== null, fn ($query) => $query->where('vanue_id', $vanueTerbatas))
+                ->orderBy('nama_suplayer')
+                ->get(['id', 'nama_suplayer', 'kode_suplayer', 'vanue_id']),
             'filters' => [
                 'search' => $search,
                 'kategori' => $kategori,
@@ -175,6 +180,15 @@ class MenuController extends Controller
                         : $query->where('vanue_id', $vanueTarget);
                 }),
             ],
+            'suplayer_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('suplayer_food', 'id')->where(function ($query) use ($vanueTarget) {
+                    $vanueTarget === null
+                        ? $query->whereNull('vanue_id')
+                        : $query->where('vanue_id', $vanueTarget);
+                }),
+            ],
             'nama' => ['required', 'string', 'max:50'],
             'gambar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'dibuat_di' => ['required', 'string', Rule::in(['Dapur', 'Bar'])],
@@ -201,6 +215,8 @@ class MenuController extends Controller
         return [
             'id_kategori.required' => 'Kategori menu wajib dipilih.',
             'id_kategori.exists' => 'Kategori menu tidak ditemukan atau bukan milik venue Anda.',
+            'suplayer_id.integer' => 'Suplayer yang dipilih tidak valid.',
+            'suplayer_id.exists' => 'Suplayer tidak ditemukan atau bukan milik venue menu ini.',
             'nama.required' => 'Nama menu wajib diisi.',
             'nama.max' => 'Nama menu maksimal 50 karakter.',
             'gambar.image' => 'File harus berupa gambar.',

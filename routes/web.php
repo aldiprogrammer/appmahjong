@@ -68,6 +68,7 @@ Route::middleware('pengguna.auth')->group(function () {
     Route::post('/notifikasi-pengguna/{notifikasi}/dibaca', [NotifikasiPenggunaController::class, 'dibaca'])->name('notifikasi.pengguna.dibaca');
     Route::get('/point', [PointController::class, 'index'])->name('point');
     Route::post('/point/scan', [PointController::class, 'scan'])->name('point.scan');
+    Route::post('/point/cek-booking', [PointController::class, 'cekBooking'])->name('point.cek-booking');
     Route::post('/point/scan/{scan}/kartu', [PointController::class, 'perbaruiKartu'])->name('point.kartu');
     Route::post('/point/scan/{scan}/konfirmasi', [PointController::class, 'konfirmasi'])->name('point.konfirmasi');
     Route::delete('/point/scan/{scan}', [PointController::class, 'batalkan'])->name('point.batalkan');
@@ -105,6 +106,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('bookings/{booking}/approve', [BookingController::class, 'approve'])->name('bookings.approve');
         Route::patch('bookings/{booking}/reject', [BookingController::class, 'reject'])->name('bookings.reject');
         Route::patch('bookings/{booking}/verifikasi-pembayaran', [BookingController::class, 'verifikasiPembayaran'])->name('bookings.verifikasi-pembayaran');
+        Route::post('bookings', [BookingController::class, 'store'])->name('bookings.store');
         Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
         Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
         Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);

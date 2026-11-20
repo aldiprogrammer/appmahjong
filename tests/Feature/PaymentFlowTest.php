@@ -81,7 +81,12 @@ class PaymentFlowTest extends TestCase
                 ->where('pembayaran.total', 120000)
                 ->has('pembayaran.bookings', 3)
                 ->where('pembayaran.bookings.0.harga', 50000)
-                ->where('pembayaran.bookings.0.total_harga', 40000));
+                ->where('pembayaran.bookings.0.total_harga', 40000)
+                ->where('pembayaran.bookings.0.diskon_paket', 10000)
+                ->where('pembayaran.bookings.0.diskon_paket_persen', 20)
+                ->where('pembayaran.bookings.0.pakai_voucher', false)
+                ->where('pembayaran.bookings.2.diskon_paket', 10000)
+                ->where('pembayaran.bookings.2.diskon_paket_persen', 20));
     }
 
     public function test_metode_pembayaran_diambil_dari_tabel_pembayaran_sesuai_venue(): void
@@ -104,6 +109,7 @@ class PaymentFlowTest extends TestCase
         Pembayaran::create([
             'id_venue' => (string) $vanue->id,
             'metode_pembayaran' => 'qris',
+            'atas_nama' => 'QRIS Mahjong Medan',
             'qris_image' => 'pembayarans/qris-utama.png',
         ]);
         Pembayaran::create([
@@ -131,6 +137,7 @@ class PaymentFlowTest extends TestCase
                 ->where('pengaturanPembayaran.metode.0.bank', 'BCA')
                 ->where('pengaturanPembayaran.metode.0.norek', '1234567890')
                 ->where('pengaturanPembayaran.metode.1.metode', 'qris')
+                ->where('pengaturanPembayaran.metode.1.atas_nama', 'QRIS Mahjong Medan')
                 ->where('pengaturanPembayaran.metode.1.qris_image_url', asset('storage/pembayarans/qris-utama.png')));
     }
 

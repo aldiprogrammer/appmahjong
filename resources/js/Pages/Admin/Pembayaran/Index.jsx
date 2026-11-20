@@ -20,7 +20,7 @@ function TrashIcon({ className = 'h-4 w-4' }) {
 
 const metodePembayaranTerdaftar = [
     { nilai: 'transfer', label: 'Transfer', deskripsi: 'Nomor rekening bank, atas nama, dan nama pemilik rekening.' },
-    { nilai: 'qris', label: 'QRIS', deskripsi: 'Gambar QRIS pembayaran yang diunggah admin.' },
+    { nilai: 'qris', label: 'QRIS', deskripsi: 'Nama pemilik QRIS dan gambar QRIS pembayaran yang diunggah admin.' },
 ];
 
 export default function Index({ pembayarans = [], vanues = [] }) {
@@ -76,10 +76,10 @@ export default function Index({ pembayarans = [], vanues = [] }) {
         const data = new FormData();
         data.append('id_venue', idVanue);
         data.append('metode_pembayaran', metode);
+        data.append('atas_nama', atasNama);
 
         if (metode === 'transfer') {
             data.append('bank', bank);
-            data.append('atas_nama', atasNama);
             data.append('norek', norek);
         }
 
@@ -148,7 +148,7 @@ export default function Index({ pembayarans = [], vanues = [] }) {
                     <h1 className="text-xl font-bold text-slate-900">Pembayaran</h1>
                     <p className="mt-1 text-sm text-slate-500">
                         Atur metode pembayaran untuk transaksi booking. Saat ini tersedia metode <span className="font-semibold text-slate-700">Transfer</span> dan{' '}
-                        <span className="font-semibold text-slate-700">QRIS</span>; untuk metode QRIS, wajib mengunggah gambar QRIS-nya.
+                        <span className="font-semibold text-slate-700">QRIS</span>; untuk metode QRIS, wajib mengisi atas nama dan mengunggah gambar QRIS-nya.
                     </p>
                 </div>
 
@@ -260,32 +260,50 @@ export default function Index({ pembayarans = [], vanues = [] }) {
                                 </div>
                             </div>
                         ) : (
-                            <div>
-                                <label htmlFor="pembayaran_qris_image" className="mb-1.5 block text-sm font-medium text-slate-700">
-                                    Gambar QRIS
-                                </label>
-                                {previewQris ? (
-                                    <div className="overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                                        <img src={previewQris} alt="Preview QRIS" className="mx-auto h-36 w-36 rounded-lg object-contain" />
-                                        <button
-                                            type="button"
-                                            onClick={hapusQrisPreview}
-                                            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-rose-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
-                                        >
-                                            Hapus gambar QRIS
-                                        </button>
-                                    </div>
-                                ) : (
+                            <>
+                                <div>
+                                    <label htmlFor="pembayaran_atas_nama_qris" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                        Atas Nama <span className="text-rose-500">*</span>
+                                    </label>
                                     <input
-                                        id="pembayaran_qris_image"
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp"
-                                        onChange={pilihQrisImage}
-                                        className="block w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-500 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        id="pembayaran_atas_nama_qris"
+                                        type="text"
+                                        value={atasNama}
+                                        onChange={(event) => setAtasNama(event.target.value)}
+                                        placeholder="Nama pemilik QRIS / merchant"
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        required
                                     />
-                                )}
-                                <p className="mt-1.5 text-xs text-slate-500">Upload gambar QRIS pembayaran. Wajib diisi untuk metode QRIS.</p>
-                            </div>
+                                    <p className="mt-1.5 text-xs text-slate-500">Nama ini akan ditampilkan ke pengguna di halaman pembayaran.</p>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="pembayaran_qris_image" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                        Gambar QRIS
+                                    </label>
+                                    {previewQris ? (
+                                        <div className="overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                                            <img src={previewQris} alt="Preview QRIS" className="mx-auto h-36 w-36 rounded-lg object-contain" />
+                                            <button
+                                                type="button"
+                                                onClick={hapusQrisPreview}
+                                                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-rose-100 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                                            >
+                                                Hapus gambar QRIS
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <input
+                                            id="pembayaran_qris_image"
+                                            type="file"
+                                            accept="image/jpeg,image/png,image/webp"
+                                            onChange={pilihQrisImage}
+                                            className="block w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-500 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        />
+                                    )}
+                                    <p className="mt-1.5 text-xs text-slate-500">Upload gambar QRIS pembayaran. Wajib diisi untuk metode QRIS.</p>
+                                </div>
+                            </>
                         )}
 
                         <div className="flex justify-end">
@@ -324,9 +342,7 @@ export default function Index({ pembayarans = [], vanues = [] }) {
                                         </p>
                                         <p className="truncate text-[11px] text-slate-500">
                                             {pembayaran.metode_pembayaran === 'qris'
-                                                ? pembayaran.qris_image
-                                                    ? `QRIS: ${pembayaran.qris_image}`
-                                                    : 'QRIS belum diunggah'
+                                                ? `Atas Nama: ${pembayaran.atas_nama ?? '-'}${pembayaran.qris_image ? ` · QRIS: ${pembayaran.qris_image}` : ' · QRIS belum diunggah'}`
                                                 : `Bank: ${pembayaran.bank ?? '-'} · No. Rek: ${pembayaran.norek ?? '-'} · Atas Nama: ${pembayaran.atas_nama ?? '-'}`}
                                         </p>
                                     </div>
@@ -348,7 +364,7 @@ export default function Index({ pembayarans = [], vanues = [] }) {
                     <p className="font-semibold text-slate-700">Catatan</p>
                     <ul className="mt-2 list-disc space-y-1 pl-4">
                         <li>Metode pembayaran yang tersedia: <span className="font-semibold">Transfer</span> dan <span className="font-semibold">QRIS</span>.</li>
-                        <li>Untuk metode <span className="font-semibold">QRIS</span>, wajib mengunggah gambar QRIS sebelum menyimpan.</li>
+                        <li>Untuk metode <span className="font-semibold">QRIS</span>, wajib mengisi atas nama pemilik QRIS dan mengunggah gambar QRIS sebelum menyimpan.</li>
                         <li>Metode <span className="font-semibold">Transfer</span> diisi dengan data bank, nama pemilik rekening, dan nomor rekening.</li>
                     </ul>
                 </div>

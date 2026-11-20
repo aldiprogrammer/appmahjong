@@ -31,8 +31,10 @@ function CloseIcon() {
     );
 }
 
-export default function Index({ suplayerFoods, filters }) {
-    const { flash } = usePage().props;
+export default function Index({ suplayerFoods, vanues = [], filters }) {
+    const { flash, auth } = usePage().props;
+    const currentAdmin = auth?.admin ?? null;
+    const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
     const [search, setSearch] = useState(filters?.search ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -40,8 +42,10 @@ export default function Index({ suplayerFoods, filters }) {
     const [formOpen, setFormOpen] = useState(false);
     const [editingSuplayer, setEditingSuplayer] = useState(null);
     const kodeInputRef = useRef(null);
+    const vanueTerkunci = isVenueScoped || Boolean(editingSuplayer);
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
         kode_suplayer: '',
         nama_suplayer: '',
         alamat: '',
@@ -111,6 +115,7 @@ export default function Index({ suplayerFoods, filters }) {
     const openEditModal = (suplayer) => {
         clearErrors();
         setData({
+            vanue_id: suplayer.vanue?.id ? String(suplayer.vanue.id) : '',
             kode_suplayer: suplayer.kode_suplayer,
             nama_suplayer: suplayer.nama_suplayer,
             alamat: suplayer.alamat,
@@ -280,12 +285,13 @@ export default function Index({ suplayerFoods, filters }) {
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[860px] text-left text-sm">
+                                <table className="w-full min-w-[980px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
                                             <th className="px-5 py-3 font-semibold">Kode</th>
                                             <th className="px-5 py-3 font-semibold">Nama Suplayer</th>
+                                            <th className="px-5 py-3 font-semibold">Venue</th>
                                             <th className="px-5 py-3 font-semibold">Alamat</th>
                                             <th className="px-5 py-3 font-semibold">No. WhatsApp</th>
                                             <th className="px-5 py-3 font-semibold">Email</th>
@@ -305,6 +311,17 @@ export default function Index({ suplayerFoods, filters }) {
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3.5 font-medium text-slate-800">{suplayer.nama_suplayer}</td>
+                                                <td className="px-5 py-3.5">
+                                                    {suplayer.vanue ? (
+                                                        <span className="inline-flex items-center rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100">
+                                                            {suplayer.vanue.nama}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa venue
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="max-w-[220px] truncate px-5 py-3.5 text-slate-500">{suplayer.alamat}</td>
                                                 <td className="px-5 py-3.5 text-slate-500">{suplayer.nowa}</td>
                                                 <td className="px-5 py-3.5 text-slate-500">{suplayer.email}</td>
@@ -420,6 +437,10 @@ export default function Index({ suplayerFoods, filters }) {
                                 submitLabel={editingSuplayer ? 'Simpan Perubahan' : 'Simpan Suplayer'}
                                 kodeInputRef={kodeInputRef}
                                 editing={Boolean(editingSuplayer)}
+                                vanues={vanues}
+                                vanueTerkunci={vanueTerkunci}
+                                isVenueScoped={isVenueScoped}
+                                namaVanueAktif={currentAdmin?.vanue?.nama}
                             />
                         </div>
                     </div>

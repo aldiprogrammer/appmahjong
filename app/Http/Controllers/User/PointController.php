@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\MahjongScan;
 use App\Models\Pengguna;
 use App\Models\Rank;
 use App\Services\GeminiMahjongDetector;
 use App\Services\MahjongCombinationService;
 use App\Services\OpenAiMahjongDetector;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -18,6 +21,16 @@ use Inertia\Response;
 
 class PointController extends Controller
 {
+    /**
+     * Toleransi scan point setelah jam main berakhir.
+     */
+    private const TOLERANSI_SCAN_MENIT = 30;
+
+    /**
+     * Jadwal booking disimpan dalam waktu WIB.
+     */
+    private const ZONA_WAKTU = 'Asia/Jakarta';
+
     public function index(Request $request): Response
     {
         $pengguna = $this->currentPengguna($request);
@@ -46,12 +59,12 @@ class PointController extends Controller
             'pendingScan' => $pendingScan ? $this->payloadScan($pendingScan) : null,
             'riwayat' => $riwayat,
             'kartu' => app(MahjongCombinationService::class)->daftarKartu(),
-            'pointPerHand' => MahjongCombinationService::POINT_PER_HAND,
+            'chickenScoring' => 'Chow 1 point · Pung 2 point · Kong 3 point',
             'scoringModes' => [
                 [
                     'value' => MahjongCombinationService::MODE_CHICKEN,
                     'label' => 'Chicken Hand',
-                    'description' => 'Setiap chicken hand yang benar bernilai '.MahjongCombinationService::POINT_PER_HAND.' point.',
+                    'description' => 'Chow 1 point, Pung 2 point, Kong 3 point. Pair dan bunga tidak dihitung.',
                 ],
                 [
                     'value' => MahjongCombinationService::MODE_HK,
@@ -73,9 +86,10 @@ class PointController extends Controller
         }
 
         $request->validate([
+            'kode_booking' => ['required', 'string', 'max:50'],
             'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'mode' => ['nullable', 'string', 'in:chicken,hk'],
-            'seat_wind' => ['required_if:mode,hk', 'string', 'in:z1,z2,z3,z4'],
+            'seat_wind' => ['required', 'string', 'in:z1,z2,z3,z4'],
             'round_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
             'self_draw' => ['nullable', 'boolean'],
             'concealed' => ['nullable', 'boolean'],
@@ -84,15 +98,24 @@ class PointController extends Controller
             'robbing_kong' => ['nullable', 'boolean'],
             'kong_replacement' => ['nullable', 'boolean'],
         ], [
+            'kode_booking.required' => 'Kode booking wajib diisi sebelum scan point.',
             'image.required' => 'Foto susunan mahjong wajib diambil.',
             'image.image' => 'File harus berupa gambar.',
             'image.mimes' => 'Foto harus berformat JPG, JPEG, PNG, atau WEBP.',
             'image.max' => 'Ukuran foto maksimal 5 MB.',
             'mode.in' => 'Mode penilaian tidak dikenal.',
-            'seat_wind.required_if' => 'Pilih posisi duduk dulu sebelum scan susunan mahjong.',
+            'seat_wind.required' => 'Pilih posisi duduk dulu sebelum scan susunan mahjong.',
             'seat_wind.in' => 'Posisi duduk tidak dikenal.',
             'round_wind.in' => 'Angin meja tidak dikenal.',
         ]);
+
+        $pemeriksaanKode = $this->periksaKodeBooking((string) $request->input('kode_booking'));
+
+        if (! $pemeriksaanKode['valid']) {
+            return back()
+                ->withErrors(['kode_booking' => $pemeriksaanKode['message']])
+                ->withInput();
+        }
 
         $mode = $request->input('mode') === MahjongCombinationService::MODE_HK
             ? MahjongCombinationService::MODE_HK
@@ -146,6 +169,97 @@ class PointController extends Controller
         return redirect()->route('point')->with('success', $pesan);
     }
 
+    /**
+     * Periksa kode booking sebelum kamera dibuka. Dipakai halaman point lewat fetch.
+     */
+    public function cekBooking(Request $request): JsonResponse
+    {
+        $pengguna = $this->currentPengguna($request);
+
+        if (! $pengguna) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Sesi login berakhir. Silakan masuk kembali.',
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'kode_booking' => ['required', 'string', 'max:50'],
+        ], [
+            'kode_booking.required' => 'Kode booking wajib diisi sebelum scan point.',
+        ]);
+
+        $hasil = $this->periksaKodeBooking($validated['kode_booking']);
+
+        return response()->json($hasil, $hasil['valid'] ? 200 : 422);
+    }
+
+    /**
+     * Kode booking harus ada, belum lewat harinya, dan masih dalam masa
+     * toleransi 30 menit setelah jam main berakhir. Kode boleh dimasukkan
+     * oleh pengguna lain (misalnya rekan satu meja) selama jadwalnya valid.
+     *
+     * @return array{valid: bool, message: string}
+     */
+    private function periksaKodeBooking(string $kodeBooking): array
+    {
+        $kodeBooking = trim($kodeBooking);
+
+        $booking = Booking::query()
+            ->where('kode_booking', $kodeBooking)
+            ->where('status_hapus', '!=', '1')
+            ->latest('id')
+            ->first();
+
+        if ($booking === null) {
+            return [
+                'valid' => false,
+                'message' => 'Kode booking tidak ditemukan.',
+            ];
+        }
+
+        try {
+            $sekarang = Carbon::now(self::ZONA_WAKTU);
+            $tanggalMain = Carbon::parse((string) $booking->tgl_main, self::ZONA_WAKTU)->startOfDay();
+            $jamSelesai = substr((string) $booking->jam_selesai, 0, 5);
+            $batasScan = Carbon::parse($tanggalMain->toDateString().' '.$jamSelesai, self::ZONA_WAKTU)
+                ->addMinutes(self::TOLERANSI_SCAN_MENIT);
+        } catch (\Throwable) {
+            return [
+                'valid' => false,
+                'message' => 'Jadwal booking tidak valid. Hubungi admin untuk bantuan.',
+            ];
+        }
+
+        $hariIni = $sekarang->copy()->startOfDay();
+
+        if ($tanggalMain->lt($hariIni)) {
+            return [
+                'valid' => false,
+                'message' => 'Tanggal booking sudah lewat, scan point tidak dapat dilakukan.',
+            ];
+        }
+
+        if ($tanggalMain->gt($hariIni)) {
+            return [
+                'valid' => false,
+                'message' => 'Scan point baru bisa dilakukan pada hari booking, yaitu '.$tanggalMain->translatedFormat('d F Y').' (WIB).',
+            ];
+        }
+
+        if ($sekarang->greaterThan($batasScan)) {
+            return [
+                'valid' => false,
+                'message' => 'Waktu main sudah lewat lebih dari '.self::TOLERANSI_SCAN_MENIT.' menit, scan point tidak dapat dilakukan.',
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'message' => 'Kode booking valid. Silakan lanjutkan scan.',
+        ];
+    }
+
     public function perbaruiKartu(Request $request, MahjongScan $scan): RedirectResponse
     {
         $pengguna = $this->currentPengguna($request);
@@ -160,7 +274,7 @@ class PointController extends Controller
             'tiles' => ['array'],
             'tiles.*' => ['string'],
             'mode' => ['nullable', 'string', 'in:chicken,hk'],
-            'seat_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
+            'seat_wind' => ['required', 'string', 'in:z1,z2,z3,z4'],
             'round_wind' => ['nullable', 'string', 'in:z1,z2,z3,z4'],
             'self_draw' => ['nullable', 'boolean'],
             'concealed' => ['nullable', 'boolean'],

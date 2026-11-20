@@ -6,7 +6,11 @@ use Illuminate\Support\Str;
 
 class MahjongCombinationService
 {
-    public const POINT_PER_HAND = 10;
+    public const POIN_CHOW = 1;
+
+    public const POIN_PUNG = 2;
+
+    public const POIN_KONG = 3;
 
     public const MODE_CHICKEN = 'chicken';
 
@@ -74,8 +78,9 @@ class MahjongCombinationService
     /**
      * Analisis susunan kartu: validasi winning hand, deteksi kombinasi, dan hitung poin.
      *
-     * Mode "chicken" memberi 10 point untuk setiap chicken hand. Mode "hk"
-     * memakai penilaian HK klasik 3-14 faan dan menjadikan faan sebagai point.
+     * Mode "chicken" menjumlahkan point per meld: chow 1, pung 2, kong 3.
+     * Pair dan bunga tidak dihitung. Mode "hk" memakai penilaian HK klasik
+     * 3-14 faan dan menjadikan faan sebagai point.
      *
      * Opsi manual HK: angin kursi, self-draw (自摸), kartu tertutup (門前清),
      * tanpa bunga (無花), last tile, robbing kong, dan kong replacement.
@@ -1024,7 +1029,7 @@ class MahjongCombinationService
         if ($winning) {
             $points = $mode === self::MODE_HK
                 ? min(self::HK_MAX_FAAN, (int) $faan)
-                : self::POINT_PER_HAND;
+                : $this->poinChicken($combinations);
         }
 
         return [
@@ -1039,6 +1044,25 @@ class MahjongCombinationService
             'faan' => $mode === self::MODE_HK ? $faan : null,
             'faan_details' => $faanDetails,
         ];
+    }
+
+    /**
+     * Point chicken hand dijumlahkan per meld. Pair (termasuk tujuh pasang)
+     * dan bunga tidak memberi point.
+     *
+     * @param  array<int, array{type: string, label: string, tiles: array<int, string>}>  $combinations
+     */
+    private function poinChicken(array $combinations): int
+    {
+        return array_sum(array_map(
+            fn (array $combination): int => match ($combination['type']) {
+                'chow' => self::POIN_CHOW,
+                'pung' => self::POIN_PUNG,
+                'kong' => self::POIN_KONG,
+                default => 0,
+            },
+            $combinations,
+        ));
     }
 
     /**

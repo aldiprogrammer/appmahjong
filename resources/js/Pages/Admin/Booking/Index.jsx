@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import AdminLayout from '../../../Layouts/AdminLayout';
+import BookingManualForm from './Partials/BookingManualForm';
 
 function formatDate(value) {
     if (!value) {
@@ -124,7 +125,7 @@ function EmptyIcon() {
     );
 }
 
-export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
+export default function Index({ bookings, vanues, bolehPilihVanue, filters, mejas, jamMains, hargas, bookedSlots }) {
     const { flash } = usePage().props;
     const [search, setSearch] = useState(filters?.search ?? '');
     const [status, setStatus] = useState(filters?.status ?? '');
@@ -133,6 +134,7 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleting, setDeleting] = useState(false);
     const [processingId, setProcessingId] = useState(null);
+    const [formTerbuka, setFormTerbuka] = useState(false);
 
     useEffect(() => {
         setSuccessMessage(flash?.success ?? null);
@@ -300,9 +302,22 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                             )}
                         </form>
 
-                        <p className="text-xs text-slate-500">
-                            Total <span className="font-semibold text-slate-700">{bookings.total}</span> booking
-                        </p>
+                        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                                type="button"
+                                onClick={() => setFormTerbuka(true)}
+                                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Tambah Booking
+                            </button>
+
+                            <p className="text-xs text-slate-500">
+                                Total <span className="font-semibold text-slate-700">{bookings.total}</span> booking
+                            </p>
+                        </div>
                     </div>
 
                     {bookings.data.length === 0 ? (
@@ -387,27 +402,42 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                                                                     ID: {booking.id_pengguna}
                                                                 </p>
                                                             </>
+                                                        ) : booking.nama_pengguna ? (
+                                                            <>
+                                                                <p className="font-medium text-slate-700">
+                                                                    {booking.nama_pengguna}
+                                                                </p>
+                                                                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                                                    Booking manual
+                                                                </p>
+                                                            </>
                                                         ) : (
                                                             <span className="text-slate-600">{booking.id_pengguna || '-'}</span>
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3.5">
-                                                        {booking.pengguna?.nowa ? (
-                                                            <a
-                                                                href={`https://wa.me/${nomorWhatsApp(booking.pengguna.nowa)}`}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
-                                                            >
-                                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.347-.347.52-.52.174-.174.232-.298.347-.497.116-.198.058-.371-.058-.52-.116-.148-.694-1.669-.95-2.276-.199-.46-.4-.46-.58-.46-.15 0-.32-.02-.49-.02-.173 0-.454.065-.692.32-.238.256-.907.885-.907 2.158 0 1.272.928 2.502 1.058 2.675.13.174 1.828 2.792 4.43 3.915.62.268 1.103.428 1.48.548.622.198 1.188.17 1.635.103.499-.074 1.536-.627 1.753-1.234.217-.606.217-1.125.152-1.234-.065-.108-.238-.173-.497-.322z" />
-                                                                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01a8.21 8.21 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23z" />
-                                                                </svg>
-                                                                {booking.pengguna.nowa}
-                                                            </a>
-                                                        ) : (
-                                                            <span className="text-xs text-slate-400">-</span>
-                                                        )}
+                                                        {(() => {
+                                                            const nowa = booking.pengguna?.nowa || booking.no_wa;
+
+                                                            if (!nowa) {
+                                                                return <span className="text-xs text-slate-400">-</span>;
+                                                            }
+
+                                                            return (
+                                                                <a
+                                                                    href={`https://wa.me/${nomorWhatsApp(nowa)}`}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+                                                                >
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.347-.347.52-.52.174-.174.232-.298.347-.497.116-.198.058-.371-.058-.52-.116-.148-.694-1.669-.95-2.276-.199-.46-.4-.46-.58-.46-.15 0-.32-.02-.49-.02-.173 0-.454.065-.692.32-.238.256-.907.885-.907 2.158 0 1.272.928 2.502 1.058 2.675.13.174 1.828 2.792 4.43 3.915.62.268 1.103.428 1.48.548.622.198 1.188.17 1.635.103.499-.074 1.536-.627 1.753-1.234.217-.606.217-1.125.152-1.234-.065-.108-.238-.173-.497-.322z" />
+                                                                        <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 18.15h-.01a8.21 8.21 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23z" />
+                                                                    </svg>
+                                                                    {nowa}
+                                                                </a>
+                                                            );
+                                                        })()}
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         {booking.meja ? (
@@ -436,6 +466,14 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         <p className="font-semibold text-slate-800">{formatRupiah(booking.total_harga)}</p>
+                                                        {Number(booking.diskon_paket) > 0 && (
+                                                            <p className="mt-0.5 text-[10px] font-semibold text-rose-600">
+                                                                Diskon -{formatRupiah(booking.diskon_paket)}
+                                                                {booking.diskon_paket_persen
+                                                                    ? ` (${Number(booking.diskon_paket_persen)}%)`
+                                                                    : ''}
+                                                            </p>
+                                                        )}
                                                         <p className="mt-0.5 text-xs capitalize text-slate-500">
                                                             {booking.sistem_pembayaran || '-'}
                                                         </p>
@@ -554,6 +592,16 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters }) {
                     )}
                 </div>
             </div>
+
+            {formTerbuka && (
+                <BookingManualForm
+                    mejas={mejas ?? []}
+                    jamMains={jamMains ?? []}
+                    hargas={hargas ?? []}
+                    bookedSlots={bookedSlots ?? []}
+                    onClose={() => setFormTerbuka(false)}
+                />
+            )}
 
             {deleteTarget && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">

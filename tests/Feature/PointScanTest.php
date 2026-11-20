@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Booking;
 use App\Models\MahjongScan;
 use App\Models\Pengguna;
 use App\Services\MahjongCombinationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -22,7 +24,7 @@ class PointScanTest extends TestCase
         $hasil = (new MahjongCombinationService)->analisa(self::WINNING_TILES);
 
         $this->assertTrue($hasil['is_winning_hand']);
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $hasil['points']);
+        $this->assertSame(5, $hasil['points']);
         $this->assertCount(5, $hasil['combinations']);
         $this->assertSame(
             ['chow', 'chow', 'chow', 'pung', 'pair'],
@@ -37,7 +39,48 @@ class PointScanTest extends TestCase
         ]);
 
         $this->assertTrue($hasil['is_winning_hand']);
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $hasil['points']);
+        $this->assertSame(0, $hasil['points']);
+    }
+
+    public function test_service_menghitung_point_per_meld_chicken_hand(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'b1', 'b2', 'b3',
+            'b4', 'b5', 'b6', 'b6', 'b6', 'b6',
+            'w5', 'w5', 'w5',
+            't8', 't8',
+        ]);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(
+            ['pung', 'chow', 'chow', 'pung', 'pair'],
+            array_column($hasil['combinations'], 'type'),
+        );
+        $this->assertSame(6, $hasil['points']);
+    }
+
+    public function test_service_menghitung_kong_tiga_point(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([
+            'w1', 'w1', 'w1', 'w1',
+            't2', 't3', 't4',
+            'b5', 'b6', 'b7',
+            'z1', 'z1', 'z1',
+            't9', 't9',
+        ]);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertContains('kong', array_column($hasil['combinations'], 'type'));
+        $this->assertSame(7, $hasil['points']);
+    }
+
+    public function test_service_tidak_menghitung_bunga_pada_chicken_hand(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa([...self::WINNING_TILES, 'f1', 'f5', 'f3']);
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(5, $hasil['points']);
+        $this->assertSame(['f1', 'f3', 'f5'], $hasil['flowers']);
     }
 
     public function test_service_mengembalikan_nol_point_untuk_susunan_bukan_winning(): void
@@ -237,6 +280,7 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
                 'mode' => MahjongCombinationService::MODE_HK,
                 'seat_wind' => 'z1',
                 'round_wind' => 'z2',
@@ -285,6 +329,7 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
                 'mode' => MahjongCombinationService::MODE_HK,
                 'seat_wind' => 'z1',
                 'no_flowers' => 1,
@@ -313,6 +358,8 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
@@ -320,6 +367,7 @@ class PointScanTest extends TestCase
 
         $this->assertSame('pending', $scan->status);
         $this->assertNotNull($scan->image_path);
+        $this->assertSame('z1', $scan->seat_wind);
         Storage::disk('public')->assertExists($scan->image_path);
     }
 
@@ -353,6 +401,7 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
                 'mode' => MahjongCombinationService::MODE_HK,
                 'seat_wind' => 'z1',
             ])
@@ -376,6 +425,7 @@ class PointScanTest extends TestCase
             ->post(route('point.kartu', $scan), [
                 'tiles' => $tiles,
                 'mode' => MahjongCombinationService::MODE_HK,
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect();
 
@@ -424,7 +474,24 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
                 'mode' => MahjongCombinationService::MODE_HK,
+            ])
+            ->assertSessionHasErrors('seat_wind');
+
+        $this->assertSame(0, MahjongScan::query()->count());
+    }
+
+    public function test_scan_chicken_hand_wajib_pilih_posisi_duduk(): void
+    {
+        Storage::fake('public');
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'mode' => MahjongCombinationService::MODE_CHICKEN,
             ])
             ->assertSessionHasErrors('seat_wind');
 
@@ -445,10 +512,10 @@ class PointScanTest extends TestCase
 
         $this->assertSame('confirmed', $scan->status);
         $this->assertNotNull($scan->confirmed_at);
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $pengguna->points);
+        $this->assertSame(5, $pengguna->points);
         $this->assertDatabaseHas('ranks', [
             'kode_user' => $pengguna->kode_user,
-            'point' => (string) MahjongCombinationService::POINT_PER_HAND,
+            'point' => '5',
         ]);
     }
 
@@ -464,7 +531,7 @@ class PointScanTest extends TestCase
             ->post(route('point.konfirmasi', $scan))
             ->assertSessionHas('error');
 
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $pengguna->refresh()->points);
+        $this->assertSame(5, $pengguna->refresh()->points);
     }
 
     public function test_susunan_bukan_winning_tidak_bisa_dikonfirmasi(): void
@@ -534,6 +601,8 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
@@ -544,7 +613,7 @@ class PointScanTest extends TestCase
             (new MahjongCombinationService)->analisa(self::WINNING_TILES)['tiles'],
             $scan->tiles,
         );
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $scan->points);
+        $this->assertSame(5, $scan->points);
 
         Http::assertSent(function ($request): bool {
             return $request->url() === 'https://api.openai.test/v1/chat/completions'
@@ -569,6 +638,8 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'))
             ->assertSessionHas('success');
@@ -610,13 +681,15 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
         $scan = MahjongScan::query()->firstOrFail();
 
         $this->assertTrue($scan->is_winning_hand);
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $scan->points);
+        $this->assertSame(5, $scan->points);
 
         Http::assertSent(function ($request): bool {
             return $request->url() === 'https://gemini.test/v1beta/models/gemini-test-model:generateContent'
@@ -661,6 +734,8 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
@@ -707,13 +782,15 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
         $scan = MahjongScan::query()->firstOrFail();
 
         $this->assertTrue($scan->is_winning_hand);
-        $this->assertSame(MahjongCombinationService::POINT_PER_HAND, $scan->points);
+        $this->assertSame(5, $scan->points);
 
         Http::assertSent(fn ($request): bool => $request->url() === 'https://gemini.test/v1beta/models/gemini-cadangan:generateContent');
     }
@@ -748,6 +825,8 @@ class PointScanTest extends TestCase
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->post(route('point.scan'), [
                 'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
             ])
             ->assertRedirect(route('point'));
 
@@ -791,5 +870,155 @@ class PointScanTest extends TestCase
             'password' => bcrypt('password'),
             'status' => 'aktif',
         ]);
+    }
+
+    private function kodeBookingUntuk(
+        Pengguna $pengguna,
+        string $kode = 'BKG-POINT-TEST',
+        ?string $tanggal = null,
+        ?string $jamMulai = null,
+        ?string $jamSelesai = null,
+    ): string {
+        $sekarang = Carbon::now('Asia/Jakarta');
+
+        Booking::create([
+            'kode_booking' => $kode,
+            'id_pengguna' => (string) $pengguna->id,
+            'id_meja' => '1',
+            'jam_mulai' => $jamMulai ?? $sekarang->copy()->subHour()->format('H:i'),
+            'jam_selesai' => $jamSelesai ?? $sekarang->format('H:i'),
+            'tgl_main' => $tanggal ?? $sekarang->toDateString(),
+            'tgl_booking' => now()->toDateString(),
+            'sistem_pembayaran' => 'transfer',
+            'harga' => '50000',
+            'total_harga' => '50000',
+            'bukti_pembayaran' => '',
+            'status_booking' => '100',
+            'status_pembayaran' => 'lunas',
+            'status_hapus' => '0',
+        ]);
+
+        return $kode;
+    }
+
+    public function test_cek_booking_menolak_kode_yang_tidak_dikenal(): void
+    {
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => 'BKG-TIDAK-ADA'])
+            ->assertStatus(422)
+            ->assertJson(['valid' => false]);
+
+        $this->assertSame(0, MahjongScan::query()->count());
+    }
+
+    public function test_cek_booking_menerima_kode_milik_pengguna_lain(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $penggunaLain = $this->buatPengguna('PG-POINT02', 'point2@example.com');
+        $kode = $this->kodeBookingUntuk($penggunaLain);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertOk()
+            ->assertJson(['valid' => true]);
+    }
+
+    public function test_pengguna_lain_bisa_scan_memakai_kode_booking_teman_satu_meja(): void
+    {
+        Storage::fake('public');
+        config(['services.openai.key' => null, 'services.gemini.key' => null]);
+
+        $pengguna = $this->buatPengguna();
+        $penggunaLain = $this->buatPengguna('PG-POINT02', 'point2@example.com');
+        $kode = $this->kodeBookingUntuk($penggunaLain);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'kode_booking' => $kode,
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'seat_wind' => 'z1',
+            ])
+            ->assertRedirect(route('point'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, MahjongScan::query()->count());
+        $this->assertSame(
+            (string) $pengguna->id,
+            (string) MahjongScan::query()->firstOrFail()->id_pengguna,
+        );
+    }
+
+    public function test_cek_booking_menerima_scan_sampai_tiga_puluh_menit_setelah_jam_selesai(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '09:00', '10:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 10:30:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertOk()
+            ->assertJson(['valid' => true]);
+    }
+
+    public function test_cek_booking_menolak_scan_lewat_tiga_puluh_menit_setelah_jam_selesai(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '09:00', '10:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 10:31:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertStatus(422)
+            ->assertJson(['valid' => false]);
+    }
+
+    public function test_cek_booking_menolak_kode_dari_hari_sebelumnya(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-19', '09:00', '10:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 09:00:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertStatus(422)
+            ->assertJson(['valid' => false]);
+    }
+
+    public function test_cek_booking_menolak_scan_sebelum_hari_booking(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-26', '14:00', '15:00');
+
+        // Hari Rabu, booking baru hari Kamis.
+        $this->travelTo(Carbon::parse('2026-11-25 10:00:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertStatus(422)
+            ->assertJson(['valid' => false]);
+    }
+
+    public function test_scan_menolak_kode_booking_yang_sudah_lewat(): void
+    {
+        Storage::fake('public');
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-18', '09:00', '10:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 09:00:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'kode_booking' => $kode,
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'seat_wind' => 'z1',
+            ])
+            ->assertSessionHasErrors('kode_booking');
+
+        $this->assertSame(0, MahjongScan::query()->count());
     }
 }

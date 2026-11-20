@@ -8,6 +8,10 @@ export default function SuplayerFoodForm({
     submitLabel = 'Simpan',
     kodeInputRef,
     editing = false,
+    vanues = [],
+    vanueTerkunci = false,
+    isVenueScoped = false,
+    namaVanueAktif = null,
 }) {
     const inputClass = (field) =>
         `w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
@@ -37,6 +41,36 @@ export default function SuplayerFoodForm({
                         : 'Kode dibuat otomatis oleh sistem dari kombinasi huruf dan angka.'}
                 </p>
                 {errors.kode_suplayer && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.kode_suplayer}</p>}
+            </div>
+
+            <div>
+                <label htmlFor="vanue_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Venue
+                </label>
+                <select
+                    id="vanue_id"
+                    value={data.vanue_id ?? ''}
+                    onChange={(event) => setData('vanue_id', event.target.value)}
+                    disabled={vanueTerkunci}
+                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                        errors.vanue_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                    } ${vanueTerkunci ? 'cursor-not-allowed bg-slate-50 text-slate-600' : 'text-slate-800'}`}
+                >
+                    <option value="">Tanpa venue</option>
+                    {vanues.map((vanue) => (
+                        <option key={vanue.id} value={vanue.id}>
+                            {vanue.nama}
+                        </option>
+                    ))}
+                </select>
+                {errors.vanue_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.vanue_id}</p>}
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                    {editing
+                        ? 'Venue suplayer tidak dapat diubah setelah dibuat.'
+                        : isVenueScoped
+                            ? `Suplayer ini otomatis menjadi milik venue ${namaVanueAktif ?? ''}.`
+                            : 'Suplayer hanya dapat dipilih untuk menu pada venue yang sama.'}
+                </p>
             </div>
 
             <div>

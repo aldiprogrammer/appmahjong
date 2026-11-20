@@ -47,7 +47,7 @@ class PembayaranController extends Controller
             'id_venue' => ['required', Rule::exists('vanues', 'id')],
             'metode_pembayaran' => ['required', Rule::in(['transfer', 'qris'])],
             'bank' => ['required_if:metode_pembayaran,transfer', 'nullable', 'string', 'max:30'],
-            'atas_nama' => ['required_if:metode_pembayaran,transfer', 'nullable', 'string', 'max:30'],
+            'atas_nama' => ['required', 'string', 'max:30'],
             'norek' => ['required_if:metode_pembayaran,transfer', 'nullable', 'string', 'max:30'],
             'qris_image' => ['required_if:metode_pembayaran,qris', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);

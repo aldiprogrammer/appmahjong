@@ -15,6 +15,7 @@ class Menu extends Model
     protected $fillable = [
         'id_kategori',
         'vanue_id',
+        'suplayer_id',
         'nama',
         'gambar',
         'dibuat_di',
@@ -45,6 +46,14 @@ class Menu extends Model
     public function vanue(): BelongsTo
     {
         return $this->belongsTo(Vanue::class);
+    }
+
+    /**
+     * @return BelongsTo<SuplayerFood, $this>
+     */
+    public function suplayer(): BelongsTo
+    {
+        return $this->belongsTo(SuplayerFood::class, 'suplayer_id');
     }
 
     protected function gambarUrl(): Attribute

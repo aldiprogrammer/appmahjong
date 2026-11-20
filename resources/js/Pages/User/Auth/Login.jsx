@@ -92,7 +92,7 @@ export default function Login() {
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-200 transition group-hover:scale-110">
                         <GoogleIcon />
                     </span>
-                    Login dengan akun google anda
+                    Login dengan akun google
                     <span className="text-emerald-700 transition-transform group-hover:translate-x-0.5">
                         <ArrowIcon />
                     </span>

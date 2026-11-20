@@ -38,7 +38,7 @@ function EmptyIcon() {
     );
 }
 
-export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
+export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods = [], filters }) {
     const { flash, auth } = usePage().props;
     const currentAdmin = auth?.admin ?? null;
     const isVenueScoped = Boolean(currentAdmin?.vanue) && currentAdmin?.role !== 'super_admin';
@@ -57,6 +57,7 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
 
     const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
         vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
+        suplayer_id: '',
         id_kategori: '',
         nama: '',
         gambar: null,
@@ -76,6 +77,11 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
     // Kategori yang ditawarkan pada form mengikuti venue yang dipilih agar selalu senada.
     const kategoriTersedia = kategoriMenus.filter(
         (kategori) => String(kategori.vanue_id ?? '') === String(data.vanue_id ?? ''),
+    );
+
+    // Suplayer yang ditawarkan mengikuti venue yang dipilih.
+    const suplayerTersedia = suplayerFoods.filter(
+        (suplayer) => String(suplayer.vanue_id ?? '') === String(data.vanue_id ?? ''),
     );
 
     useEffect(() => {
@@ -162,6 +168,7 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
         clearErrors();
         setData({
             vanue_id: menu.vanue?.id ? String(menu.vanue.id) : '',
+            suplayer_id: menu.suplayer_id ? String(menu.suplayer_id) : '',
             id_kategori: String(menu.id_kategori),
             nama: menu.nama,
             gambar: null,
@@ -199,10 +206,16 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
             const kategoriMasihAda = kategoriVenue.some(
                 (kategori) => String(kategori.id) === String(current.id_kategori),
             );
+            const suplayerMasihAda = suplayerFoods.some(
+                (suplayer) =>
+                    String(suplayer.id) === String(current.suplayer_id) &&
+                    String(suplayer.vanue_id ?? '') === String(value ?? ''),
+            );
 
             return {
                 ...current,
                 vanue_id: value,
+                suplayer_id: suplayerMasihAda ? current.suplayer_id : '',
                 id_kategori: kategoriMasihAda ? current.id_kategori : '',
             };
         });
@@ -450,6 +463,7 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
                                             <th className="px-5 py-3 font-semibold">Nama Menu</th>
                                             <th className="px-5 py-3 font-semibold">Kategori</th>
                                             <th className="px-5 py-3 font-semibold">Venue</th>
+                                            <th className="px-5 py-3 font-semibold">Suplayer</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat di</th>
                                             <th className="px-5 py-3 font-semibold">Harga</th>
                                             <th className="px-5 py-3 font-semibold">Status</th>
@@ -498,6 +512,18 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
                                                     ) : (
                                                         <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
                                                             Tanpa venue
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {menu.suplayer ? (
+                                                        <span className="inline-flex flex-col">
+                                                            <span className="font-semibold text-slate-800">{menu.suplayer.nama_suplayer}</span>
+                                                            <span className="text-[11px] uppercase tracking-wide text-slate-400">{menu.suplayer.kode_suplayer}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa suplayer
                                                         </span>
                                                     )}
                                                 </td>
@@ -696,6 +722,33 @@ export default function Index({ menus, kategoriMenus, vanues = [], filters }) {
                                             ? `Menu ini otomatis menjadi milik venue ${currentAdmin?.vanue?.nama}.`
                                             : 'Pilihan kategori menyesuaikan venue yang dipilih.'}
                                 </p>
+                            </div>
+
+                            <div>
+                                <label htmlFor="suplayer_id" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                    Suplayer
+                                </label>
+                                <select
+                                    id="suplayer_id"
+                                    value={data.suplayer_id ?? ''}
+                                    onChange={(event) => setData('suplayer_id', event.target.value)}
+                                    className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                                        errors.suplayer_id ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                                    }`}
+                                >
+                                    <option value="">Tanpa suplayer</option>
+                                    {suplayerTersedia.map((suplayer) => (
+                                        <option key={suplayer.id} value={suplayer.id}>
+                                            {suplayer.nama_suplayer}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.suplayer_id && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.suplayer_id}</p>}
+                                {suplayerTersedia.length === 0 && (
+                                    <p className="mt-1.5 text-xs text-amber-600">
+                                        Belum ada suplayer pada venue ini. Tambahkan suplayer food terlebih dahulu.
+                                    </p>
+                                )}
                             </div>
 
                             <div>

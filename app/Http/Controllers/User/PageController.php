@@ -373,12 +373,11 @@ class PageController extends Controller
                 } while (Booking::query()->where('kode_booking', $kodeBooking)->exists());
 
                 $totalHarga = (string) $harga->harga_akhir;
+                $diskonPaketRupiah = 0;
 
                 if ($persenPaket > 0) {
-                    $totalHarga = (string) max(
-                        0,
-                        (int) $harga->harga_akhir - (int) round((int) $harga->harga_akhir * $persenPaket / 100),
-                    );
+                    $diskonPaketRupiah = (int) round((int) $harga->harga_akhir * $persenPaket / 100);
+                    $totalHarga = (string) max(0, (int) $harga->harga_akhir - $diskonPaketRupiah);
                 }
 
                 Booking::create([
@@ -398,6 +397,8 @@ class PageController extends Controller
                     'sistem_pembayaran' => '',
                     'harga' => (string) $harga->harga,
                     'total_harga' => $voucher ? '0' : $totalHarga,
+                    'diskon_paket' => $voucher ? '0' : (string) $diskonPaketRupiah,
+                    'diskon_paket_persen' => $voucher ? null : ($persenPaket > 0 ? $persenPaket : null),
                     'bukti_pembayaran' => '',
                     'status_booking' => '0',
                     'status_pembayaran' => $voucher ? 'lunas' : 'belum_bayar',
@@ -571,6 +572,8 @@ class PageController extends Controller
                     'sistem_pembayaran' => $gratis ? 'room' : '',
                     'harga' => (string) $sesi->harga,
                     'total_harga' => $gratis ? '0' : (string) $sesi->total_harga,
+                    'diskon_paket' => $gratis ? '0' : (string) ($sesi->diskon_paket ?? '0'),
+                    'diskon_paket_persen' => $gratis ? null : $sesi->diskon_paket_persen,
                     'bukti_pembayaran' => '',
                     'status_booking' => '0',
                     'status_pembayaran' => $gratis ? 'lunas' : 'belum_bayar',
@@ -758,6 +761,11 @@ class PageController extends Controller
                     'jam_selesai' => substr((string) $booking->jam_selesai, 0, 5),
                     'harga' => (int) $booking->harga,
                     'total_harga' => (int) $booking->total_harga,
+                    'diskon_paket' => (int) $booking->diskon_paket,
+                    'diskon_paket_persen' => $booking->diskon_paket_persen !== null
+                        ? (float) $booking->diskon_paket_persen
+                        : null,
+                    'pakai_voucher' => filled($booking->kode_voucher),
                 ])->values(),
             ],
             'pengaturanPembayaran' => [
@@ -939,15 +947,18 @@ class PageController extends Controller
                 }
 
                 $totalHarga = (int) $harga->harga_akhir;
+                $diskonPaketRupiah = 0;
 
                 if ($persenPaket > 0) {
-                    $totalHarga = max(
-                        0,
-                        $totalHarga - (int) round($totalHarga * $persenPaket / 100),
-                    );
+                    $diskonPaketRupiah = (int) round($totalHarga * $persenPaket / 100);
+                    $totalHarga = max(0, $totalHarga - $diskonPaketRupiah);
                 }
 
-                $sesi->update(['total_harga' => (string) $totalHarga]);
+                $sesi->update([
+                    'total_harga' => (string) $totalHarga,
+                    'diskon_paket' => (string) $diskonPaketRupiah,
+                    'diskon_paket_persen' => $persenPaket > 0 ? $persenPaket : null,
+                ]);
             }
         }
     }
