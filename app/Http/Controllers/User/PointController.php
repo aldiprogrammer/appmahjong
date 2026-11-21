@@ -59,12 +59,12 @@ class PointController extends Controller
             'pendingScan' => $pendingScan ? $this->payloadScan($pendingScan) : null,
             'riwayat' => $riwayat,
             'kartu' => app(MahjongCombinationService::class)->daftarKartu(),
-            'chickenScoring' => 'Chow 1 point · Pung 2 point · Kong 3 point',
+            'chickenScoring' => 'Chow 1 point · Pung 2 point · Kong 3 point · Bunga kursi 1 point',
             'scoringModes' => [
                 [
                     'value' => MahjongCombinationService::MODE_CHICKEN,
                     'label' => 'Chicken Hand',
-                    'description' => 'Chow 1 point, Pung 2 point, Kong 3 point. Pair dan bunga tidak dihitung.',
+                    'description' => 'Chow 1 point, Pung 2 point, Kong 3 point. Bunga sesuai posisi duduk +1 point.',
                 ],
                 [
                     'value' => MahjongCombinationService::MODE_HK,

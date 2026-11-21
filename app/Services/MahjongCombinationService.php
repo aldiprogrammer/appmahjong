@@ -12,6 +12,8 @@ class MahjongCombinationService
 
     public const POIN_KONG = 3;
 
+    public const POIN_BUNGA = 1;
+
     public const MODE_CHICKEN = 'chicken';
 
     public const MODE_HK = 'hk';
@@ -79,8 +81,9 @@ class MahjongCombinationService
      * Analisis susunan kartu: validasi winning hand, deteksi kombinasi, dan hitung poin.
      *
      * Mode "chicken" menjumlahkan point per meld: chow 1, pung 2, kong 3.
-     * Pair dan bunga tidak dihitung. Mode "hk" memakai penilaian HK klasik
-     * 3-14 faan dan menjadikan faan sebagai point.
+     * Bunga yang sesuai posisi duduk menambah 1 point; pair tidak dihitung.
+     * Mode "hk" memakai penilaian HK klasik 3-14 faan dan menjadikan faan
+     * sebagai point.
      *
      * Opsi manual HK: angin kursi, self-draw (自摸), kartu tertutup (門前清),
      * tanpa bunga (無花), last tile, robbing kong, dan kong replacement.
@@ -119,7 +122,7 @@ class MahjongCombinationService
 
         $hasil = $mode === self::MODE_HK
             ? $this->analisaHk($hand, $this->normalisasiOpsiHk($opsi), $flowers)
-            : $this->analisaChicken($hand);
+            : $this->analisaChicken($hand, $flowers, $this->normalisasiOpsiHk($opsi)['seat_wind']);
 
         $hasil['tiles'] = $semua;
         $hasil['flowers'] = $flowers;
@@ -151,11 +154,21 @@ class MahjongCombinationService
 
     /**
      * @param  array<int, string>  $tiles
+     * @param  array<int, string>  $flowers
      * @return array<string, mixed>
      */
-    private function analisaChicken(array $tiles): array
+    private function analisaChicken(array $tiles, array $flowers = [], ?string $seatWind = null): array
     {
         $counts = array_count_values($tiles);
+
+        // Bunga yang sesuai posisi duduk memberi bonus 1 point.
+        $bungaSendiri = $this->bungaSendiri($seatWind, $flowers);
+        $bonusBunga = $bungaSendiri !== [] ? self::POIN_BUNGA : 0;
+        $kombinasiBunga = [
+            'type' => 'special',
+            'label' => 'Set bunga kursi '.self::LABEL_KARTU[$seatWind ?? 'z1'],
+            'tiles' => $bungaSendiri,
+        ];
 
         if ($this->tujuhPasang($counts, count($tiles))) {
             $combinations = [];
@@ -164,7 +177,14 @@ class MahjongCombinationService
                 $combinations[] = $this->kombinasi('pair', [$tile, $tile]);
             }
 
-            return $this->hasil($tiles, true, $combinations, [], 'Winning hand: tujuh pasang (7 pairs).', self::MODE_CHICKEN);
+            $pesan = 'Winning hand: tujuh pasang (7 pairs).';
+
+            if ($bonusBunga > 0) {
+                $combinations[] = $kombinasiBunga;
+                $pesan .= ' Set bunga kursi +'.self::POIN_BUNGA.' point.';
+            }
+
+            return $this->hasil($tiles, true, $combinations, [], $pesan, self::MODE_CHICKEN, null, [], $bonusBunga);
         }
 
         $dekomposisi = $this->uraikan($counts);
@@ -178,7 +198,14 @@ class MahjongCombinationService
 
             $combinations[] = $this->kombinasi('pair', [$dekomposisi['pair'], $dekomposisi['pair']]);
 
-            return $this->hasil($tiles, true, $combinations, [], 'Chicken hand terdeteksi (4 meld + 1 pair).', self::MODE_CHICKEN);
+            $pesan = 'Chicken hand terdeteksi (4 meld + 1 pair).';
+
+            if ($bonusBunga > 0) {
+                $combinations[] = $kombinasiBunga;
+                $pesan .= ' Set bunga kursi +'.self::POIN_BUNGA.' point.';
+            }
+
+            return $this->hasil($tiles, true, $combinations, [], $pesan, self::MODE_CHICKEN, null, [], $bonusBunga);
         }
 
         [$combinations, $unmatched] = $this->deteksiKombinasi($counts);
@@ -483,14 +510,23 @@ class MahjongCombinationService
 
     /**
      * @param  array<int, string>  $flowers
+     * @return array<int, string>
+     */
+    private function bungaSendiri(?string $seatWind, array $flowers): array
+    {
+        if ($seatWind === null) {
+            return [];
+        }
+
+        return array_values(array_intersect(self::BUNGA_KURSI[$seatWind] ?? [], $flowers));
+    }
+
+    /**
+     * @param  array<int, string>  $flowers
      */
     private function adaBungaSendiri(?string $seatWind, array $flowers): bool
     {
-        if ($seatWind === null) {
-            return false;
-        }
-
-        return array_intersect(self::BUNGA_KURSI[$seatWind] ?? [], $flowers) !== [];
+        return $this->bungaSendiri($seatWind, $flowers) !== [];
     }
 
     /**
@@ -1023,13 +1059,14 @@ class MahjongCombinationService
         string $mode = self::MODE_CHICKEN,
         ?int $faan = null,
         array $faanDetails = [],
+        int $bonusChicken = 0,
     ): array {
         $points = 0;
 
         if ($winning) {
             $points = $mode === self::MODE_HK
                 ? min(self::HK_MAX_FAAN, (int) $faan)
-                : $this->poinChicken($combinations);
+                : $this->poinChicken($combinations) + $bonusChicken;
         }
 
         return [
@@ -1047,8 +1084,8 @@ class MahjongCombinationService
     }
 
     /**
-     * Point chicken hand dijumlahkan per meld. Pair (termasuk tujuh pasang)
-     * dan bunga tidak memberi point.
+     * Point chicken hand dijumlahkan per meld. Pair dan kombinasi bunga
+     * ditambahkan terpisah lewat bonus. Bunga kursi tidak termasuk di sini.
      *
      * @param  array<int, array{type: string, label: string, tiles: array<int, string>}>  $combinations
      */

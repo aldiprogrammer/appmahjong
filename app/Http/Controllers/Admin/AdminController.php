@@ -18,6 +18,7 @@ class AdminController extends Controller
     public const ROLES = [
         'staff' => 'Staff',
         'admin' => 'Admin',
+        'kasir' => 'Kasir',
         'super_admin' => 'Super Admin',
     ];
 
@@ -26,7 +27,8 @@ class AdminController extends Controller
         $search = trim((string) $request->query('search', ''));
         $role = (string) $request->query('role', '');
         $vanueIdFilter = $this->vanueFilter($request);
-        $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
+        $adminAktif = $this->adminAktif($request);
+        $vanueTerbatas = $this->vanueTerbatas($adminAktif);
 
         $admins = Admin::query()
             ->with('vanue')
@@ -45,6 +47,7 @@ class AdminController extends Controller
         return Inertia::render('Admin/Admin/Index', [
             'admins' => $admins,
             'roles' => self::ROLES,
+            'adminMenus' => $this->menuTersedia($adminAktif),
             'vanues' => $this->daftarVanueTersedia($request),
             'filters' => [
                 'search' => $search,
@@ -56,6 +59,8 @@ class AdminController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $this->batasiRoleSuperAdmin($request);
+
         $validated = $request->validate($this->aturanValidasi($request), $this->pesanValidasi());
 
         $validated['hak_akses'] = $this->normalisasiHakAkses($validated['hak_akses'] ?? null);
@@ -72,6 +77,7 @@ class AdminController extends Controller
     public function update(Request $request, Admin $admin): RedirectResponse
     {
         $this->batasiAksesVanue($request, $admin->vanue_id !== null ? (int) $admin->vanue_id : null);
+        $this->batasiRoleSuperAdmin($request, $admin);
 
         $validated = $request->validate($this->aturanValidasi($request, $admin), $this->pesanValidasi());
 
@@ -95,12 +101,49 @@ class AdminController extends Controller
     public function destroy(Request $request, Admin $admin): RedirectResponse
     {
         $this->batasiAksesVanue($request, $admin->vanue_id !== null ? (int) $admin->vanue_id : null);
+        $this->batasiRoleSuperAdmin($request, $admin);
 
         $admin->delete();
 
         return redirect()
             ->route('admin.admins.index')
             ->with('success', 'Data admin berhasil dihapus.');
+    }
+
+    /**
+     * Hanya Super Admin yang boleh menambah, menjadikan, atau mengelola akun Super Admin.
+     */
+    private function batasiRoleSuperAdmin(Request $request, ?Admin $admin = null): void
+    {
+        $adminAktif = $this->adminAktif($request);
+
+        if ($adminAktif === null || $adminAktif->role === Admin::ROLE_SUPER_ADMIN) {
+            return;
+        }
+
+        if ((string) $request->input('role') === Admin::ROLE_SUPER_ADMIN
+            || $admin?->role === Admin::ROLE_SUPER_ADMIN) {
+            abort(403, 'Hanya Super Admin yang dapat menambah atau mengubah akun Super Admin.');
+        }
+    }
+
+    /**
+     * Menu yang boleh dipilih sebagai hak akses oleh admin yang sedang masuk.
+     * Super Admin (atau admin dengan akses penuh) mendapat semua menu.
+     *
+     * @return array<string, string>
+     */
+    private function menuTersedia(?Admin $admin): array
+    {
+        if ($admin === null || $admin->role === Admin::ROLE_SUPER_ADMIN || $admin->hak_akses === null) {
+            return Admin::MENU_AKSES;
+        }
+
+        return array_filter(
+            Admin::MENU_AKSES,
+            fn (string $menu): bool => in_array($menu, $admin->hak_akses, true),
+            ARRAY_FILTER_USE_KEY,
+        );
     }
 
     /**
@@ -131,7 +174,10 @@ class AdminController extends Controller
                 'confirmed',
             ],
             'hak_akses' => ['nullable', 'array'],
-            'hak_akses.*' => ['string', Rule::in(array_keys(Admin::MENU_AKSES))],
+            'hak_akses.*' => [
+                'string',
+                Rule::in(array_keys($this->menuTersedia($this->adminAktif($request)))),
+            ],
         ];
     }
 
@@ -174,7 +220,7 @@ class AdminController extends Controller
             'username.unique' => 'Username sudah digunakan oleh akun lain.',
             'role.required' => 'Role wajib dipilih.',
             'role.in' => 'Role yang dipilih tidak valid.',
-            'vanue_id.required' => 'Venue wajib dipilih untuk role staff dan admin.',
+            'vanue_id.required' => 'Venue wajib dipilih untuk role staff, kasir, dan admin.',
             'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
             'vanue_id.exists' => 'Venue yang dipilih tidak ditemukan.',
             'password.required' => 'Password wajib diisi.',

@@ -95,7 +95,7 @@ export default function Point({
     pendingScan = null,
     riwayat = [],
     kartu = [],
-    chickenScoring = 'Chow 1 point · Pung 2 point · Kong 3 point',
+    chickenScoring = 'Chow 1 point · Pung 2 point · Kong 3 point · Bunga kursi 1 point',
     scoringModes = [],
     hkMinFaan = 3,
     hkMaxFaan = 14,
@@ -469,7 +469,7 @@ export default function Point({
                             <p className="mt-1 text-xs leading-relaxed text-slate-500">
                                 {mode === 'hk'
                                     ? `Foto susunan kartu.Sistem akan membaca kartu lalu menghitung faan HK klasik (${hkMinFaan}-${hkMaxFaan} faan). Di bawah ${hkMinFaan} faan belum bisa menang.`
-                                    : `Foto susunan kartu. Sistem akan mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Point dihitung per meld: ${chickenScoring}. Pair dan bunga tidak dihitung.`}
+                                    : `Foto susunan kartu. Sistem akan mendeteksi kartu dan memvalidasi chicken hand (4 meld + 1 pair atau 7 pasang). Point dihitung per meld: ${chickenScoring}. Pair tidak dihitung.`}
                             </p>
                         </div>
                     </div>

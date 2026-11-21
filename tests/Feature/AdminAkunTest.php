@@ -241,4 +241,125 @@ class AdminAkunTest extends TestCase
 
         $this->assertDatabaseHas('admins', ['id' => $staffSurabaya->id, 'vanue_id' => $surabaya->id]);
     }
+
+    public function test_daftar_role_menyertakan_kasir(): void
+    {
+        $superAdmin = $this->buatAdmin(null, 'super_admin', 'super');
+
+        $this->masukSebagai($superAdmin)
+            ->get('/admin/admins')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Admin/Index')
+                ->where('roles.kasir', 'Kasir')
+            );
+    }
+
+    public function test_akun_kasir_dapat_dibuat_dan_difilter(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $superAdmin = $this->buatAdmin(null, 'super_admin', 'super');
+
+        $this->masukSebagai($superAdmin)
+            ->post('/admin/admins', [
+                'username' => 'kasir_jakarta',
+                'role' => 'kasir',
+                'vanue_id' => $jakarta->id,
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertRedirect(route('admin.admins.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('admins', [
+            'username' => 'kasir_jakarta',
+            'role' => 'kasir',
+            'vanue_id' => $jakarta->id,
+        ]);
+
+        $this->masukSebagai($superAdmin)
+            ->get('/admin/admins?role=kasir')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Admin/Index')
+                ->has('admins.data', 1)
+                ->where('admins.data.0.username', 'kasir_jakarta')
+                ->where('filters.role', 'kasir')
+            );
+    }
+
+    public function test_admin_biasa_tidak_bisa_menambah_atau_menjadikan_super_admin(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $admin = $this->buatAdmin($jakarta, 'admin', 'admin_jakarta');
+        $staff = $this->buatAdmin($jakarta, 'staff', 'staff_jakarta');
+
+        $this->masukSebagai($admin)
+            ->post('/admin/admins', [
+                'username' => 'super_baru',
+                'role' => 'super_admin',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertForbidden();
+
+        $this->masukSebagai($admin)
+            ->put("/admin/admins/{$staff->id}", [
+                'username' => 'staff_jakarta',
+                'role' => 'super_admin',
+                'vanue_id' => $jakarta->id,
+                'password' => '',
+                'password_confirmation' => '',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('admins', ['username' => 'super_baru']);
+        $this->assertSame('staff', $staff->fresh()->role);
+    }
+
+    public function test_pilihan_menu_hak_akses_mengikuti_admin_yang_masuk(): void
+    {
+        $jakarta = $this->buatVanue('Mahjong Center Jakarta');
+        $superAdmin = $this->buatAdmin(null, 'super_admin', 'super');
+        $adminTerbatas = Admin::create([
+            'username' => 'admin_terbatas',
+            'role' => 'admin',
+            'vanue_id' => $jakarta->id,
+            'hak_akses' => ['dashboard', 'mejas', 'admins'],
+            'password' => 'password123',
+        ]);
+
+        $this->masukSebagai($superAdmin)
+            ->get('/admin/admins')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('adminMenus.kasir', 'Kasir')
+                ->where('adminMenus.vouchers', 'Voucher')
+            );
+
+        $this->masukSebagai($adminTerbatas)
+            ->get('/admin/admins')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('adminMenus', [
+                    'dashboard' => 'Dashboard',
+                    'mejas' => 'Meja',
+                    'admins' => 'Akun Admin',
+                ])
+                ->missing('adminMenus.vouchers')
+            );
+
+        $this->masukSebagai($adminTerbatas)
+            ->post('/admin/admins', [
+                'username' => 'staff_baru',
+                'role' => 'staff',
+                'vanue_id' => $jakarta->id,
+                'hak_akses' => ['dashboard', 'vouchers'],
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertSessionHasErrors('hak_akses.1');
+
+        $this->assertDatabaseMissing('admins', ['username' => 'staff_baru']);
+    }
 }

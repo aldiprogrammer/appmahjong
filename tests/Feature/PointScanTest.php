@@ -74,13 +74,40 @@ class PointScanTest extends TestCase
         $this->assertSame(7, $hasil['points']);
     }
 
-    public function test_service_tidak_menghitung_bunga_pada_chicken_hand(): void
+    public function test_service_bunga_tanpa_posisi_duduk_tidak_menambah_point(): void
     {
         $hasil = (new MahjongCombinationService)->analisa([...self::WINNING_TILES, 'f1', 'f5', 'f3']);
 
         $this->assertTrue($hasil['is_winning_hand']);
         $this->assertSame(5, $hasil['points']);
         $this->assertSame(['f1', 'f3', 'f5'], $hasil['flowers']);
+    }
+
+    public function test_service_set_bunga_sesuai_posisi_duduk_menambah_satu_point(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa(
+            [...self::WINNING_TILES, 'f1', 'f3'],
+            MahjongCombinationService::MODE_CHICKEN,
+            ['seat_wind' => 'z1'],
+        );
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(6, $hasil['points']);
+        $this->assertContains('special', array_column($hasil['combinations'], 'type'));
+        $this->assertStringContainsString('bunga kursi', strtolower((string) $hasil['message']));
+    }
+
+    public function test_service_bunga_bukan_posisi_duduk_tidak_menambah_point(): void
+    {
+        $hasil = (new MahjongCombinationService)->analisa(
+            [...self::WINNING_TILES, 'f2', 'f6'],
+            MahjongCombinationService::MODE_CHICKEN,
+            ['seat_wind' => 'z1'],
+        );
+
+        $this->assertTrue($hasil['is_winning_hand']);
+        $this->assertSame(5, $hasil['points']);
+        $this->assertNotContains('special', array_column($hasil['combinations'], 'type'));
     }
 
     public function test_service_mengembalikan_nol_point_untuk_susunan_bukan_winning(): void

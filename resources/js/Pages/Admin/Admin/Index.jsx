@@ -18,6 +18,7 @@ function formatDate(value) {
 const roleBadgeStyles = {
     super_admin: 'bg-emerald-600 text-white ring-emerald-600',
     admin: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    kasir: 'bg-sky-50 text-sky-700 ring-sky-100',
     staff: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
 
@@ -54,7 +55,17 @@ function CloseIcon() {
 export default function Index({ admins, roles, vanues = [], filters }) {
     const { flash, auth, adminMenus } = usePage().props;
     const currentAdmin = auth?.admin ?? null;
-    const menuAkses = adminMenus ?? {};
+    const hakAksesAdmin = currentAdmin?.hak_akses;
+    const menuAkses = Object.fromEntries(
+        Object.entries(adminMenus ?? {}).filter(([key]) =>
+            currentAdmin?.role === 'super_admin'
+            || ! Array.isArray(hakAksesAdmin)
+            || hakAksesAdmin.includes(key),
+        ),
+    );
+    const rolesTersedia = Object.fromEntries(
+        Object.entries(roles ?? {}).filter(([value]) => currentAdmin?.role === 'super_admin' || value !== 'super_admin'),
+    );
     const [search, setSearch] = useState(filters?.search ?? '');
     const [role, setRole] = useState(filters?.role ?? '');
     const [vanueId, setVanueId] = useState(filters?.vanue_id ? String(filters.vanue_id) : '');
@@ -69,7 +80,7 @@ export default function Index({ admins, roles, vanues = [], filters }) {
         username: '',
         role: 'staff',
         vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
-        hak_akses: Object.keys(menuAkses),
+        hak_akses: [],
         password: '',
         password_confirmation: '',
     });
@@ -495,7 +506,7 @@ export default function Index({ admins, roles, vanues = [], filters }) {
                                 onCancel={closeFormModal}
                                 submitLabel={editingAdmin ? 'Simpan Perubahan' : 'Simpan Admin'}
                                 isEditing={Boolean(editingAdmin)}
-                                roles={roles}
+                                roles={rolesTersedia}
                                 vanues={vanues}
                                 adminMenus={menuAkses}
                                 currentAdmin={currentAdmin}

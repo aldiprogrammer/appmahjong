@@ -155,8 +155,8 @@ export default function BookingManualForm({ mejas, jamMains, hargas, bookedSlots
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm">
-            <div className="my-8 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
-                <div className="flex items-start justify-between gap-4">
+            <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                     <div>
                         <h2 className="text-base font-semibold text-slate-900">Tambah Booking Manual</h2>
                         <p className="mt-1 text-sm text-slate-500">
@@ -175,7 +175,7 @@ export default function BookingManualForm({ mejas, jamMains, hargas, bookedSlots
                     </button>
                 </div>
 
-                <form onSubmit={submit} className="mt-5 space-y-4">
+                <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-5">
                     <div className="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label htmlFor="manual_tgl_main" className="mb-1.5 block text-sm font-medium text-slate-700">
