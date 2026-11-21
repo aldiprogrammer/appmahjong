@@ -46,7 +46,28 @@ class ProfilNowaTest extends TestCase
         $response = $this->withSession(['pengguna_id' => $pengguna->id])
             ->post('/profil/whatsapp', ['nowa' => '081234567890']);
 
-        $response->assertSessionHasErrors('nowa');
+        $response->assertSessionHasErrors([
+            'nowa' => 'Nomor WhatsApp sudah terdaftar. Silakan masuk atau gunakan nomor lain.',
+        ]);
+        $this->assertNull($pengguna->fresh()->nowa);
+    }
+
+    public function test_nomor_whatsapp_tidak_boleh_sama_dengan_pengguna_lain_format_62(): void
+    {
+        $pengguna = $this->buatPengguna(['nowa' => null]);
+
+        $this->buatPengguna([
+            'kode_user' => 'PG-LAIN02',
+            'email' => 'lain@example.com',
+            'nowa' => '081234567890',
+        ]);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/profil/whatsapp', ['nowa' => '6281234567890']);
+
+        $response->assertSessionHasErrors([
+            'nowa' => 'Nomor WhatsApp sudah terdaftar. Silakan masuk atau gunakan nomor lain.',
+        ]);
         $this->assertNull($pengguna->fresh()->nowa);
     }
 

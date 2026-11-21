@@ -39,6 +39,16 @@ return [
         'rest_api_key' => env('ONESIGNAL_REST_API_KEY'),
     ],
 
+    'fonnte' => [
+        /*
+         * WhatsApp gateway untuk kode OTP registrasi. Dapatkan token di
+         * https://fonnte.com/ lalu isi FONNTE_TOKEN di file .env.
+         */
+        'token' => env('FONNTE_TOKEN'),
+        'base_url' => env('FONNTE_BASE_URL', 'https://api.fonnte.com'),
+        'timeout' => (int) env('FONNTE_TIMEOUT', 10),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

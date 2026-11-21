@@ -32,6 +32,24 @@ class Pengguna extends Model
     ];
 
     /**
+     * Samakan semua format nomor WhatsApp ke format internasional 62...
+     */
+    public static function normalisasiNomor(string $nowa): string
+    {
+        $nomor = preg_replace('/\D+/', '', $nowa) ?? '';
+
+        if (str_starts_with($nomor, '0')) {
+            return '62'.substr($nomor, 1);
+        }
+
+        if (str_starts_with($nomor, '8')) {
+            return '62'.$nomor;
+        }
+
+        return $nomor;
+    }
+
+    /**
      * Buat kode pengguna unik dengan format PG-XXXXXX.
      */
     public static function buatKodeUserUnik(): string

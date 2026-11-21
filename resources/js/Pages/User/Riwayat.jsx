@@ -1,5 +1,5 @@
 import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import UserLayout from '../../Layouts/UserLayout';
 
 function formatDate(value) {
@@ -126,6 +126,22 @@ function ArrowRightIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+function CopyIcon({ className = 'h-3.5 w-3.5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+        </svg>
+    );
+}
+
+function CheckIcon({ className = 'h-3.5 w-3.5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+        </svg>
+    );
+}
+
 function RiwayatSkeletonCard() {
     return (
         <article className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
@@ -209,6 +225,8 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
     const [deleting, setDeleting] = useState(false);
     const [showBookingSuccess, setShowBookingSuccess] = useState(false);
     const [filterTgl, setFilterTgl] = useState(filterTglMain ?? '');
+    const [kodeTersalin, setKodeTersalin] = useState(null);
+    const timerKodeTersalin = useRef(null);
     const bookingSuccessMessage = 'Bookingan Anda berhasil dilakukan. Silakan menunggu persetujuan dari admin kami.';
     // bookings belum dimuat (deferred) saat render awal — jaga agar aman.
     const daftarBooking = Array.isArray(bookings) ? bookings : [];
@@ -256,6 +274,31 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
 
         return () => window.removeEventListener('keydown', handleEscape);
     }, [deleteTarget, deleting]);
+
+    useEffect(() => () => clearTimeout(timerKodeTersalin.current), []);
+
+    const salinKodeBooking = async (kode) => {
+        if (!kode) {
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(kode);
+        } catch {
+            // Fallback lama bila clipboard API tidak tersedia (konteks non-HTTPS).
+            const area = document.createElement('textarea');
+
+            area.value = kode;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            area.remove();
+        }
+
+        setKodeTersalin(kode);
+        clearTimeout(timerKodeTersalin.current);
+        timerKodeTersalin.current = setTimeout(() => setKodeTersalin(null), 2000);
+    };
 
     const confirmDelete = () => {
         if (!deleteTarget) {
@@ -448,6 +491,30 @@ export default function Riwayat({ pengguna, bookings, filterTglMain = null }) {
                                     <div>
                                         <div className="flex flex-wrap items-center gap-1.5">
                                             <p className="text-sm font-bold text-slate-800">{booking.kode_booking}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => salinKodeBooking(booking.kode_booking)}
+                                                disabled={!booking.kode_booking}
+                                                aria-label={`Salin kode booking ${booking.kode_booking}`}
+                                                title="Salin kode booking"
+                                                className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-bold transition ${
+                                                    kodeTersalin === booking.kode_booking
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                                } disabled:cursor-not-allowed disabled:opacity-60`}
+                                            >
+                                                {kodeTersalin === booking.kode_booking ? (
+                                                    <>
+                                                        <CheckIcon />
+                                                        Tersalin
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CopyIcon />
+                                                        Salin
+                                                    </>
+                                                )}
+                                            </button>
                                             {booking.tipe_booking === 'public' || booking.kode_room ? (
                                                 <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700 ring-1 ring-sky-100">
                                                     Room

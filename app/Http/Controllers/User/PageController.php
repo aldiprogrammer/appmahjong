@@ -17,6 +17,7 @@ use App\Models\Settingbookingroom;
 use App\Models\Statusvoucher;
 use App\Models\Vanue;
 use App\Models\Voucher;
+use App\Rules\NomorWhatsappBelumTerdaftar;
 use App\Services\BuktiPembayaranService;
 use App\Services\NotifikasiBookingService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -1106,7 +1107,7 @@ class PageController extends Controller
         }
 
         $validated = $request->validate([
-            'nowa' => ['required', 'string', 'max:20', Rule::unique('penggunas', 'nowa')->ignore($pengguna->id)],
+            'nowa' => ['required', 'string', 'max:20', new NomorWhatsappBelumTerdaftar($pengguna->id)],
         ]);
 
         $pengguna->update(['nowa' => $validated['nowa']]);

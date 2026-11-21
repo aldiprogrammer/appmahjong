@@ -171,7 +171,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                         href="/booking"
                                         className="hidden rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-emerald-950 shadow transition hover:bg-lime-200 md:inline-flex"
                                     >
-                                        Booking Sekarang
+                                        Gabung Member
                                     </Link>
                                 </>
                             )}
