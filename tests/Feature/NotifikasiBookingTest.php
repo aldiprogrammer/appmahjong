@@ -12,8 +12,10 @@ use App\Models\Pengguna;
 use App\Models\Vanue;
 use App\Services\NotifikasiBookingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class NotifikasiBookingTest extends TestCase
@@ -79,14 +81,25 @@ class NotifikasiBookingTest extends TestCase
 
     public function test_booking_masuk_membuat_notifikasi_untuk_venue_meja(): void
     {
+        $this->fakeCloudinary();
+
         $vanue = $this->buatVanue();
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal($vanue);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
         ])->assertRedirect();
+
+        $kodePembayaran = Str::afterLast((string) $response->headers->get('Location'), '/');
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
 
         $notifikasi = NotifikasiBooking::query()->firstOrFail();
 

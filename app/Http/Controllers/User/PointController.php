@@ -9,15 +9,16 @@ use App\Models\Pengguna;
 use App\Models\Rank;
 use App\Services\GeminiMahjongDetector;
 use App\Services\MahjongCombinationService;
+use App\Services\MahjongScanImageService;
 use App\Services\OpenAiMahjongDetector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PointController extends Controller
 {
@@ -30,6 +31,8 @@ class PointController extends Controller
      * Jadwal booking disimpan dalam waktu WIB.
      */
     private const ZONA_WAKTU = 'Asia/Jakarta';
+
+    public function __construct(private readonly MahjongScanImageService $gambarScan) {}
 
     public function index(Request $request): Response
     {
@@ -123,25 +126,30 @@ class PointController extends Controller
 
         $opsi = $this->opsiHk($request);
 
-        $path = $request->file('image')->store('mahjong-scans', 'public');
+        try {
+            $urlGambar = $this->gambarScan->simpan($request->file('image'));
+        } catch (Throwable) {
+            return back()
+                ->withInput($request->except('image'))
+                ->with('error', 'Gagal mengunggah foto scan ke Cloudinary. Silakan coba lagi.');
+        }
 
         MahjongScan::query()
             ->where('id_pengguna', (string) $pengguna->id)
             ->where('status', 'pending')
             ->update(['status' => 'discarded']);
 
-        $absolutePath = Storage::disk('public')->path($path);
-
-        // Deteksi AI bisa memakan waktu; jangan biarkan PHP memutus request lebih dulu.
+        // Deteksi AI memakai file temporer hasil upload, bukan storage Laravel.
+        // Deteksi bisa memakan waktu; jangan biarkan PHP memutus request lebih dulu.
         @set_time_limit(0);
 
         $detector = $this->detektor();
-        $tiles = $detector->deteksi($absolutePath);
+        $tiles = $detector->deteksi((string) $request->file('image')->getRealPath());
         $analisa = app(MahjongCombinationService::class)->analisa($tiles, $mode, $opsi);
 
         MahjongScan::create([
             'id_pengguna' => (string) $pengguna->id,
-            'image_path' => $path,
+            'image_path' => $urlGambar,
             'tiles' => $analisa['tiles'],
             'combinations' => $analisa['combinations'],
             'unmatched' => $analisa['unmatched'],
@@ -224,7 +232,7 @@ class PointController extends Controller
             $jamSelesai = substr((string) $booking->jam_selesai, 0, 5);
             $batasScan = Carbon::parse($tanggalMain->toDateString().' '.$jamSelesai, self::ZONA_WAKTU)
                 ->addMinutes(self::TOLERANSI_SCAN_MENIT);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [
                 'valid' => false,
                 'message' => 'Jadwal booking tidak valid. Hubungi admin untuk bantuan.',

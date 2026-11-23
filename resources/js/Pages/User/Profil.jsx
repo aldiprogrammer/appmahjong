@@ -147,6 +147,8 @@ export default function Profil({ pengguna, points = 0, stats = { total: 0, diset
     const { flash } = usePage().props;
     const [confirmLogout, setConfirmLogout] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
+    const [otpTerkirim, setOtpTerkirim] = useState(false);
+    const [detikCooldown, setDetikCooldown] = useState(0);
     const {
         data: nowaData,
         setData: setNowaData,
@@ -154,16 +156,49 @@ export default function Profil({ pengguna, points = 0, stats = { total: 0, diset
         processing: savingNowa,
         errors: nowaErrors,
         reset: resetNowa,
+    } = useForm({ nowa: '', otp: '' });
+    // Form terpisah supaya permintaan OTP hanya mengirim nomor.
+    const {
+        setData: setOtpData,
+        post: postOtp,
+        processing: mengirimOtp,
+        errors: otpErrors,
+        clearErrors: clearOtpErrors,
     } = useForm({ nowa: '' });
     const meta = statusMeta(pengguna?.status);
     const initial = pengguna?.nama_depan?.charAt(0)?.toUpperCase() ?? '?';
+
+    useEffect(() => {
+        if (detikCooldown <= 0) {
+            return undefined;
+        }
+
+        const timer = setTimeout(() => setDetikCooldown((detik) => detik - 1), 1000);
+
+        return () => clearTimeout(timer);
+    }, [detikCooldown]);
+
+    const kirimOtpNowa = () => {
+        setOtpData('nowa', nowaData.nowa);
+        postOtp('/profil/whatsapp/otp', {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setOtpTerkirim(true);
+                setDetikCooldown(60);
+            },
+        });
+    };
 
     const simpanNowa = (event) => {
         event.preventDefault();
 
         postNowa('/profil/whatsapp', {
             preserveScroll: true,
-            onSuccess: () => resetNowa(),
+            onSuccess: () => {
+                resetNowa();
+                setOtpTerkirim(false);
+            },
         });
     };
 
@@ -287,22 +322,77 @@ export default function Profil({ pengguna, points = 0, stats = { total: 0, diset
                                 type="tel"
                                 inputMode="tel"
                                 value={nowaData.nowa}
-                                onChange={(event) => setNowaData('nowa', event.target.value)}
+                                onChange={(event) => {
+                                    const nomor = event.target.value;
+
+                                    setNowaData('nowa', nomor);
+                                    if (nomor !== nowaData.nowa) {
+                                        setNowaData('otp', '');
+                                        setOtpTerkirim(false);
+                                        clearOtpErrors();
+                                    }
+                                }}
                                 placeholder="08xxxxxxxxxx"
                                 autoComplete="tel"
                                 required
-                                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10 ${nowaErrors.nowa ? 'border-rose-300 bg-rose-50/50' : 'border-amber-200 bg-white'
+                                className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10 ${nowaErrors.nowa || otpErrors.nowa ? 'border-rose-300 bg-rose-50/50' : 'border-amber-200 bg-white'
                                     }`}
                             />
-                            {nowaErrors.nowa && (
-                                <p className="text-xs font-medium text-rose-600">{nowaErrors.nowa}</p>
+                            {(nowaErrors.nowa || otpErrors.nowa) && (
+                                <p className="text-xs font-medium text-rose-600">{nowaErrors.nowa || otpErrors.nowa}</p>
                             )}
+
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <button
+                                    type="button"
+                                    onClick={kirimOtpNowa}
+                                    disabled={savingNowa || mengirimOtp || detikCooldown > 0 || nowaData.nowa.trim() === ''}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {mengirimOtp
+                                        ? 'Mengirim...'
+                                        : detikCooldown > 0
+                                            ? `Kirim ulang OTP (${detikCooldown}s)`
+                                            : otpTerkirim
+                                                ? 'Kirim ulang OTP'
+                                                : 'Kirim kode OTP'}
+                                </button>
+                                {otpTerkirim && (
+                                    <span className="text-[11px] font-medium text-emerald-700">
+                                        Kode dikirim ke WhatsApp Anda
+                                    </span>
+                                )}
+                            </div>
+
+                            {otpTerkirim && (
+                                <div>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="one-time-code"
+                                        maxLength={6}
+                                        value={nowaData.otp}
+                                        onChange={(event) => setNowaData('otp', event.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        placeholder="6 digit kode OTP"
+                                        required
+                                        className={`w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold tracking-[0.4em] text-slate-800 outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:ring-4 focus:ring-emerald-600/10 ${nowaErrors.otp ? 'border-rose-300 bg-rose-50/50' : 'border-amber-200 bg-white'
+                                            }`}
+                                    />
+                                    {nowaErrors.otp && (
+                                        <p className="mt-1 text-xs font-medium text-rose-600">{nowaErrors.otp}</p>
+                                    )}
+                                    <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+                                        Masukkan kode yang dikirim ke WhatsApp Anda. Berlaku 5 menit.
+                                    </p>
+                                </div>
+                            )}
+
                             <button
                                 type="submit"
-                                disabled={savingNowa}
+                                disabled={savingNowa || !otpTerkirim || nowaData.otp.length !== 6}
                                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {savingNowa ? 'Menyimpan...' : 'Simpan Nomor WhatsApp'}
+                                {savingNowa ? 'Menyimpan...' : 'Verifikasi & Simpan Nomor WhatsApp'}
                             </button>
                         </form>
                     </section>

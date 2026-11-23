@@ -85,9 +85,11 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
         vanue_id: currentAdmin?.vanue?.id ? String(currentAdmin.vanue.id) : '',
         hari_list: ['Senin'],
         minimal_jam: '',
+        maksimal_jam: '',
         jam_mulai: '00:00',
         jam_selesai: '00:00',
         diskon_persen: '',
+        harga_paket: '',
     });
 
     useEffect(() => {
@@ -221,9 +223,11 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
             vanue_id: paket.vanue?.id ? String(paket.vanue.id) : '',
             hari_list: [paket.hari ?? 'Senin'],
             minimal_jam: String(paket.minimal_jam ?? ''),
+            maksimal_jam: paket.maksimal_jam == null ? '' : String(paket.maksimal_jam),
             jam_mulai: paket.jam_mulai ?? '00:00',
             jam_selesai: paket.jam_selesai ?? '00:00',
-            diskon_persen: String(paket.diskon_persen ?? ''),
+            diskon_persen: paket.diskon_persen == null ? '' : String(paket.diskon_persen),
+            harga_paket: paket.harga_paket == null ? '' : String(paket.harga_paket),
         });
         setEditingPaket(paket);
         setPaketFormOpen(true);
@@ -528,9 +532,9 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                 <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                         <div>
-                            <h2 className="text-base font-semibold text-slate-900">Paket Diskon</h2>
+                            <h2 className="text-base font-semibold text-slate-900">Paket Harga</h2>
                             <p className="text-sm text-slate-500">
-                                Diskon persen otomatis saat total durasi slot booking memenuhi syarat minimal jam.
+                                Tetapkan diskon persen atau harga tetap saat total durasi booking memenuhi syarat paket.
                             </p>
                         </div>
                         <button
@@ -550,9 +554,9 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-500">
                                 <EmptyIcon />
                             </span>
-                            <h3 className="mt-4 text-sm font-semibold text-slate-800">Belum ada paket diskon</h3>
+                            <h3 className="mt-4 text-sm font-semibold text-slate-800">Belum ada paket harga</h3>
                             <p className="mt-1 max-w-sm text-sm text-slate-500">
-                                Contoh: booking minimal 3 jam dapat diskon 5% pada hari tertentu.
+                                Contoh: paket 2 jam seharga Rp30.000 atau diskon 5% pada hari tertentu.
                             </p>
                             <button
                                 type="button"
@@ -567,14 +571,16 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[840px] text-left text-sm">
+                            <table className="w-full min-w-[1040px] text-left text-sm">
                                 <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                     <tr>
                                         <th className="px-5 py-3 font-semibold">No</th>
                                         <th className="px-5 py-3 font-semibold">Minimal Jam</th>
+                                        <th className="px-5 py-3 font-semibold">Maksimal Jam</th>
                                         <th className="px-5 py-3 font-semibold">Rentang Jam</th>
                                         <th className="px-5 py-3 font-semibold">Hari</th>
                                         <th className="px-5 py-3 font-semibold">Venue</th>
+                                        <th className="px-5 py-3 font-semibold">Harga Paket</th>
                                         <th className="px-5 py-3 font-semibold">Diskon</th>
                                         <th className="px-5 py-3 text-right font-semibold">Aksi</th>
                                     </tr>
@@ -586,6 +592,11 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                                             <td className="px-5 py-3.5">
                                                 <span className="inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
                                                     ≥ {paket.minimal_jam} jam
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                                                    {paket.maksimal_jam ? `≤ ${paket.maksimal_jam} jam` : 'Tanpa batas'}
                                                 </span>
                                             </td>
                                             <td className="px-5 py-3.5">
@@ -610,7 +621,20 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                                                 )}
                                             </td>
                                             <td className="px-5 py-3.5">
-                                                <span className="font-semibold text-rose-600">{paket.diskon_persen}%</span>
+                                                {paket.harga_paket != null ? (
+                                                    <span className="font-semibold text-emerald-700">
+                                                        {formatRupiah(paket.harga_paket)}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-3.5">
+                                                {paket.diskon_persen != null ? (
+                                                    <span className="font-semibold text-rose-600">{paket.diskon_persen}%</span>
+                                                ) : (
+                                                    <span className="text-slate-400">-</span>
+                                                )}
                                             </td>
                                             <td className="px-5 py-3.5">
                                                 <div className="flex items-center justify-end gap-2">
@@ -759,12 +783,12 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
                             <div>
                                 <h2 className="text-base font-semibold text-slate-900">
-                                    {editingPaket ? 'Edit Paket Diskon' : 'Tambah Paket Diskon'}
+                                    {editingPaket ? 'Edit Paket Harga' : 'Tambah Paket Harga'}
                                 </h2>
                                 <p className="mt-0.5 text-sm text-slate-500">
                                     {editingPaket
-                                        ? `Perbarui paket ${editingPaket.hari} minimal ${editingPaket.minimal_jam} jam.`
-                                        : 'Tentukan minimal jam, hari, dan persen diskonnya.'}
+                                        ? `Perbarui paket ${editingPaket.hari} ${editingPaket.maksimal_jam ? `${editingPaket.minimal_jam} - ${editingPaket.maksimal_jam} jam` : `minimal ${editingPaket.minimal_jam} jam`}.`
+                                        : 'Tentukan rentang durasi, hari, serta diskon atau harga tetapnya.'}
                                 </p>
                             </div>
                             <button
@@ -811,9 +835,14 @@ export default function Index({ hargaJamMains, jamMains = [], paketHargas = [], 
                                 <p className="mt-1 text-sm leading-relaxed text-slate-500">
                                     Paket{' '}
                                     <span className="font-semibold text-slate-700">
-                                        ≥ {paketDeleteTarget.minimal_jam} jam ({paketDeleteTarget.jam_mulai} -{' '}
-                                        {paketDeleteTarget.jam_selesai}, {paketDeleteTarget.hari},{' '}
-                                        {paketDeleteTarget.diskon_persen}%)
+                                        {paketDeleteTarget.maksimal_jam
+                                            ? `${paketDeleteTarget.minimal_jam} - ${paketDeleteTarget.maksimal_jam} jam`
+                                            : `≥ ${paketDeleteTarget.minimal_jam} jam`}{' '}
+                                        ({paketDeleteTarget.jam_mulai} - {paketDeleteTarget.jam_selesai},{' '}
+                                        {paketDeleteTarget.hari},{' '}
+                                        {paketDeleteTarget.harga_paket != null
+                                            ? formatRupiah(paketDeleteTarget.harga_paket)
+                                            : `${paketDeleteTarget.diskon_persen}%`})
                                     </span>{' '}
                                     akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
                                 </p>

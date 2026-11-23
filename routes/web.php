@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\SettingBookingRoomController;
 use App\Http\Controllers\Admin\StatusVoucherController;
 use App\Http\Controllers\Admin\SuplayerFoodController;
 use App\Http\Controllers\Admin\VanueController;
+use App\Http\Controllers\Admin\VerifikasiwhatsappController;
 use App\Http\Controllers\Admin\VoucherController;
 use App\Http\Controllers\User\AuthController;
 use App\Http\Controllers\User\GoogleAuthController;
@@ -64,6 +65,9 @@ Route::middleware('pengguna.auth')->group(function () {
     Route::get('/riwayat/{booking}/tiket', [PageController::class, 'downloadTiket'])->name('riwayat.tiket');
     Route::get('/riwayat/{booking}/download', [PageController::class, 'downloadTiket'])->name('riwayat.download');
     Route::get('/profil', [PageController::class, 'profil'])->name('profil');
+    Route::post('/profil/whatsapp/otp', [PageController::class, 'kirimOtpNowa'])
+        ->middleware('throttle:otp-register')
+        ->name('profil.nowa.otp');
     Route::post('/profil/whatsapp', [PageController::class, 'updateNowa'])->name('profil.nowa');
     Route::post('/profil/keluar', [AuthController::class, 'logout'])->name('profil.logout');
     Route::get('/notifikasi-pengguna', [NotifikasiPenggunaController::class, 'index'])->name('notifikasi.pengguna.index');
@@ -130,5 +134,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/pembayarans', [PembayaranController::class, 'index'])->name('pembayarans.index');
         Route::post('/pembayarans', [PembayaranController::class, 'store'])->name('pembayarans.store');
         Route::delete('/pembayarans/{pembayaran}', [PembayaranController::class, 'destroy'])->name('pembayarans.destroy');
+        Route::resource('verifikasi-whatsapps', VerifikasiwhatsappController::class)
+            ->except(['create', 'edit', 'show'])
+            ->parameters(['verifikasi-whatsapps' => 'verifikasiwhatsapp']);
     });
 });

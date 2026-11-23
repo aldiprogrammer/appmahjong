@@ -152,16 +152,18 @@ class HargaJamMainController extends Controller
                 'vanue_id' => $vanueTarget,
                 'hari' => $hari,
                 'minimal_jam' => $validated['minimal_jam'],
+                'maksimal_jam' => $validated['maksimal_jam'] ?? null,
                 'jam_mulai' => $validated['jam_mulai'],
                 'jam_selesai' => $validated['jam_selesai'],
-                'diskon_persen' => $validated['diskon_persen'],
+                'diskon_persen' => $validated['diskon_persen'] ?? null,
+                'harga_paket' => $validated['harga_paket'] ?? null,
             ]);
         }
 
         $jumlah = count($validated['hari_list']);
         $pesan = $jumlah === 1
-            ? 'Paket diskon berhasil ditambahkan.'
-            : "Paket diskon berhasil ditambahkan untuk {$jumlah} hari.";
+            ? 'Paket harga berhasil ditambahkan.'
+            : "Paket harga berhasil ditambahkan untuk {$jumlah} hari.";
 
         return redirect()
             ->route('admin.harga-jam-mains.index')
@@ -181,14 +183,16 @@ class HargaJamMainController extends Controller
         $paket->update([
             'hari' => $validated['hari_list'][0],
             'minimal_jam' => $validated['minimal_jam'],
+            'maksimal_jam' => $validated['maksimal_jam'] ?? null,
             'jam_mulai' => $validated['jam_mulai'],
             'jam_selesai' => $validated['jam_selesai'],
-            'diskon_persen' => $validated['diskon_persen'],
+            'diskon_persen' => $validated['diskon_persen'] ?? null,
+            'harga_paket' => $validated['harga_paket'] ?? null,
         ]);
 
         return redirect()
             ->route('admin.harga-jam-mains.index')
-            ->with('success', 'Paket diskon berhasil diperbarui.');
+            ->with('success', 'Paket harga berhasil diperbarui.');
     }
 
     public function destroyPaket(Request $request, paket_hargajammain $paket): RedirectResponse
@@ -202,7 +206,7 @@ class HargaJamMainController extends Controller
 
         return redirect()
             ->route('admin.harga-jam-mains.index')
-            ->with('success', 'Paket diskon berhasil dihapus.');
+            ->with('success', 'Paket harga berhasil dihapus.');
     }
 
     /**
@@ -265,9 +269,11 @@ class HargaJamMainController extends Controller
             'hari_list' => ['required', 'array', 'min:1'],
             'hari_list.*' => ['required', 'string', 'distinct', Rule::in(self::HARI)],
             'minimal_jam' => ['required', 'integer', 'min:1', 'max:168'],
+            'maksimal_jam' => ['nullable', 'integer', 'min:1', 'max:168', 'gte:minimal_jam'],
             'jam_mulai' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
             'jam_selesai' => ['required', 'string', 'regex:/^([01]\d|2[0-3]):[0-5]\d$/'],
-            'diskon_persen' => ['required', 'numeric', 'min:0', 'max:100'],
+            'diskon_persen' => ['nullable', 'numeric', 'min:0', 'max:100', 'required_without:harga_paket'],
+            'harga_paket' => ['nullable', 'numeric', 'min:0', 'required_without:diskon_persen'],
         ];
     }
 
@@ -286,6 +292,10 @@ class HargaJamMainController extends Controller
             'minimal_jam.integer' => 'Minimal jam harus berupa angka bulat.',
             'minimal_jam.min' => 'Minimal jam minimal 1.',
             'minimal_jam.max' => 'Minimal jam tidak boleh lebih dari 168.',
+            'maksimal_jam.integer' => 'Maksimal jam harus berupa angka bulat.',
+            'maksimal_jam.min' => 'Maksimal jam minimal 1.',
+            'maksimal_jam.max' => 'Maksimal jam tidak boleh lebih dari 168.',
+            'maksimal_jam.gte' => 'Maksimal jam harus lebih besar atau sama dengan minimal jam.',
             'jam_mulai.required' => 'Jam mulai wajib diisi.',
             'jam_mulai.regex' => 'Format jam mulai tidak valid (HH:MM).',
             'jam_selesai.required' => 'Jam selesai wajib diisi.',
@@ -294,6 +304,10 @@ class HargaJamMainController extends Controller
             'diskon_persen.numeric' => 'Diskon persen harus berupa angka.',
             'diskon_persen.min' => 'Diskon persen tidak boleh negatif.',
             'diskon_persen.max' => 'Diskon persen tidak boleh lebih dari 100.',
+            'diskon_persen.required_without' => 'Isi diskon persen atau harga paket.',
+            'harga_paket.numeric' => 'Harga paket harus berupa angka.',
+            'harga_paket.min' => 'Harga paket tidak boleh negatif.',
+            'harga_paket.required_without' => 'Isi harga paket atau diskon persen.',
             'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
             'vanue_id.exists' => 'Venue yang dipilih tidak ditemukan.',
         ];

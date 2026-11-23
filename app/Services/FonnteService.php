@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Verifikasiwhatsapp;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -17,7 +18,9 @@ class FonnteService
      */
     public function kirimPesan(string $target, string $pesan): bool
     {
-        $token = config('services.fonnte.token');
+        // Token aktif dikelola admin lewat menu Pengaturan > Verifikasi WhatsApp.
+        // Nilai di .env tetap dipakai bila belum ada token aktif di database.
+        $token = Verifikasiwhatsapp::tokenAktif() ?: config('services.fonnte.token');
 
         if (blank($token)) {
             Log::warning('Fonnte token belum dikonfigurasi; pesan tidak dikirim.');

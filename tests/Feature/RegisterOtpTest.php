@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Pengguna;
+use App\Models\Verifikasiwhatsapp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -166,6 +167,47 @@ class RegisterOtpTest extends TestCase
         ]);
         $this->assertFalse(Cache::has($this->kunciOtp('08123456789')));
         Http::assertSentCount(1);
+    }
+
+    public function test_kirim_otp_memakai_token_aktif_dari_tabel(): void
+    {
+        Verifikasiwhatsapp::create([
+            'nowa' => '08123456789',
+            'token' => 'token-dari-tabel',
+            'status' => Verifikasiwhatsapp::STATUS_AKTIF,
+        ]);
+        config()->set('services.fonnte.token', 'token-dari-env');
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.fonnte.com/send' => Http::response([
+                'status' => true,
+                'detail' => 'success! message in queue',
+            ]),
+        ]);
+
+        $this->post('/register/otp/kirim', ['nowa' => '08123456789'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.fonnte.com/send'
+            && $request->hasHeader('Authorization', 'token-dari-tabel'));
+    }
+
+    public function test_kirim_otp_memakai_token_env_bila_tidak_ada_token_aktif(): void
+    {
+        Verifikasiwhatsapp::create([
+            'nowa' => '08123456789',
+            'token' => 'token-nonaktif',
+            'status' => Verifikasiwhatsapp::STATUS_NONAKTIF,
+        ]);
+        $this->fakeFonnte();
+
+        $this->post('/register/otp/kirim', ['nowa' => '08123456789'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.fonnte.com/send'
+            && $request->hasHeader('Authorization', 'token-rahasia'));
     }
 
     public function test_kirim_otp_dibatasi_saat_masih_dalam_cooldown(): void

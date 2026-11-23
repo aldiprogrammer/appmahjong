@@ -37,6 +37,7 @@ class Booking extends Model
         'total_harga',
         'diskon_paket',
         'diskon_paket_persen',
+        'harga_paket',
         'bukti_pembayaran',
         'status_booking',
         'status_pembayaran',
@@ -97,15 +98,23 @@ class Booking extends Model
     protected function buktiPembayaranUrl(): Attribute
     {
         return Attribute::get(
-            fn (): ?string => $this->bukti_pembayaran
-                ? asset('storage/'.$this->bukti_pembayaran)
-                : null,
+            function (): ?string {
+                if (! $this->bukti_pembayaran) {
+                    return null;
+                }
+
+                if ($this->adalahUrl($this->bukti_pembayaran)) {
+                    return $this->bukti_pembayaran;
+                }
+
+                return asset('storage/'.$this->bukti_pembayaran);
+            },
         );
     }
 
     /**
-     * URL thumbnail untuk daftar (list). Fallback ke gambar utama bila thumbnail
-     * belum ada (booking lama sebelum fitur kompres aktif).
+     * URL thumbnail untuk daftar (list). Booking baru memakai transformasi
+     * Cloudinary; booking lama masih memakai thumbnail di storage lokal.
      */
     protected function buktiPembayaranThumbUrl(): Attribute
     {
@@ -117,12 +126,25 @@ class Booking extends Model
 
                 $thumbnail = app(BuktiPembayaranService::class)->pathThumbnail($this->bukti_pembayaran);
 
-                if ($thumbnail && Storage::disk('public')->exists($thumbnail)) {
+                if (! $thumbnail) {
+                    return null;
+                }
+
+                if ($this->adalahUrl($thumbnail)) {
+                    return $thumbnail;
+                }
+
+                if (Storage::disk('public')->exists($thumbnail)) {
                     return asset('storage/'.$thumbnail);
                 }
 
-                return asset('storage/'.$this->bukti_pembayaran);
+                return $this->bukti_pembayaran_url;
             },
         );
+    }
+
+    private function adalahUrl(string $path): bool
+    {
+        return str_starts_with($path, 'http://') || str_starts_with($path, 'https://');
     }
 }

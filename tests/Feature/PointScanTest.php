@@ -280,6 +280,7 @@ class PointScanTest extends TestCase
     public function test_scan_menyimpan_penanda_manual_hk(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -329,6 +330,7 @@ class PointScanTest extends TestCase
     public function test_scan_menyimpan_kondisi_hk_tambahan(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -379,6 +381,7 @@ class PointScanTest extends TestCase
     public function test_scan_menyimpan_foto_dan_membuat_scan_pending(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config(['services.openai.key' => null, 'services.gemini.key' => null]);
         $pengguna = $this->buatPengguna();
 
@@ -393,14 +396,56 @@ class PointScanTest extends TestCase
         $scan = MahjongScan::query()->firstOrFail();
 
         $this->assertSame('pending', $scan->status);
-        $this->assertNotNull($scan->image_path);
         $this->assertSame('z1', $scan->seat_wind);
-        Storage::disk('public')->assertExists($scan->image_path);
+        $this->assertStringStartsWith(
+            'https://res.cloudinary.com/test-cloud/image/upload/',
+            (string) $scan->image_path,
+        );
+        $this->assertStringContainsString('/scanning-point/', (string) $scan->image_path);
+        $this->assertSame($scan->image_path, MahjongScan::imageUrl($scan->image_path));
+        $this->assertSame([], Storage::disk('public')->files('mahjong-scans'));
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://api.cloudinary.com/v1_1/test-cloud/image/upload'
+            && str_starts_with((string) $this->parameterCloudinary($request, 'public_id'), 'scanning-point/'));
+    }
+
+    public function test_gagal_unggah_foto_scan_ke_cloudinary_tidak_membuat_scan(): void
+    {
+        config([
+            'services.cloudinary.cloud_name' => 'test-cloud',
+            'services.cloudinary.api_key' => 'test-key',
+            'services.cloudinary.api_secret' => 'test-secret',
+        ]);
+        Http::fake([
+            'api.cloudinary.com/*' => Http::response(['error' => ['message' => 'Server error']], 500),
+        ]);
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg'),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
+            ])
+            ->assertSessionHas('error', 'Gagal mengunggah foto scan ke Cloudinary. Silakan coba lagi.');
+
+        $this->assertSame(0, MahjongScan::query()->count());
+    }
+
+    public function test_url_gambar_scan_lokal_lama_tetap_memakai_storage(): void
+    {
+        $this->assertSame(
+            asset('storage/mahjong-scans/lama.jpg'),
+            MahjongScan::imageUrl('mahjong-scans/lama.jpg'),
+        );
+        $this->assertNull(MahjongScan::imageUrl(null));
     }
 
     public function test_scan_mode_hk_menyimpan_faan_dan_point(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -484,6 +529,7 @@ class PointScanTest extends TestCase
     public function test_scan_wajib_berupa_gambar(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         $pengguna = $this->buatPengguna();
 
         $this->withSession(['pengguna_id' => $pengguna->id])
@@ -496,6 +542,7 @@ class PointScanTest extends TestCase
     public function test_scan_hk_wajib_pilih_posisi_duduk(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         $pengguna = $this->buatPengguna();
 
         $this->withSession(['pengguna_id' => $pengguna->id])
@@ -512,6 +559,7 @@ class PointScanTest extends TestCase
     public function test_scan_chicken_hand_wajib_pilih_posisi_duduk(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         $pengguna = $this->buatPengguna();
 
         $this->withSession(['pengguna_id' => $pengguna->id])
@@ -607,6 +655,7 @@ class PointScanTest extends TestCase
     public function test_scan_memakai_hasil_deteksi_ai_untuk_winning_hand(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.openai.key' => 'test-key',
             'services.openai.base_url' => 'https://api.openai.test/v1',
@@ -652,6 +701,7 @@ class PointScanTest extends TestCase
     public function test_scan_tetap_berjalan_saat_openai_belum_dikonfigurasi(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.openai.key' => null,
             'services.gemini.key' => null,
@@ -681,6 +731,7 @@ class PointScanTest extends TestCase
     public function test_scan_memakai_gemini_saat_api_key_tersedia(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -736,6 +787,7 @@ class PointScanTest extends TestCase
     public function test_balasan_gemini_yang_terpotong_tidak_menghasilkan_kartu_palsu(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -777,6 +829,7 @@ class PointScanTest extends TestCase
     public function test_scan_berpindah_ke_model_cadangan_saat_model_utama_kena_limit(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -825,6 +878,7 @@ class PointScanTest extends TestCase
     public function test_pesan_kuota_muncul_saat_semua_model_kena_limit(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config([
             'services.gemini.key' => 'gemini-test-key',
             'services.gemini.base_url' => 'https://gemini.test/v1beta',
@@ -955,6 +1009,7 @@ class PointScanTest extends TestCase
     public function test_pengguna_lain_bisa_scan_memakai_kode_booking_teman_satu_meja(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         config(['services.openai.key' => null, 'services.gemini.key' => null]);
 
         $pengguna = $this->buatPengguna();
@@ -1033,6 +1088,7 @@ class PointScanTest extends TestCase
     public function test_scan_menolak_kode_booking_yang_sudah_lewat(): void
     {
         Storage::fake('public');
+        $this->fakeCloudinary();
         $pengguna = $this->buatPengguna();
         $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-18', '09:00', '10:00');
 

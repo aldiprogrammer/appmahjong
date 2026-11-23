@@ -1,5 +1,13 @@
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+function formatRupiah(value) {
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0,
+    }).format(Number(value) || 0);
+}
+
 function CheckIcon({ className = 'h-4 w-4' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2.4} stroke="currentColor">
@@ -25,7 +33,9 @@ export default function PaketDiskonForm({
     const semuaHariDipilih = hariList.length === HARI.length;
     const hariError = errors.hari_list || errors['hari_list.0'];
     const minimalJamError = errors.minimal_jam;
+    const maksimalJamError = errors.maksimal_jam;
     const diskonError = errors.diskon_persen;
+    const hargaPaketError = errors.harga_paket;
 
     const toggleHari = (hari) => {
         setData(
@@ -39,7 +49,10 @@ export default function PaketDiskonForm({
     };
 
     const minimalJam = Number(data.minimal_jam) || 0;
+    const maksimalJam = Number(data.maksimal_jam) || 0;
     const diskonPersen = Number(data.diskon_persen) || 0;
+    const hargaPaketDiisi = data.harga_paket !== '' && data.harga_paket !== null && data.harga_paket !== undefined;
+    const hargaPaket = Number(data.harga_paket) || 0;
 
     return (
         <form onSubmit={onSubmit} className="space-y-5">
@@ -163,8 +176,29 @@ export default function PaketDiskonForm({
                 </div>
 
                 <div>
+                    <label htmlFor="paket_maksimal_jam" className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Maksimal Jam
+                    </label>
+                    <input
+                        id="paket_maksimal_jam"
+                        type="number"
+                        min={minimalJam || 1}
+                        max="168"
+                        step="1"
+                        inputMode="numeric"
+                        value={data.maksimal_jam ?? ''}
+                        onChange={(event) => setData('maksimal_jam', event.target.value)}
+                        placeholder="Tanpa batas"
+                        className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                            maksimalJamError ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                        }`}
+                    />
+                    {maksimalJamError && <p className="mt-1.5 text-xs font-medium text-rose-600">{maksimalJamError}</p>}
+                </div>
+
+                <div>
                     <label htmlFor="paket_diskon_persen" className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Diskon (%) <span className="text-rose-500">*</span>
+                        Diskon (%)
                     </label>
                     <input
                         id="paket_diskon_persen"
@@ -173,17 +207,40 @@ export default function PaketDiskonForm({
                         max="100"
                         step="0.5"
                         inputMode="decimal"
-                        value={data.diskon_persen}
+                        value={data.diskon_persen ?? ''}
                         onChange={(event) => setData('diskon_persen', event.target.value)}
                         placeholder="5"
-                        required
                         className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
                             diskonError ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
                         }`}
                     />
                     {diskonError && <p className="mt-1.5 text-xs font-medium text-rose-600">{diskonError}</p>}
                 </div>
+
+                <div>
+                    <label htmlFor="paket_harga_paket" className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Harga Paket (Rp)
+                    </label>
+                    <input
+                        id="paket_harga_paket"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={data.harga_paket ?? ''}
+                        onChange={(event) => setData('harga_paket', event.target.value)}
+                        placeholder="30000"
+                        className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                            hargaPaketError ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                        }`}
+                    />
+                    {hargaPaketError && <p className="mt-1.5 text-xs font-medium text-rose-600">{hargaPaketError}</p>}
+                </div>
             </div>
+            <p className="text-xs leading-relaxed text-slate-500">
+                Isi Diskon (%) atau Harga Paket (minimal salah satu). Jika keduanya diisi, harga paket yang dipakai.
+                Maksimal jam kosong berarti tanpa batas durasi.
+            </p>
 
             <div>
                 <label className="mb-1.5 block text-sm font-medium text-slate-700">
@@ -220,7 +277,8 @@ export default function PaketDiskonForm({
                     </div>
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
-                    Paket hanya berlaku bila seluruh sesi yang dipilih berada di dalam rentang ini.
+                    Sesi yang terkena paket harus berada di dalam rentang ini. Bila booking lebih panjang dari
+                    maksimal jam, sesi sejumlah maksimal jam tetap memakai paket dan sisanya memakai harga normal.
                     Isi <span className="font-semibold text-slate-600">00:00 - 00:00</span> untuk berlaku seharian penuh.
                 </p>
             </div>
@@ -230,11 +288,14 @@ export default function PaketDiskonForm({
                     <div>
                         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Syarat Paket</p>
                         <p className="text-[11px] text-emerald-600">
-                            Booking minimal {minimalJam || 0} jam, seluruh sesi antara {data.jam_mulai || '-'} -{' '}
-                            {data.jam_selesai || '-'} pada hari terpilih.
+                            Booking {maksimalJam ? `${minimalJam || 0} - ${maksimalJam} jam` : `minimal ${minimalJam || 0} jam`},
+                            sesi paket antara {data.jam_mulai || '-'} - {data.jam_selesai || '-'} pada hari terpilih.
+                            {maksimalJam && ' Sesi lebihnya memakai harga normal.'}
                         </p>
                     </div>
-                    <p className="text-lg font-bold text-emerald-800">{diskonPersen || 0}%</p>
+                    <p className="text-lg font-bold text-emerald-800">
+                        {hargaPaketDiisi ? formatRupiah(hargaPaket) : `${diskonPersen || 0}%`}
+                    </p>
                 </div>
             </div>
 

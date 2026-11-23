@@ -50,8 +50,19 @@ class MahjongScan extends Model
         ];
     }
 
+    /**
+     * Foto baru tersimpan sebagai URL Cloudinary; path lokal lama tetap didukung.
+     */
     public static function imageUrl(?string $path): ?string
     {
-        return $path ? asset('storage/'.$path) : null;
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset('storage/'.$path);
     }
 }

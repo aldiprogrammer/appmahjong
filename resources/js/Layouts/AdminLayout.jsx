@@ -173,6 +173,15 @@ function PembayaranIcon({ className = 'h-5 w-5' }) {
         </svg>
     );
 }
+function VerifikasiWhatsappIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 11.67a8.25 8.25 0 0 1-12.6 7.02L3.75 20.25l1.62-3.75A8.25 8.25 0 1 1 20.25 11.67Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="m9 12 2 2 4.5-4.5" />
+        </svg>
+    );
+}
+
 /**
  * Ikon tiap menu panel admin. Kuncinya sama dengan kunci pada prop `adminMenus`
  * (segmen nama rute setelah "admin.").
@@ -197,6 +206,7 @@ const menuIcons = {
     printers: PrinterMenuIcon,
     'suplayer-foods': SuplayerFoodIcon,
     pembayarans: PembayaranIcon,
+    'verifikasi-whatsapps': VerifikasiWhatsappIcon,
 };
 
 /**
@@ -227,6 +237,10 @@ const menuGroups = {
     pembayarans: {
         label: 'Pengaturan',
         icon: PembayaranIcon,
+    },
+    'verifikasi-whatsapps': {
+        label: 'Pengaturan',
+        icon: VerifikasiWhatsappIcon,
     },
 };
 

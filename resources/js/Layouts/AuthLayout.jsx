@@ -297,7 +297,7 @@ export default function AuthLayout({ title, subtitle, badge, mode = 'login', chi
                             {footer && <div className="mt-5">{footer}</div>}
 
                             {/* <p className="mt-7 text-center text-[10px] font-medium uppercase tracking-[0.24em] text-slate-400">
-                                Mahjong Club &middot; Main nyaman, booking rapi
+                                789 Mahjong Society &middot; Main nyaman, booking rapi
                             </p> */}
                         </div>
                     </div>

@@ -131,6 +131,8 @@ class AdminBookingManualTest extends TestCase
         $this->assertSame(['50000', '50000'], $bookings->pluck('total_harga')->all());
         $this->assertNotNull($bookings->first()->dibayar_pada);
         $this->assertSame(1, $bookings->pluck('kode_pembayaran')->unique()->count());
+        $this->assertNotNull($bookings->first()->kode_booking);
+        $this->assertSame(1, $bookings->pluck('kode_booking')->unique()->count());
 
         // Identitas tamu disimpan di booking saja, tanpa akun pengguna baru.
         $this->assertSame(0, Pengguna::query()->count());

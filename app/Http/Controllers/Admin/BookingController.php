@@ -240,16 +240,17 @@ class BookingController extends Controller
             $terpakai = 0;
             $jumlahSesi = count($sesi);
 
+            // Satu kode booking dipakai bersama oleh seluruh sesi dalam transaksi ini.
+            do {
+                $kodeBooking = 'BK-'.$tanggal->format('Ymd').'-'.strtoupper(Str::random(4));
+            } while (Booking::query()->where('kode_booking', $kodeBooking)->exists());
+
             foreach ($sesi as $urutan => $sesiSaatIni) {
                 $diskonSesi = $urutan === $jumlahSesi - 1
                     ? $diskonTotal - $terpakai
                     : (int) round($sesiSaatIni['harga_akhir'] * $diskonTotal / max(1, $totalDasar));
                 $diskonSesi = min($diskonSesi, $diskonTotal - $terpakai);
                 $terpakai += $diskonSesi;
-
-                do {
-                    $kodeBooking = 'BK-'.$tanggal->format('Ymd').'-'.strtoupper(Str::random(4));
-                } while (Booking::query()->where('kode_booking', $kodeBooking)->exists());
 
                 Booking::create([
                     'kode_booking' => $kodeBooking,

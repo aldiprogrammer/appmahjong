@@ -407,28 +407,92 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
     const voucherJamMismatch = Boolean(voucherTerpilih) && data.jam_main_ids.length !== Number(voucherTerpilih.jumah_jam);
     const voucherJamMessage = 'Jumlah jam yang Anda pilih kurang atau lebih dari jumlah jam yang sudah ditentukan untuk voucher ini.';
 
-    // Paket diskon berlaku saat seluruh sesi terpilih berada di dalam rentang jam
-    // paket dan total durasi memenuhi syarat minimal jam pada hari dan venue yang
-    // sama. Voucher tidak bertumpuk dengan paket.
+    // Paket berlaku pada hari dan venue yang sama. Bila total durasi melebihi
+    // maksimal jam paket, sesi sejumlah maksimal jam dalam rentang jam paket
+    // tetap memakai paket; sisanya memakai harga jam normal.
     const totalDurasiMenit = jamTerpilih.reduce((jumlah, jam) => jumlah + durasiSlotMenit(jam), 0);
-    const paketCocok = (paket) =>
-        paket.hari === hariTerpilih &&
-        String(paket.vanue_id ?? '') === String(vanueTerpilih ?? '') &&
-        totalDurasiMenit >= Number(paket.minimal_jam) * 60 &&
-        sesiDalamRentang(jamTerpilih, paket.jam_mulai, paket.jam_selesai);
-    const paketAktif = voucherTerpilih
+    const hargaAkhirJam = (jam) => Number(hargaVenue(jam)?.harga_akhir) || 0;
+    const cocokPaket = (paket) => {
+        if (paket.hari !== hariTerpilih || String(paket.vanue_id ?? '') !== String(vanueTerpilih ?? '')) {
+            return null;
+        }
+
+        if (totalDurasiMenit < Number(paket.minimal_jam) * 60) {
+            return null;
+        }
+
+        const batas = paket.maksimal_jam == null ? null : Number(paket.maksimal_jam) * 60;
+        let sesiPaket;
+
+        if (batas === null || totalDurasiMenit <= batas) {
+            if (!sesiDalamRentang(jamTerpilih, paket.jam_mulai, paket.jam_selesai)) {
+                return null;
+            }
+            sesiPaket = [...jamTerpilih];
+        } else {
+            const dalamRentang = jamTerpilih
+                .filter((jam) => sesiDalamRentang([jam], paket.jam_mulai, paket.jam_selesai))
+                .sort((a, b) => menitDariJam(a.jam_mulai) - menitDariJam(b.jam_mulai));
+            sesiPaket = [];
+            let akumulasi = 0;
+
+            for (const jam of dalamRentang) {
+                const durasi = durasiSlotMenit(jam);
+
+                if (akumulasi + durasi > batas) {
+                    break;
+                }
+
+                sesiPaket.push(jam);
+                akumulasi += durasi;
+            }
+
+            if (akumulasi !== batas) {
+                return null;
+            }
+        }
+
+        if (sesiPaket.length === 0) {
+            return null;
+        }
+
+        const idPaket = new Set(sesiPaket.map((jam) => String(jam.id)));
+        const sesiNormal = jamTerpilih.filter((jam) => !idPaket.has(String(jam.id)));
+        const hargaNormalSisa = sesiNormal.reduce((jumlah, jam) => jumlah + hargaAkhirJam(jam), 0);
+        const hargaPaket = paket.harga_paket != null ? Number(paket.harga_paket) : null;
+        const persenPaket = hargaPaket === null ? Number(paket.diskon_persen) || 0 : 0;
+        const bagianPaket = hargaPaket !== null
+            ? Math.max(0, Math.round(hargaPaket))
+            : sesiPaket.reduce(
+                    (jumlah, jam) => jumlah + Math.max(0, hargaAkhirJam(jam) - Math.round((hargaAkhirJam(jam) * persenPaket) / 100)),
+                    0,
+                );
+
+        return {
+            paket,
+            hargaPaket,
+            persenPaket,
+            sesiPaket,
+            sesiNormal,
+            totalEfektif: bagianPaket + hargaNormalSisa,
+        };
+    };
+
+    const paketMatch = voucherTerpilih
         ? null
-        : (paketHargas.filter(paketCocok).sort(
+        : paketHargas.map(cocokPaket).filter(Boolean).sort(
                 (a, b) =>
-                    Number(b.diskon_persen) - Number(a.diskon_persen) ||
-                    Number(a.minimal_jam) - Number(b.minimal_jam),
-            )[0] ?? null);
-    const persenPaket = Number(paketAktif?.diskon_persen) || 0;
-    const totalSetelahPaket = rincian.reduce(
-        (jumlah, item) => jumlah + Math.max(0, item.total - Math.round((item.total * persenPaket) / 100)),
-        0,
-    );
+                    a.totalEfektif - b.totalEfektif ||
+                    Number(a.paket.minimal_jam) - Number(b.paket.minimal_jam),
+            )[0] ?? null;
+    const paketAktif = paketMatch?.paket ?? null;
+    const hargaPaket = paketMatch?.hargaPaket ?? null;
+    const persenPaket = paketMatch?.persenPaket ?? 0;
+    const totalSetelahPaket = paketMatch ? paketMatch.totalEfektif : total;
     const diskonPaket = total - totalSetelahPaket;
+    const labelRentangPaket = paketAktif?.maksimal_jam != null
+        ? `${paketAktif.minimal_jam} - ${paketAktif.maksimal_jam} jam`
+        : `≥ ${paketAktif?.minimal_jam} jam`;
 
     const tampilkanPeringatanDurasiVoucher = () => {
         Swal.fire({
@@ -1102,15 +1166,26 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                             <span>-{formatRupiah(totalDiskon)}</span>
                                                         </div>
                                                     )}
-                                                    {diskonPaket > 0 && (
+                                                    {hargaPaket !== null ? (
+                                                        <div className="flex items-center justify-between gap-3 text-rose-200">
+                                                            <span>
+                                                                Harga paket ({labelRentangPaket} ·{' '}
+                                                                {paketAktif?.jam_mulai} - {paketAktif?.jam_selesai})
+                                                            </span>
+                                                            <span className="text-right">
+                                                                {formatRupiah(totalSetelahPaket)}
+                                                                {diskonPaket > 0 && ` (-${formatRupiah(diskonPaket)})`}
+                                                            </span>
+                                                        </div>
+                                                    ) : diskonPaket > 0 ? (
                                                         <div className="flex items-center justify-between text-rose-200">
                                                             <span>
-                                                                Diskon paket ({persenPaket}% · ≥ {paketAktif?.minimal_jam} jam ·{' '}
+                                                                Diskon paket ({persenPaket}% · {labelRentangPaket} ·{' '}
                                                                 {paketAktif?.jam_mulai} - {paketAktif?.jam_selesai})
                                                             </span>
                                                             <span>-{formatRupiah(diskonPaket)}</span>
                                                         </div>
-                                                    )}
+                                                    ) : null}
                                                     <div className="flex items-end justify-between pt-1">
                                                         <span className="text-xs text-emerald-100">
                                                             {data.tipe_booking === 'public' && hargaDibagi ? 'Total bayar / user' : 'Total bayar'}
@@ -1147,8 +1222,8 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                             </div>
                                             <p className="text-[11px] leading-relaxed text-slate-500">
                                                 Tekan <span className="font-semibold text-slate-700">Lanjut ke Pembayaran</span> untuk
-                                                membuat booking. Kamu akan diarahkan ke halaman pembayaran untuk transfer dan
-                                                mengunggah bukti bayar.
+                                                melihat instruksi pembayaran. Booking baru tersimpan setelah kamu mengirim
+                                                bukti bayar di halaman berikutnya.
                                             </p>
                                         </section>
                                     </>
@@ -1180,7 +1255,7 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                             disabled={processing || hargaTidakTersedia || jamTerpilih.length === 0}
                                             className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
-                                            {processing ? 'Membuat booking...' : 'Lanjut ke Pembayaran'}
+                                            {processing ? 'Menyiapkan pembayaran...' : 'Lanjut ke Pembayaran'}
                                         </button>
                                     )}
                                 </div>
@@ -1200,8 +1275,9 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
 
                                 {step === 3 && (
                                     <p className="text-center text-[11px] leading-relaxed text-slate-400">
-                                        Selesaikan pembayaran di halaman berikutnya. Booking berstatus{' '}
-                                        <span className="font-semibold text-amber-500">menunggu</span> hingga disetujui admin.
+                                        Jadwal belum tersimpan. Booking masuk ke database setelah bukti pembayaran dikirim,
+                                        lalu berstatus{' '}
+                                        <span className="font-semibold text-amber-500">menunggu verifikasi</span>.
                                     </p>
                                 )}
                             </div>

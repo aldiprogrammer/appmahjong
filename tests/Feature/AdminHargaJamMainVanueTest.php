@@ -10,7 +10,9 @@ use App\Models\Meja;
 use App\Models\Pengguna;
 use App\Models\Vanue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -73,6 +75,28 @@ class AdminHargaJamMainVanueTest extends TestCase
             'harga_akhir' => $harga,
             'vanue_id' => $vanue?->id,
         ]);
+    }
+
+    private function ajukanBooking(Pengguna $pengguna, Meja $meja, jam_main $jam, Carbon $tanggal): void
+    {
+        $this->fakeCloudinary();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jam->id],
+                'tgl_main' => $tanggal->toDateString(),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $kodePembayaran = Str::afterLast((string) $response->headers->get('Location'), '/');
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
     }
 
     /**
@@ -203,6 +227,8 @@ class AdminHargaJamMainVanueTest extends TestCase
 
     public function test_booking_memakai_harga_sesuai_venue_meja(): void
     {
+        $this->fakeCloudinary();
+
         $jakarta = $this->buatVanue('Mahjong Center Jakarta');
         $surabaya = $this->buatVanue('Mahjong Center Surabaya');
         $jam = $this->buatJamMain();
@@ -213,21 +239,8 @@ class AdminHargaJamMainVanueTest extends TestCase
         $pengguna = $this->buatPengguna('PG-VENUE01', 'venue1@example.com');
         $tanggal = Carbon::tomorrow();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post('/booking', [
-                'meja_id' => (string) $mejaJakarta->id,
-                'jam_main_ids' => [(string) $jam->id],
-                'tgl_main' => $tanggal->toDateString(),
-            ])
-            ->assertSessionHasNoErrors();
-
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post('/booking', [
-                'meja_id' => (string) $mejaSurabaya->id,
-                'jam_main_ids' => [(string) $jam->id],
-                'tgl_main' => $tanggal->toDateString(),
-            ])
-            ->assertSessionHasNoErrors();
+        $this->ajukanBooking($pengguna, $mejaJakarta, $jam, $tanggal);
+        $this->ajukanBooking($pengguna, $mejaSurabaya, $jam, $tanggal);
 
         $hargaPerMeja = Booking::query()
             ->pluck('harga', 'id_meja')

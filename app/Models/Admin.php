@@ -37,6 +37,7 @@ class Admin extends Model
         'admins' => 'Akun Admin',
         'printers' => 'Printer',
         'pembayarans' => 'Pembayaran',
+        'verifikasi-whatsapps' => 'Verifikasi WhatsApp',
     ];
 
     protected $fillable = [

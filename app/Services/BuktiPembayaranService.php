@@ -4,14 +4,16 @@ namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 /**
- * Mengompres dan meresize bukti pembayaran (JPG/PNG) saat diunggah:
+ * Mengompres dan meresize bukti pembayaran (JPG/PNG) di memory sebelum
+ * diunggah ke Cloudinary:
  * - gambar utama maksimal 1000x1400px, kualitas JPEG 80
- * - thumbnail untuk daftar maksimal lebar 420px, kualitas JPEG 75
+ * - thumbnail dibuat otomatis oleh Cloudinary lewat transformasi URL
  *
- * File asli tidak disimpan; hanya hasil terkompres yang masuk ke disk 'public'
- * di folder bukti-pembayaran/. Nama file digenerasi acak.
+ * File asli tidak disimpan, baik di storage Laravel maupun di Cloudinary.
  */
 class BuktiPembayaranService
 {
@@ -19,55 +21,52 @@ class BuktiPembayaranService
 
     private const MAX_TINGGI = 1400;
 
-    private const LEBAR_THUMBNAIL = 420;
-
     private const KUALITAS = 80;
-
-    private const KUALITAS_THUMBNAIL = 75;
 
     private const DISK = 'public';
 
-    private const FOLDER = 'bukti-pembayaran';
+    public function __construct(private readonly CloudinaryService $cloudinary) {}
 
     /**
-     * Simpan bukti pembayaran terkompres, kembalikan path relatif gambar utama.
-     * Path thumbnail selalu <nama>-thumb.jpg, bisa diakses via Booking::bukti_pembayaran_thumb_url.
+     * Simpan bukti pembayaran terkompres ke Cloudinary, kembalikan secure_url.
      */
     public function simpan(UploadedFile $file): string
     {
         try {
-            $gd = imagecreatefromstring((string) file_get_contents($file->getRealPath()));
+            $isi = (string) file_get_contents((string) $file->getRealPath());
+            $nama = bin2hex(random_bytes(12));
+            $gd = @imagecreatefromstring($isi);
 
             if ($gd === false) {
-                // Fallback: simpan apa adanya bila GD tidak bisa memproses gambar.
-                return $file->store(self::FOLDER, self::DISK);
+                // Tetap unggah apa adanya bila GD tidak bisa memproses gambar.
+                return $this->cloudinary->unggah($isi, $nama.'.'.$this->ekstensiAsli($file));
             }
 
             $gd = $this->perbaikiOrientasiExif($file, $gd);
-            $nama = bin2hex(random_bytes(12));
-
-            $this->simpanJpeg($gd, self::MAX_LEBAR, self::MAX_TINGGI, self::KUALITAS, "{$nama}.jpg");
-            $this->simpanJpeg($gd, self::LEBAR_THUMBNAIL, self::MAX_TINGGI, self::KUALITAS_THUMBNAIL, "{$nama}-thumb.jpg");
+            $isi = $this->kompresJpeg($gd);
 
             imagedestroy($gd);
 
-            return sprintf('%s/%s.jpg', self::FOLDER, $nama);
-        } catch (\Throwable $exception) {
-            // Bila server tidak sanggup memproses (mis. batas memori GD), simpan file asli
-            // agar pengguna tetap bisa mengunggah bukti pembayaran.
+            return $this->cloudinary->unggah($isi, $nama.'.jpg');
+        } catch (Throwable $exception) {
             report($exception);
 
-            return $file->store(self::FOLDER, self::DISK);
+            throw new RuntimeException('Gagal mengunggah bukti pembayaran. Silakan coba lagi.', 0, $exception);
         }
     }
 
     /**
-     * Thumbnail Pinpath dari path utama; null bila path utama kosong.
+     * URL thumbnail dari URL Cloudinary, atau path thumbnail lama untuk
+     * booking yang masih memakai storage lokal. Null bila path utama kosong.
      */
     public function pathThumbnail(?string $pathUtama): ?string
     {
         if (! $pathUtama) {
             return null;
+        }
+
+        if ($this->adalahUrl($pathUtama)) {
+            return $this->cloudinary->urlThumbnail($pathUtama);
         }
 
         $info = pathinfo($pathUtama);
@@ -76,11 +75,24 @@ class BuktiPembayaranService
     }
 
     /**
-     * Hapus gambar utama dan thumbnail bila ada.
+     * Hapus aset Cloudinary untuk bukti baru. Path lokal lama tetap dihapus
+     * dari disk 'public' agar booking lama bisa diunggah ulang.
      */
     public function hapus(?string $pathUtama): void
     {
         if (! $pathUtama) {
+            return;
+        }
+
+        if ($this->adalahUrl($pathUtama)) {
+            try {
+                $this->cloudinary->hapus($pathUtama);
+            } catch (Throwable $exception) {
+                // Bukti baru sudah tersimpan; kegagalan hapus tidak boleh
+                // membatalkan unggah ulang.
+                report($exception);
+            }
+
             return;
         }
 
@@ -92,14 +104,26 @@ class BuktiPembayaranService
         }
     }
 
+    private function adalahUrl(string $path): bool
+    {
+        return str_starts_with($path, 'http://') || str_starts_with($path, 'https://');
+    }
+
+    private function ekstensiAsli(UploadedFile $file): string
+    {
+        $ekstensi = strtolower((string) $file->getClientOriginalExtension());
+
+        return in_array($ekstensi, ['jpg', 'jpeg', 'png'], true) ? $ekstensi : 'jpg';
+    }
+
     /**
-     * Ukur ulang lebar gambar bila melebihi batas, lalu simpan sebagai JPEG.
+     * Ukur ulang lebar gambar bila melebihi batas, lalu kembalikan byte JPEG.
      */
-    private function simpanJpeg(\GdImage $gd, int $lebarMaks, int $tinggiMaks, int $kualitas, string $namaFile): void
+    private function kompresJpeg(\GdImage $gd): string
     {
         $lebarAsli = max(1, imagesx($gd));
         $tinggiAsli = max(1, imagesy($gd));
-        $skala = min(1, $lebarMaks / $lebarAsli, $tinggiMaks / $tinggiAsli);
+        $skala = min(1, self::MAX_LEBAR / $lebarAsli, self::MAX_TINGGI / $tinggiAsli);
 
         $lebarBaru = max(1, (int) round($lebarAsli * $skala));
         $tinggiBaru = max(1, (int) round($tinggiAsli * $skala));
@@ -107,11 +131,11 @@ class BuktiPembayaranService
         $hasil = $this->kanvasJpeg($gd, $lebarBaru, $tinggiBaru);
 
         ob_start();
-        imagejpeg($hasil, null, $kualitas);
+        imagejpeg($hasil, null, self::KUALITAS);
         $isi = (string) ob_get_clean();
         imagedestroy($hasil);
 
-        Storage::disk(self::DISK)->put(self::FOLDER.'/'.$namaFile, $isi);
+        return $isi;
     }
 
     /**
@@ -124,7 +148,7 @@ class BuktiPembayaranService
         $kanvas = imagecreatetruecolor($lebar, $tinggi);
 
         if ($kanvas === false) {
-            throw new \RuntimeException('Gagal membuat kanvas gambar bukti pembayaran.');
+            throw new RuntimeException('Gagal membuat kanvas gambar bukti pembayaran.');
         }
 
         $putih = (int) imagecolorallocate($kanvas, 255, 255, 255);
@@ -144,7 +168,7 @@ class BuktiPembayaranService
         try {
             $exif = @exif_read_data((string) $file->getRealPath());
             $orientasi = (int) ($exif['Orientation'] ?? 0);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Gambar tanpa EXIF dipakai apa adanya.
         }
 

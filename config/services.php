@@ -42,7 +42,9 @@ return [
     'fonnte' => [
         /*
          * WhatsApp gateway untuk kode OTP registrasi. Dapatkan token di
-         * https://fonnte.com/ lalu isi FONNTE_TOKEN di file .env.
+         * https://fonnte.com/ lalu isi FONNTE_TOKEN di file .env. Token aktif
+         * yang ditambahkan admin di menu Pengaturan > Verifikasi WhatsApp
+         * mengambil prioritas lebih tinggi dari nilai di sini.
          */
         'token' => env('FONNTE_TOKEN'),
         'base_url' => env('FONNTE_BASE_URL', 'https://api.fonnte.com'),
@@ -115,6 +117,20 @@ return [
         'model' => env('MAHJONG_OPENAI_MODEL', env('OPENAI_MODEL', 'gpt-4o-mini')),
         'detail' => env('MAHJONG_OPENAI_IMAGE_DETAIL', 'high'),
         'timeout' => (int) env('MAHJONG_OPENAI_TIMEOUT', 60),
+    ],
+
+    'cloudinary' => [
+        /*
+         * Bukti pembayaran dan foto scan point diunggah langsung ke Cloudinary
+         * lewat Upload API bertanda tangan. Cloud name, API key, dan API secret
+         * diambil dari halaman API Keys di Cloudinary Console.
+         */
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'api_key' => env('CLOUDINARY_API_KEY'),
+        'api_secret' => env('CLOUDINARY_API_SECRET'),
+        'folder' => env('CLOUDINARY_FOLDER', 'bukti-pembayaran'),
+        'connect_timeout' => (int) env('CLOUDINARY_CONNECT_TIMEOUT', 5),
+        'timeout' => (int) env('CLOUDINARY_TIMEOUT', 30),
     ],
 
 ];

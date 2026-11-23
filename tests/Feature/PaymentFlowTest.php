@@ -15,9 +15,11 @@ use App\Models\Vanue;
 use App\Models\Voucher;
 use App\Services\BuktiPembayaranService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -25,7 +27,7 @@ class PaymentFlowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_booking_creates_pembayaran_without_payment_fields(): void
+    public function test_lanjut_ke_pembayaran_tidak_menyimpan_booking_ke_database(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
@@ -35,13 +37,130 @@ class PaymentFlowTest extends TestCase
             'tgl_main' => $tanggal->toDateString(),
         ]);
 
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $response->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertNotNull(session('booking_drafts.'.$kodePembayaran));
+    }
+
+    public function test_kirim_bukti_pembayaran_menyimpan_booking_ke_database(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
+
         $booking = Booking::query()->firstOrFail();
 
-        $response->assertRedirect(route('booking.pembayaran', $booking->kode_pembayaran));
-        $this->assertNotNull($booking->kode_pembayaran);
-        $this->assertSame('belum_bayar', $booking->status_pembayaran);
-        $this->assertSame('', $booking->sistem_pembayaran);
+        $this->assertSame($kodePembayaran, $booking->kode_pembayaran);
+        $this->assertSame('menunggu_verifikasi', $booking->status_pembayaran);
+        $this->assertSame('transfer', $booking->sistem_pembayaran);
         $this->assertSame('0', $booking->status_booking);
+        $this->assertNull(session('booking_drafts.'.$kodePembayaran));
+    }
+
+    public function test_semua_sesi_satu_transaksi_memakai_kode_booking_yang_sama(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
+
+        $bookings = Booking::query()->orderBy('jam_mulai')->get();
+
+        $this->assertCount(2, $bookings);
+        $this->assertNotNull($bookings->first()->kode_booking);
+        $this->assertSame(1, $bookings->pluck('kode_booking')->unique()->count());
+        $this->assertSame(1, $bookings->pluck('kode_pembayaran')->unique()->count());
+        $this->assertSame($kodePembayaran, $bookings->first()->kode_pembayaran);
+        $this->assertSame([(string) $pengguna->id, (string) $pengguna->id], $bookings->pluck('id_pengguna')->all());
+    }
+
+    public function test_gagal_unggah_ke_cloudinary_tidak_menyimpan_booking(): void
+    {
+        config([
+            'services.cloudinary.cloud_name' => 'test-cloud',
+            'services.cloudinary.api_key' => 'test-key',
+            'services.cloudinary.api_secret' => 'test-secret',
+        ]);
+        Http::fake([
+            'api.cloudinary.com/*' => Http::response(['error' => ['message' => 'Server error']], 500),
+        ]);
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertSessionHas('error', 'Gagal mengunggah bukti pembayaran ke Cloudinary. Silakan coba lagi.');
+
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertNotNull(session('booking_drafts.'.$kodePembayaran));
+    }
+
+    public function test_bukti_pembayaran_tidak_valid_tidak_menyimpan_booking(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+            ])
+            ->assertSessionHasErrors('bukti_pembayaran');
+
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertNotNull(session('booking_drafts.'.$kodePembayaran));
     }
 
     public function test_pembayaran_menampilkan_harga_asli_diskon_dan_total_paket(): void
@@ -63,13 +182,13 @@ class PaymentFlowTest extends TestCase
             'diskon_persen' => 20,
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id, (string) $jamKetiga->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
-        $kodePembayaran = Booking::query()->firstOrFail()->kode_pembayaran;
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->get(route('booking.pembayaran', $kodePembayaran))
@@ -120,13 +239,13 @@ class PaymentFlowTest extends TestCase
             'norek' => '999999',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
-        $kodePembayaran = Booking::query()->firstOrFail()->kode_pembayaran;
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->get(route('booking.pembayaran', $kodePembayaran))
@@ -143,24 +262,26 @@ class PaymentFlowTest extends TestCase
 
     public function test_user_bisa_mengirim_bukti_dengan_metode_qris(): void
     {
-        Storage::fake('public');
+        $this->fakeCloudinary();
 
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
-        $booking = Booking::query()->firstOrFail();
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
         $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
                 'sistem_pembayaran' => 'qris',
                 'bukti_pembayaran' => UploadedFile::fake()->image('bukti-qris.png'),
             ])
             ->assertRedirect(route('riwayat'));
+
+        $booking = Booking::query()->firstOrFail();
 
         $this->assertSame('qris', $booking->refresh()->sistem_pembayaran);
         $this->assertSame('menunggu_verifikasi', $booking->status_pembayaran);
@@ -183,20 +304,20 @@ class PaymentFlowTest extends TestCase
 
     public function test_bukti_pembayaran_lebih_dari_2mb_tetap_diterima(): void
     {
-        Storage::fake('public');
+        $this->fakeCloudinary();
 
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
-        $booking = Booking::query()->firstOrFail();
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
         $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
                 'sistem_pembayaran' => 'transfer',
                 'bukti_pembayaran' => UploadedFile::fake()
                     ->image('bukti-besar.jpg', 600, 600)
@@ -204,6 +325,8 @@ class PaymentFlowTest extends TestCase
             ])
             ->assertRedirect(route('riwayat'))
             ->assertSessionHasNoErrors();
+
+        $booking = Booking::query()->firstOrFail();
 
         $this->assertSame('menunggu_verifikasi', $booking->refresh()->status_pembayaran);
     }
@@ -254,19 +377,19 @@ class PaymentFlowTest extends TestCase
 
     public function test_transfer_upload_marks_all_pembayaran_sessions_waiting_verification(): void
     {
-        Storage::fake('public');
+        $this->fakeCloudinary();
 
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
         $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
         $this->buatHarga($jamKedua, $tanggal);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $responseDraft = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
             'tgl_main' => $tanggal->toDateString(),
         ]);
 
-        $kodePembayaran = Booking::query()->firstOrFail()->kode_pembayaran;
+        $kodePembayaran = $this->kodePembayaranDariRedirect($responseDraft);
 
         $response = $this->post(route('booking.pembayaran.store', $kodePembayaran), [
             'sistem_pembayaran' => 'transfer',
@@ -281,32 +404,37 @@ class PaymentFlowTest extends TestCase
         $this->assertCount(2, $bookings);
         $this->assertTrue($bookings->every(fn (Booking $booking) => $booking->status_pembayaran === 'menunggu_verifikasi'));
         $this->assertTrue($bookings->every(fn (Booking $booking) => $booking->sistem_pembayaran === 'transfer'));
-        Storage::disk('public')->assertExists($bookings->first()->bukti_pembayaran);
-        Storage::disk('public')->assertExists(
-            app(BuktiPembayaranService::class)->pathThumbnail($bookings->first()->bukti_pembayaran),
+        $this->assertStringStartsWith(
+            'https://res.cloudinary.com/test-cloud/image/upload/',
+            $bookings->first()->bukti_pembayaran,
         );
+        $this->assertStringContainsString(
+            'c_limit,w_420,q_auto:good',
+            $bookings->first()->bukti_pembayaran_thumb_url,
+        );
+        Http::assertSentCount(1);
     }
 
     public function test_cash_payment_is_no_longer_accepted(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
         ]);
 
-        $booking = Booking::query()->firstOrFail();
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
-        $this->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
-            'sistem_pembayaran' => 'tunai',
-        ])->assertSessionHasErrors(['sistem_pembayaran']);
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'tunai',
+            ])
+            ->assertSessionHasErrors(['sistem_pembayaran']);
 
-        $booking->refresh();
-
-        $this->assertSame('belum_bayar', $booking->status_pembayaran);
-        $this->assertEmpty($booking->sistem_pembayaran);
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertNotNull(session('booking_drafts.'.$kodePembayaran));
     }
 
     public function test_user_cannot_view_another_user_pembayaran(): void
@@ -322,17 +450,72 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
         ]);
 
-        $booking = Booking::query()->firstOrFail();
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
 
         $this->withSession(['pengguna_id' => $penggunaLain->id])
-            ->get(route('booking.pembayaran', $booking->kode_pembayaran))
+            ->get(route('booking.pembayaran', $kodePembayaran))
             ->assertNotFound();
+    }
+
+    public function test_finalisasi_voucher_tanpa_metode_ditolak(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $voucher = $this->buatVoucher($pengguna, 1);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_voucher' => $voucher->kode_voucher,
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [])
+            ->assertSessionHasErrors('sistem_pembayaran');
+
+        $this->assertDatabaseCount('bookings', 0);
+        $this->assertNotNull(session('booking_drafts.'.$kodePembayaran));
+    }
+
+    public function test_pengguna_lain_tidak_bisa_finalisasi_draf_booking(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $penggunaLain = Pengguna::create([
+            'kode_user' => 'PG-OTHER3',
+            'nama_depan' => 'Lain',
+            'nama_balakang' => 'Orang',
+            'email' => 'lain3@example.com',
+            'nowa' => '0833333333',
+            'password' => bcrypt('password'),
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $penggunaLain->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('bookings', 0);
     }
 
     public function test_admin_can_verify_pembayaran(): void
@@ -369,15 +552,17 @@ class PaymentFlowTest extends TestCase
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->fakeCloudinary();
+
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
         $booking = Booking::query()->firstOrFail();
 
-        $this->assertSame('belum_bayar', $booking->status_pembayaran);
+        $this->assertSame('menunggu_verifikasi', $booking->status_pembayaran);
 
         $this->withSession(['admin_id' => 1])
             ->patch(route('admin.bookings.approve', $booking))
@@ -392,6 +577,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_admin_deleted_booking_hides_it_and_releases_the_time_slot(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
         $bookingData = [
             'meja_id' => (string) $meja->id,
@@ -399,8 +586,7 @@ class PaymentFlowTest extends TestCase
             'tgl_main' => $tanggal->toDateString(),
         ];
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $this->ajukanBooking($pengguna, $bookingData);
 
         $booking = Booking::query()->firstOrFail();
 
@@ -417,26 +603,27 @@ class PaymentFlowTest extends TestCase
                 ->component('Admin/Booking/Index')
                 ->has('bookings.data', 0));
 
-        $response = $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $kodePembayaranBaru = $this->ajukanBooking($pengguna, $bookingData);
 
         $bookings = Booking::query()->where('tgl_main', $tanggal->toDateString())->get();
         $newBooking = Booking::query()->where('status_hapus', '0')->firstOrFail();
 
-        $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
+        $this->assertSame($kodePembayaranBaru, $newBooking->kode_pembayaran);
         $this->assertCount(2, $bookings);
         $this->assertSame('0', $newBooking->status_hapus);
     }
 
     public function test_admin_booking_index_menampilkan_nomor_whatsapp_pengguna(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        ]);
 
         $this->withSession(['admin_id' => 1])
             ->get(route('admin.bookings.index'))
@@ -451,13 +638,12 @@ class PaymentFlowTest extends TestCase
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
         $voucher = $this->buatVoucher($pengguna, 1);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), [
-                'meja_id' => (string) $meja->id,
-                'jam_main_ids' => [(string) $jam->id],
-                'tgl_main' => $tanggal->toDateString(),
-                'kode_voucher' => $voucher->kode_voucher,
-            ]);
+        $this->ajukanBooking($pengguna, [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_voucher' => $voucher->kode_voucher,
+        ]);
 
         $booking = Booking::query()->firstOrFail();
         $adminSession = ['admin_id' => 1];
@@ -491,8 +677,7 @@ class PaymentFlowTest extends TestCase
             'kode_voucher' => $voucher->kode_voucher,
         ];
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $this->ajukanBooking($pengguna, $bookingData);
 
         $booking = Booking::query()->firstOrFail();
 
@@ -507,13 +692,12 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('1', $booking->status_hapus);
         $this->assertSame('', $voucher->tanggal_digunakan);
 
-        $response = $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $kodePembayaranBaru = $this->ajukanBooking($pengguna, $bookingData);
 
         $newBooking = Booking::query()->where('status_hapus', '0')->firstOrFail();
         $voucher->refresh();
 
-        $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
+        $this->assertSame($kodePembayaranBaru, $newBooking->kode_pembayaran);
         $this->assertSame($voucher->kode_voucher, $newBooking->kode_voucher);
         $this->assertSame(Carbon::today()->toDateString(), $voucher->tanggal_digunakan);
     }
@@ -529,8 +713,7 @@ class PaymentFlowTest extends TestCase
             'kode_voucher' => $voucher->kode_voucher,
         ];
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $this->ajukanBooking($pengguna, $bookingData);
 
         $booking = Booking::query()->firstOrFail();
         $this->assertSame(Carbon::today()->toDateString(), $voucher->refresh()->tanggal_digunakan);
@@ -542,13 +725,12 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('1', $booking->refresh()->status_hapus);
         $this->assertSame('', $voucher->refresh()->tanggal_digunakan);
 
-        $response = $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), $bookingData);
+        $kodePembayaranBaru = $this->ajukanBooking($pengguna, $bookingData);
 
         $newBooking = Booking::query()->where('status_hapus', '0')->firstOrFail();
         $voucher->refresh();
 
-        $response->assertRedirect(route('booking.pembayaran', $newBooking->kode_pembayaran));
+        $this->assertSame($kodePembayaranBaru, $newBooking->kode_pembayaran);
         $this->assertSame($voucher->kode_voucher, $newBooking->kode_voucher);
         $this->assertSame(Carbon::today()->toDateString(), $voucher->tanggal_digunakan);
     }
@@ -558,13 +740,12 @@ class PaymentFlowTest extends TestCase
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
         $voucher = $this->buatVoucher($pengguna, 1);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post(route('booking.store'), [
-                'meja_id' => (string) $meja->id,
-                'jam_main_ids' => [(string) $jam->id],
-                'tgl_main' => $tanggal->toDateString(),
-                'kode_voucher' => $voucher->kode_voucher,
-            ]);
+        $this->ajukanBooking($pengguna, [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_voucher' => $voucher->kode_voucher,
+        ]);
 
         $booking = Booking::query()->firstOrFail();
 
@@ -598,19 +779,14 @@ class PaymentFlowTest extends TestCase
 
     public function test_user_can_delete_one_session_and_total_is_recalculated(): void
     {
-        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna, , $jam, $tanggal] = $jadwal;
         $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
         $this->buatHarga($jamKedua, $tanggal);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
-            'meja_id' => (string) $meja->id,
-            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
-            'tgl_main' => $tanggal->toDateString(),
-        ]);
-
-        $bookings = Booking::query()->orderBy('jam_mulai')->get();
-        $kodePembayaran = $bookings->first()->kode_pembayaran;
-        $dihapus = $bookings->first();
+        $kodePembayaran = 'PAY-TEST-SESI-1';
+        $dihapus = $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-SESI-1', '10:00', '11:00');
+        $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-SESI-2', '11:00', '12:00');
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, $dihapus]))
@@ -626,9 +802,173 @@ class PaymentFlowTest extends TestCase
                 ->has('pembayaran.bookings', 1));
     }
 
-    public function test_hapus_sesi_menghilangkan_diskon_paket_dan_harga_kembali_normal(): void
+    public function test_user_can_delete_one_draft_session_and_total_is_recalculated(): void
     {
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-0']))
+            ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $this->assertSame([(string) $jamKedua->id], session('booking_drafts.'.$kodePembayaran.'.jam_main_ids'));
+        $this->assertDatabaseCount('bookings', 0);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->where('pembayaran.total', 50000)
+                ->where('pembayaran.bisa_hapus_sesi', true)
+                ->has('pembayaran.bookings', 1)
+                ->where('pembayaran.bookings.0.jam_mulai', '11:00'));
+    }
+
+    public function test_deleting_last_draft_session_removes_draft_and_returns_to_riwayat(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-0']))
+            ->assertRedirect(route('riwayat'));
+
+        $this->assertNull(session('booking_drafts.'.$kodePembayaran));
+        $this->assertDatabaseCount('bookings', 0);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertNotFound();
+    }
+
+    public function test_finalisasi_setelah_hapus_sesi_draft_hanya_menyimpan_sesi_tersisa(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-0']))
+            ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
+
+        $this->assertDatabaseCount('bookings', 1);
+
+        $booking = Booking::query()->firstOrFail();
+
+        $this->assertSame('11:00', substr((string) $booking->jam_mulai, 0, 5));
+        $this->assertNull(session('booking_drafts.'.$kodePembayaran));
+    }
+
+    public function test_user_cannot_delete_draft_session_from_another_user(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $penggunaLain = Pengguna::create([
+            'kode_user' => 'PG-OTHER-DRAFT',
+            'nama_depan' => 'Lain',
+            'nama_balakang' => 'Orang',
+            'email' => 'lain-draft@example.com',
+            'nowa' => '0833333333',
+            'password' => bcrypt('password'),
+            'status' => 'aktif',
+        ]);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $penggunaLain->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-0']))
+            ->assertNotFound();
+
+        $this->assertSame([(string) $jam->id], session('booking_drafts.'.$kodePembayaran.'.jam_main_ids'));
+    }
+
+    public function test_voucher_draft_session_cannot_be_deleted(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $voucher = $this->buatVoucher($pengguna, 1);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_voucher' => $voucher->kode_voucher,
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-0']))
+            ->assertSessionHas('error', 'Sesi dengan voucher tidak dapat dihapus satu per satu.');
+
+        $this->assertSame([(string) $jam->id], session('booking_drafts.'.$kodePembayaran.'.jam_main_ids'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pembayaran.bisa_hapus_sesi', false));
+    }
+
+    public function test_invalid_draft_session_index_returns_404(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, 'draft-9']))
+            ->assertNotFound();
+
+        $this->assertSame([(string) $jam->id], session('booking_drafts.'.$kodePembayaran.'.jam_main_ids'));
+    }
+
+    public function test_hapus_sesi_menghilangkan_diskon_paket_dan_harga_kembali_normal(): void
+    {
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna, , , $tanggal] = $jadwal;
         $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
         $jamKetiga = jam_main::create(['jam_mulai' => '12:00', 'jam_selesai' => '13:00', 'status' => 'aktif']);
         $this->buatHarga($jamKedua, $tanggal);
@@ -645,25 +985,24 @@ class PaymentFlowTest extends TestCase
             'diskon_persen' => 20,
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
-            'meja_id' => (string) $meja->id,
-            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id, (string) $jamKetiga->id],
-            'tgl_main' => $tanggal->toDateString(),
-        ])->assertRedirect();
+        $kodePembayaran = 'PAY-TEST-SESI-2';
+        $dihapus = $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-DISKON-1', '10:00', '11:00', 'belum_bayar', '40000', '10000', 20);
+        $tersisa = [
+            $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-DISKON-2', '11:00', '12:00', 'belum_bayar', '40000', '10000', 20),
+            $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-DISKON-3', '12:00', '13:00', 'belum_bayar', '40000', '10000', 20),
+        ];
 
-        $bookings = Booking::query()->orderBy('jam_mulai')->get();
-        $kodePembayaran = $bookings->first()->kode_pembayaran;
-
-        $bookings->each(fn (Booking $booking) => $this->assertSame('40000', $booking->total_harga));
-
-        $dihapus = $bookings->first();
-        $tersisa = $bookings->slice(1)->values();
+        Booking::query()->where('kode_pembayaran', $kodePembayaran)->each(
+            fn (Booking $booking) => $this->assertSame('40000', $booking->total_harga),
+        );
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->delete(route('booking.pembayaran.sesi.destroy', [$kodePembayaran, $dihapus]))
             ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
 
-        $tersisa->each(fn (Booking $booking) => $this->assertSame('50000', $booking->refresh()->total_harga));
+        foreach ($tersisa as $booking) {
+            $this->assertSame('50000', $booking->refresh()->total_harga);
+        }
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->get(route('booking.pembayaran', $kodePembayaran))
@@ -677,15 +1016,10 @@ class PaymentFlowTest extends TestCase
 
     public function test_deleting_last_session_cancels_pembayaran_and_returns_to_riwayat(): void
     {
-        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna] = $jadwal;
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
-            'meja_id' => (string) $meja->id,
-            'jam_main_ids' => [(string) $jam->id],
-            'tgl_main' => $tanggal->toDateString(),
-        ]);
-
-        $booking = Booking::query()->firstOrFail();
+        $booking = $this->buatBookingSesi($jadwal, 'PAY-TEST-SESI-3', 'BK-TEST-SESI-3', '10:00', '11:00');
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->delete(route('booking.pembayaran.sesi.destroy', [$booking->kode_pembayaran, $booking]))
@@ -700,22 +1034,17 @@ class PaymentFlowTest extends TestCase
 
     public function test_user_cannot_delete_session_after_payment_is_submitted(): void
     {
-        Storage::fake('public');
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna] = $jadwal;
 
-        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
-
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
-            'meja_id' => (string) $meja->id,
-            'jam_main_ids' => [(string) $jam->id],
-            'tgl_main' => $tanggal->toDateString(),
-        ]);
-
-        $booking = Booking::query()->firstOrFail();
-
-        $this->post(route('booking.pembayaran.store', $booking->kode_pembayaran), [
-            'sistem_pembayaran' => 'transfer',
-            'bukti_pembayaran' => UploadedFile::fake()->image('bukti.jpg'),
-        ]);
+        $booking = $this->buatBookingSesi(
+            $jadwal,
+            'PAY-TEST-SESI-4',
+            'BK-TEST-SESI-4',
+            '10:00',
+            '11:00',
+            'menunggu_verifikasi',
+        );
 
         $this->withSession(['pengguna_id' => $pengguna->id])
             ->delete(route('booking.pembayaran.sesi.destroy', [$booking->kode_pembayaran, $booking]))
@@ -727,7 +1056,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_user_cannot_delete_session_from_another_user_pembayaran(): void
     {
-        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna] = $jadwal;
         $penggunaLain = Pengguna::create([
             'kode_user' => 'PG-OTHER2',
             'nama_depan' => 'Lain',
@@ -738,13 +1068,7 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
-            'meja_id' => (string) $meja->id,
-            'jam_main_ids' => [(string) $jam->id],
-            'tgl_main' => $tanggal->toDateString(),
-        ]);
-
-        $booking = Booking::query()->firstOrFail();
+        $booking = $this->buatBookingSesi($jadwal, 'PAY-TEST-SESI-5', 'BK-TEST-SESI-5', '10:00', '11:00');
 
         $this->withSession(['pengguna_id' => $penggunaLain->id])
             ->delete(route('booking.pembayaran.sesi.destroy', [$booking->kode_pembayaran, $booking]))
@@ -782,6 +1106,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_booking_saves_tipe_booking_public_when_pembayaran_all_active(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
         Settingbookingroom::create([
@@ -792,12 +1118,12 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
             'tipe_booking' => 'public',
-        ])->assertRedirect();
+        ]);
 
         $booking = Booking::query()->firstOrFail();
 
@@ -807,6 +1133,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_booking_saves_private_tipe_with_full_price(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
         Settingbookingroom::create([
@@ -817,12 +1145,12 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
             'tipe_booking' => 'private',
-        ])->assertRedirect();
+        ]);
 
         $booking = Booking::query()->firstOrFail();
 
@@ -832,6 +1160,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_pengguna_lain_bisa_join_public_room(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
         Settingbookingroom::create([
@@ -842,7 +1172,7 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
@@ -878,8 +1208,65 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('belum_bayar', $bookingPendatang->status_pembayaran);
     }
 
+    public function test_semua_sesi_join_room_memakai_satu_kode_booking_untuk_user_tersebut(): void
+    {
+        $this->fakeCloudinary();
+
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        Settingbookingroom::create([
+            'pembayaran' => 'all',
+            'jumlah_user' => '4',
+            'minimal_user' => '2',
+            'maksimal_user' => '8',
+            'status' => 'aktif',
+        ]);
+
+        $this->ajukanBooking($pengguna, [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id, (string) $jamKedua->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'tipe_booking' => 'public',
+        ]);
+
+        $kodeBookingPemilik = Booking::query()
+            ->where('id_pengguna', (string) $pengguna->id)
+            ->value('kode_booking');
+
+        $penggunaLain = Pengguna::create([
+            'kode_user' => 'PG-JOIN-DUA-SESI',
+            'nama_depan' => 'Budi',
+            'nama_balakang' => 'Tester',
+            'email' => 'budi-dua-sesi@example.com',
+            'nowa' => '081234567893',
+            'password' => bcrypt('password'),
+            'status' => 'aktif',
+        ]);
+
+        $bookingPemilik = Booking::query()->where('id_pengguna', (string) $pengguna->id)->firstOrFail();
+
+        $this->withSession(['pengguna_id' => $penggunaLain->id])
+            ->post(route('room.booking.join', $bookingPemilik->kode_room))
+            ->assertRedirect();
+
+        $bookingsPendatang = Booking::query()
+            ->where('id_pengguna', (string) $penggunaLain->id)
+            ->orderBy('jam_mulai')
+            ->get();
+
+        $this->assertCount(2, $bookingsPendatang);
+        $this->assertNotNull($bookingsPendatang->first()->kode_booking);
+        $this->assertSame(1, $bookingsPendatang->pluck('kode_booking')->unique()->count());
+        $this->assertSame(1, $bookingsPendatang->pluck('kode_pembayaran')->unique()->count());
+        $this->assertNotSame($kodeBookingPemilik, $bookingsPendatang->first()->kode_booking);
+    }
+
     public function test_join_room_ditolak_bila_nomor_whatsapp_kosong(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
         Settingbookingroom::create([
@@ -890,7 +1277,7 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
@@ -919,6 +1306,8 @@ class PaymentFlowTest extends TestCase
 
     public function test_pengguna_lain_join_room_one_tanpa_bayar(): void
     {
+        $this->fakeCloudinary();
+
         [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
 
         Settingbookingroom::create([
@@ -929,7 +1318,7 @@ class PaymentFlowTest extends TestCase
             'status' => 'aktif',
         ]);
 
-        $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+        $this->ajukanBooking($pengguna, [
             'meja_id' => (string) $meja->id,
             'jam_main_ids' => [(string) $jam->id],
             'tgl_main' => $tanggal->toDateString(),
@@ -1019,15 +1408,85 @@ class PaymentFlowTest extends TestCase
         ]);
     }
 
+    /**
+     * @param  array{0: Pengguna, 1: Meja, 2: jam_main, 3: Carbon}  $jadwal
+     */
+    private function buatBookingSesi(
+        array $jadwal,
+        string $kodePembayaran,
+        string $kodeBooking,
+        string $jamMulai,
+        string $jamSelesai,
+        string $statusPembayaran = 'belum_bayar',
+        string $totalHarga = '50000',
+        string $diskonPaket = '0',
+        ?float $diskonPaketPersen = null,
+        ?string $kodeVoucher = null,
+    ): Booking {
+        [$pengguna, $meja, , $tanggal] = $jadwal;
+
+        return Booking::create([
+            'kode_booking' => $kodeBooking,
+            'kode_pembayaran' => $kodePembayaran,
+            'kode_voucher' => $kodeVoucher,
+            'tipe_booking' => 'reguler',
+            'id_pengguna' => (string) $pengguna->id,
+            'id_meja' => $meja->kode_meja,
+            'jam_mulai' => $jamMulai,
+            'jam_selesai' => $jamSelesai,
+            'tgl_main' => $tanggal->toDateString(),
+            'tgl_booking' => Carbon::today()->toDateString(),
+            'sistem_pembayaran' => '',
+            'harga' => '50000',
+            'total_harga' => $totalHarga,
+            'diskon_paket' => $diskonPaket,
+            'diskon_paket_persen' => $diskonPaketPersen,
+            'bukti_pembayaran' => '',
+            'status_booking' => '0',
+            'status_pembayaran' => $statusPembayaran,
+            'status_hapus' => '0',
+        ]);
+    }
+
     public function test_bukti_pembayaran_tetap_tersimpan_saat_gambar_tidak_bisa_diproses_gd(): void
     {
-        Storage::fake('public');
+        $this->fakeCloudinary();
 
         $file = UploadedFile::fake()->createWithContent('bukti.jpg', 'bukan-data-gambar');
 
-        $path = app(BuktiPembayaranService::class)->simpan($file);
+        $url = app(BuktiPembayaranService::class)->simpan($file);
 
-        $this->assertNotSame('', $path);
-        Storage::disk('public')->assertExists($path);
+        $this->assertStringStartsWith('https://res.cloudinary.com/test-cloud/image/upload/', $url);
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://api.cloudinary.com/v1_1/test-cloud/image/upload');
+    }
+
+    private function ajukanBooking(Pengguna $pengguna, array $data, ?string $metode = 'transfer'): string
+    {
+        $this->fakeCloudinary();
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.store'), $data)
+            ->assertRedirect();
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+        $response->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $metode = filled($data['kode_voucher'] ?? null) ? 'voucher' : ($metode ?? 'transfer');
+        $payload = ['sistem_pembayaran' => $metode];
+
+        if ($metode !== 'voucher') {
+            $payload['bukti_pembayaran'] = UploadedFile::fake()->image('bukti.jpg');
+        }
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaran), $payload)
+            ->assertRedirect(route('riwayat'));
+
+        return $kodePembayaran;
+    }
+
+    private function kodePembayaranDariRedirect($response): string
+    {
+        return Str::afterLast((string) $response->headers->get('Location'), '/');
     }
 }

@@ -370,7 +370,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
                                     Tempat Main Mahjong Paling <span className="text-emerald-600">Nyaman</span>
                                 </h2>
                                 <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">
-                                    89 Mahjong Society adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
+                                    789 Mahjong Society adalah tempat berkumpulnya para penggemar mahjong. Dengan meja
                                     premium bersurface felt hijau yang lembut, ruangan yang sejuk, dan suasana yang
                                     santai, setiap sesi main jadi lebih seru, baik buat pemula maupun pemain profesional.
                                 </p>
@@ -612,7 +612,7 @@ export default function Landing({ pengguna, mejas, hargas }) {
 
                             <div className="overflow-hidden rounded-[2rem] border border-emerald-100 shadow-xl shadow-emerald-900/10">
                                 <iframe
-                                    title="Lokasi Medan Mahjong club"
+                                    title="Lokasi 789 Mahjong Society"
                                     src="https://maps.google.com/maps?q=Medan&t=&z=14&ie=UTF8&iwloc=&output=embed"
                                     className="h-[420px] w-full border-0"
                                     loading="lazy"

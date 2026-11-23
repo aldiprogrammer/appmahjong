@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Pengguna;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ProfilNowaTest extends TestCase
@@ -13,9 +15,13 @@ class ProfilNowaTest extends TestCase
     public function test_pengguna_tanpa_nowa_bisa_menyimpan_nomor_whatsapp(): void
     {
         $pengguna = $this->buatPengguna(['nowa' => null]);
+        $kode = $this->kirimOtp($pengguna, '081234567890');
 
         $response = $this->withSession(['pengguna_id' => $pengguna->id])
-            ->post('/profil/whatsapp', ['nowa' => '081234567890']);
+            ->post('/profil/whatsapp', [
+                'nowa' => '081234567890',
+                'otp' => $kode,
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -69,6 +75,44 @@ class ProfilNowaTest extends TestCase
             'nowa' => 'Nomor WhatsApp sudah terdaftar. Silakan masuk atau gunakan nomor lain.',
         ]);
         $this->assertNull($pengguna->fresh()->nowa);
+    }
+
+    private function fakeFonnte(): void
+    {
+        config()->set('services.fonnte.token', 'token-rahasia');
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.fonnte.com/send' => Http::response([
+                'status' => true,
+                'detail' => 'success! message in queue',
+            ]),
+        ]);
+    }
+
+    private function kirimOtp(Pengguna $pengguna, string $nowa): string
+    {
+        $this->fakeFonnte();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/profil/whatsapp/otp', ['nowa' => $nowa])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $kode = null;
+
+        Http::assertSent(function (Request $request) use (&$kode, $nowa): bool {
+            if (! preg_match('/Kode OTP Anda: ([0-9]{6})/', (string) $request['message'], $cocok)) {
+                return false;
+            }
+
+            $kode = $cocok[1];
+
+            return $request['target'] === $nowa;
+        });
+
+        $this->assertNotNull($kode, 'Kode OTP tidak ditemukan pada pesan Fonnte.');
+
+        return $kode;
     }
 
     /**
