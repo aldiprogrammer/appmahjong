@@ -910,9 +910,9 @@ export default function Point({
                             <div>
                                 <h2 className="text-sm font-bold text-slate-900">Masukkan Kode Booking</h2>
                                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                                    Scan point hanya bisa dilakukan pada hari booking, maksimal{' '}
-                                    <span className="font-semibold text-slate-700">30 menit</span> setelah jam main
-                                    berakhir. Kode akan diingat di perangkat ini agar tidak perlu diketik ulang.
+                                    Scan point hanya bisa dilakukan pada hari booking, mulai jam main dimulai sampai
+                                    maksimal <span className="font-semibold text-slate-700">30 menit</span> setelah jam
+                                    main berakhir. Kode akan diingat di perangkat ini agar tidak perlu diketik ulang.
                                 </p>
                             </div>
                         </div>

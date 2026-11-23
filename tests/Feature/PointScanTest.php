@@ -1058,6 +1058,81 @@ class PointScanTest extends TestCase
             ->assertJson(['valid' => false]);
     }
 
+    public function test_cek_booking_menolak_scan_sebelum_jam_main_dimulai(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '18:00', '19:00');
+        $this->kodeBookingUntuk($pengguna, $kode, '2026-11-20', '19:00', '20:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 17:00:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertStatus(422)
+            ->assertJson([
+                'valid' => false,
+                'message' => 'Scan point baru bisa dilakukan mulai jam 18:00 WIB sesuai jadwal booking.',
+            ]);
+    }
+
+    public function test_cek_booking_menerima_scan_tepat_saat_jam_main_dimulai(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '18:00', '19:00');
+        $this->kodeBookingUntuk($pengguna, $kode, '2026-11-20', '19:00', '20:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 18:00:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertOk()
+            ->assertJson(['valid' => true]);
+    }
+
+    public function test_cek_booking_menerima_kode_beberapa_sesi_pada_sesi_kedua(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '18:00', '19:00');
+        $this->kodeBookingUntuk($pengguna, $kode, '2026-11-20', '19:00', '20:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 19:05:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertOk()
+            ->assertJson(['valid' => true]);
+    }
+
+    public function test_cek_booking_beberapa_sesi_memakai_jam_selesai_paling_akhir(): void
+    {
+        $pengguna = $this->buatPengguna();
+        // Sesi kedua disimpan lebih dulu untuk memastikan urutan id tidak
+        // menentukan batas waktu scan.
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '19:00', '20:00');
+        $this->kodeBookingUntuk($pengguna, $kode, '2026-11-20', '18:00', '19:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 19:45:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertOk()
+            ->assertJson(['valid' => true]);
+    }
+
+    public function test_cek_booking_beberapa_sesi_tetap_berakhir_tiga_puluh_menit_setelah_sesi_terakhir(): void
+    {
+        $pengguna = $this->buatPengguna();
+        $kode = $this->kodeBookingUntuk($pengguna, 'BKG-POINT-TEST', '2026-11-20', '18:00', '19:00');
+        $this->kodeBookingUntuk($pengguna, $kode, '2026-11-20', '19:00', '20:00');
+
+        $this->travelTo(Carbon::parse('2026-11-20 20:31:00', 'Asia/Jakarta'));
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->postJson(route('point.cek-booking'), ['kode_booking' => $kode])
+            ->assertStatus(422)
+            ->assertJson(['valid' => false]);
+    }
+
     public function test_cek_booking_menolak_kode_dari_hari_sebelumnya(): void
     {
         $pengguna = $this->buatPengguna();

@@ -203,9 +203,10 @@ class PointController extends Controller
     }
 
     /**
-     * Kode booking harus ada, belum lewat harinya, dan masih dalam masa
-     * toleransi 30 menit setelah jam main berakhir. Kode boleh dimasukkan
-     * oleh pengguna lain (misalnya rekan satu meja) selama jadwalnya valid.
+     * Kode booking harus ada, belum lewat harinya, sudah memasuki jam main
+     * pertama, dan masih dalam masa toleransi 30 menit setelah jam main
+     * berakhir. Kode boleh dimasukkan oleh pengguna lain (misalnya rekan satu
+     * meja) selama jadwalnya valid.
      *
      * @return array{valid: bool, message: string}
      */
@@ -213,18 +214,25 @@ class PointController extends Controller
     {
         $kodeBooking = trim($kodeBooking);
 
-        $booking = Booking::query()
+        $bookings = Booking::query()
             ->where('kode_booking', $kodeBooking)
             ->where('status_hapus', '!=', '1')
-            ->latest('id')
-            ->first();
+            ->get();
 
-        if ($booking === null) {
+        if ($bookings->isEmpty()) {
             return [
                 'valid' => false,
                 'message' => 'Kode booking tidak ditemukan.',
             ];
         }
+
+        // Satu kode booking dipakai bersama oleh semua sesi (mis. 18-19 dan
+        // 19-20). Ambil sesi dengan waktu selesai paling akhir agar kode tetap
+        // valid selama seluruh rangkaian sesi main, bukan hanya sesi terakhir
+        // yang tersimpan.
+        $booking = $bookings
+            ->sortByDesc(fn (Booking $item): string => substr((string) $item->tgl_main, 0, 10).' '.substr((string) $item->jam_selesai, 0, 5))
+            ->first();
 
         try {
             $sekarang = Carbon::now(self::ZONA_WAKTU);
@@ -232,6 +240,14 @@ class PointController extends Controller
             $jamSelesai = substr((string) $booking->jam_selesai, 0, 5);
             $batasScan = Carbon::parse($tanggalMain->toDateString().' '.$jamSelesai, self::ZONA_WAKTU)
                 ->addMinutes(self::TOLERANSI_SCAN_MENIT);
+
+            // Scan hanya boleh dimulai sejak sesi paling awal, bukan sebelum
+            // jam main dimulai.
+            $sesiAwal = $bookings
+                ->sortBy(fn (Booking $item): string => substr((string) $item->tgl_main, 0, 10).' '.substr((string) $item->jam_mulai, 0, 5))
+                ->first();
+            $jamMulai = substr((string) $sesiAwal->jam_mulai, 0, 5);
+            $mulaiScan = Carbon::parse($tanggalMain->toDateString().' '.$jamMulai, self::ZONA_WAKTU);
         } catch (Throwable) {
             return [
                 'valid' => false,
@@ -252,6 +268,13 @@ class PointController extends Controller
             return [
                 'valid' => false,
                 'message' => 'Scan point baru bisa dilakukan pada hari booking, yaitu '.$tanggalMain->translatedFormat('d F Y').' (WIB).',
+            ];
+        }
+
+        if ($sekarang->lessThan($mulaiScan)) {
+            return [
+                'valid' => false,
+                'message' => 'Scan point baru bisa dilakukan mulai jam '.$jamMulai.' WIB sesuai jadwal booking.',
             ];
         }
 

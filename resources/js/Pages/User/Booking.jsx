@@ -707,6 +707,12 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
             </header>
 
             <form onSubmit={submit} className="relative -mt-7 space-y-4 px-5 pb-8">
+                {pageProps.flash?.error && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium leading-relaxed text-rose-700">
+                        {pageProps.flash.error}
+                    </div>
+                )}
+
                 {vanueId === '' ? (
                     <PilihVenue vanues={vanues} mejas={pageProps.m} onPilih={pilihVanue} />
                 ) : (

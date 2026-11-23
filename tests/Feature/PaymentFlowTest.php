@@ -74,6 +74,83 @@ class PaymentFlowTest extends TestCase
         $this->assertNull(session('booking_drafts.'.$kodePembayaran));
     }
 
+    public function test_booking_ditolak_saat_slot_meja_sudah_terisi(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $this->buatBookingSesi([$pengguna, $meja, $jam, $tanggal], 'PAY-LAMA', 'BK-LAMA', '10:00', '11:00');
+
+        $penggunaLain = $this->buatPenggunaKedua();
+
+        $this->withSession(['pengguna_id' => $penggunaLain->id])
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jam->id],
+                'tgl_main' => $tanggal->toDateString(),
+            ])
+            ->assertSessionHasErrors('jam_main_ids');
+
+        $this->assertSame(1, Booking::query()->count());
+    }
+
+    public function test_pembayaran_ditolak_saat_slot_diambil_pengguna_lain_setelah_draf_dibuat(): void
+    {
+        $this->fakeCloudinary();
+
+        [$penggunaA, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $penggunaB = $this->buatPenggunaKedua();
+
+        $payloadBooking = [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ];
+
+        // Kedua pengguna sempat membuat draf karena slot masih kosong.
+        $responseA = $this->withSession(['pengguna_id' => $penggunaA->id])->post('/booking', $payloadBooking);
+        $kodePembayaranA = $this->kodePembayaranDariRedirect($responseA);
+
+        $responseB = $this->withSession(['pengguna_id' => $penggunaB->id])->post('/booking', $payloadBooking);
+        $kodePembayaranB = $this->kodePembayaranDariRedirect($responseB);
+
+        // Pengguna A menyelesaikan pembayaran lebih dulu.
+        $this->withSession(['pengguna_id' => $penggunaA->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaranA), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti-a.jpg'),
+            ])
+            ->assertRedirect(route('riwayat'));
+
+        // Pengguna B ditolak dan diarahkan memilih jadwal lain.
+        $this->withSession(['pengguna_id' => $penggunaB->id])
+            ->post(route('booking.pembayaran.store', $kodePembayaranB), [
+                'sistem_pembayaran' => 'transfer',
+                'bukti_pembayaran' => UploadedFile::fake()->image('bukti-b.jpg'),
+            ])
+            ->assertRedirect(route('booking'))
+            ->assertSessionHas('error');
+
+        $this->assertSame(1, Booking::query()->count());
+        $this->assertSame((string) $penggunaA->id, (string) Booking::query()->firstOrFail()->id_pengguna);
+        $this->assertNull(session('booking_drafts.'.$kodePembayaranB));
+
+        // Bukti pembayaran pengguna B ikut dibersihkan dari Cloudinary.
+        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'api.cloudinary.com')
+            && str_contains($request->url(), 'image/destroy'));
+    }
+
+    private function buatPenggunaKedua(): Pengguna
+    {
+        return Pengguna::create([
+            'kode_user' => 'PG-TEST02',
+            'nama_depan' => 'Budi',
+            'nama_balakang' => 'Tester',
+            'email' => 'budi@example.com',
+            'nowa' => '081298765432',
+            'password' => bcrypt('password'),
+            'status' => 'aktif',
+        ]);
+    }
+
     public function test_semua_sesi_satu_transaksi_memakai_kode_booking_yang_sama(): void
     {
         $this->fakeCloudinary();

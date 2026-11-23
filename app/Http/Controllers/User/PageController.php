@@ -1079,14 +1079,32 @@ class PageController extends Controller
         }
 
         if ($draft !== null) {
-            return $this->finalisasiDraftBooking(
-                $pengguna,
-                $kodePembayaran,
-                $draft,
-                $validated['sistem_pembayaran'],
-                $menggunakanVoucher,
-                $buktiPembayaran,
-            );
+            try {
+                return $this->finalisasiDraftBooking(
+                    $pengguna,
+                    $kodePembayaran,
+                    $draft,
+                    $validated['sistem_pembayaran'],
+                    $menggunakanVoucher,
+                    $buktiPembayaran,
+                );
+            } catch (ValidationException $exception) {
+                // Slot bisa saja sudah dibooking pengguna lain setelah draf
+                // dibuat. Hapus bukti yang telanjur diunggah agar tidak menjadi
+                // file yatim, lalu minta pengguna memilih jadwal lain.
+                if ($buktiPembayaran !== '') {
+                    app(BuktiPembayaranService::class)->hapus($buktiPembayaran);
+                }
+
+                $this->hapusDraftBooking($kodePembayaran);
+
+                $pesan = collect($exception->errors())->flatten()->first()
+                    ?: 'Jadwal yang dipilih sudah dibooking pengguna lain.';
+
+                return redirect()
+                    ->route('booking')
+                    ->with('error', $pesan.' Silakan pilih jadwal lain.');
+            }
         }
 
         $statusPembayaran = 'menunggu_verifikasi';
@@ -1125,6 +1143,11 @@ class PageController extends Controller
     ): RedirectResponse {
         $kodeBookings = DB::transaction(function () use ($pengguna, $kodePembayaran, $draft, $sistemPembayaran, $menggunakanVoucher, $buktiPembayaran): array {
             $validated = $this->validatedDariDraft($draft);
+
+            // Kunci baris meja agar dua pengguna tidak bisa lolos pengecekan
+            // slot secara bersamaan (race condition double booking).
+            Meja::query()->whereKey($validated['meja_id'])->lockForUpdate()->first();
+
             $rincian = $this->rincianSesiBooking($validated, $pengguna, $draft['kode_room'] ?? null);
             $kodeBookings = [];
 

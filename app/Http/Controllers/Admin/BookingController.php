@@ -181,6 +181,10 @@ class BookingController extends Controller
         $noWa = filled($validated['no_wa'] ?? null) ? trim($validated['no_wa']) : null;
 
         DB::transaction(function () use ($validated, $jamMains, $hargaPerJam, $idMeja, $tanggal, $kodePembayaran, $lunas, $noWa): void {
+            // Kunci baris meja supaya pengecekan slot dan insert booking tidak
+            // bisa disela booking lain pada saat yang sama.
+            Meja::query()->whereKey($validated['meja_id'])->lockForUpdate()->first();
+
             $sesi = [];
             $totalDasar = 0;
 
