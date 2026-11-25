@@ -539,6 +539,31 @@ class PointScanTest extends TestCase
         $this->assertSame(0, MahjongScan::query()->count());
     }
 
+    public function test_scan_foto_lebih_besar_dari_5mb_tetap_diterima(): void
+    {
+        Storage::fake('public');
+        $this->fakeCloudinary();
+        config([
+            'services.openai.key' => null,
+            'services.gemini.key' => null,
+        ]);
+
+        Http::preventStrayRequests();
+
+        $pengguna = $this->buatPengguna();
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post(route('point.scan'), [
+                'image' => UploadedFile::fake()->image('susunan.jpg')->size(6144),
+                'kode_booking' => $this->kodeBookingUntuk($pengguna),
+                'seat_wind' => 'z1',
+            ])
+            ->assertRedirect(route('point'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, MahjongScan::query()->count());
+    }
+
     public function test_scan_hk_wajib_pilih_posisi_duduk(): void
     {
         Storage::fake('public');
