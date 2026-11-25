@@ -565,4 +565,92 @@ class AdminMenuTest extends TestCase
         $this->assertSame('11000', $menu->harga_panas);
         $this->assertSame('9000', $menu->harga);
     }
+
+    public function test_admin_bisa_menambahkan_menu_dengan_stok_qty(): void
+    {
+        $kategori = Kategorimenu::create(['kategori' => 'Makanan']);
+
+        $this->admin()
+            ->post('/admin/menus', [
+                'id_kategori' => (string) $kategori->id,
+                'nama' => 'Nasi Goreng',
+                'dibuat_di' => 'Dapur',
+                'harga' => '25000',
+                'pakai_qty' => '1',
+                'qty' => '12',
+                'status' => 'aktif',
+            ])
+            ->assertRedirect(route('admin.menus.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('menus', [
+            'nama' => 'Nasi Goreng',
+            'pakai_qty' => true,
+            'qty' => 12,
+        ]);
+    }
+
+    public function test_qty_wajib_diisi_saat_menu_memakai_qty(): void
+    {
+        $kategori = Kategorimenu::create(['kategori' => 'Makanan']);
+
+        $this->admin()
+            ->post('/admin/menus', [
+                'id_kategori' => (string) $kategori->id,
+                'nama' => 'Nasi Goreng',
+                'dibuat_di' => 'Dapur',
+                'harga' => '25000',
+                'pakai_qty' => '1',
+                'status' => 'aktif',
+            ])
+            ->assertSessionHasErrors('qty');
+
+        $this->assertSame(0, Menu::query()->count());
+    }
+
+    public function test_admin_bisa_mengubah_stok_qty_dan_mematikan_pakai_qty(): void
+    {
+        $kategori = Kategorimenu::create(['kategori' => 'Makanan']);
+        $menu = Menu::create([
+            'id_kategori' => (string) $kategori->id,
+            'nama' => 'Nasi Goreng',
+            'dibuat_di' => 'Dapur',
+            'harga' => '25000',
+            'pakai_qty' => true,
+            'qty' => 5,
+            'status' => 'aktif',
+        ]);
+
+        $this->admin()
+            ->put("/admin/menus/{$menu->id}", [
+                'id_kategori' => (string) $kategori->id,
+                'nama' => 'Nasi Goreng',
+                'dibuat_di' => 'Dapur',
+                'harga' => '25000',
+                'pakai_qty' => '1',
+                'qty' => '8',
+                'status' => 'aktif',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $menu->refresh();
+
+        $this->assertTrue($menu->pakai_qty);
+        $this->assertSame(8, $menu->qty);
+
+        $this->admin()
+            ->put("/admin/menus/{$menu->id}", [
+                'id_kategori' => (string) $kategori->id,
+                'nama' => 'Nasi Goreng',
+                'dibuat_di' => 'Dapur',
+                'harga' => '25000',
+                'status' => 'aktif',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $menu->refresh();
+
+        $this->assertFalse($menu->pakai_qty);
+        $this->assertNull($menu->qty);
+    }
 }

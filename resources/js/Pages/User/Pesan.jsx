@@ -199,7 +199,18 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
             .filter((item) => String(item.id) === String(menu.id))
             .reduce((total, item) => total + item.jumlah, 0);
 
+    const sisaStok = (menu) =>
+        menu.pakai_qty ? Math.max(0, Number(menu.qty ?? 0) - jumlahUntukMenu(menu)) : Infinity;
+
+    const bisaTambah = (menu, jumlah = 1) => Boolean(menu) && (!menu.pakai_qty || jumlah <= sisaStok(menu));
+
+    const menuDariItem = (item) => menus.find((menuItem) => String(menuItem.id) === String(item.id));
+
     const tambahKeKeranjang = (menu, suhu = null, jumlah = 1) => {
+        if (!bisaTambah(menu, jumlah)) {
+            return;
+        }
+
         const punyaVarian = punyaVarianSuhu(menu);
         const kunci = punyaVarian ? `${menu.id}-${suhu}` : `${menu.id}`;
         const harga = punyaVarian ? hargaUntukSuhu(menu, suhu) : menu.harga;
@@ -426,6 +437,15 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                                                 {menu.kategori}
                                             </span>
                                         )}
+                                        {menu.pakai_qty && (
+                                            <span className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-bold shadow-sm backdrop-blur ${
+                                                sisaStok(menu) > 0
+                                                    ? 'bg-lime-100 text-lime-800'
+                                                    : 'bg-rose-100 text-rose-700'
+                                            }`}>
+                                                Sisa {sisaStok(menu)}
+                                            </span>
+                                        )}
                                     </div>
 
                                     <div className="flex flex-1 flex-col p-3">
@@ -447,8 +467,9 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                                                     <button
                                                         type="button"
                                                         onClick={() => bukaPilihVarian(menu)}
+                                                        disabled={!bisaTambah(menu)}
                                                         aria-label={`Pilih Dingin atau Panas untuk ${menu.nama}`}
-                                                        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-95"
+                                                        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                                                     >
                                                         <PlusIcon />
                                                         {jumlahUntukMenu(menu) > 0 && (
@@ -464,8 +485,9 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                                                     <button
                                                         type="button"
                                                         onClick={() => tambahKeKeranjang(menu)}
+                                                        disabled={!bisaTambah(menu)}
                                                         aria-label={`Tambahkan ${menu.nama} ke keranjang`}
-                                                        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-95"
+                                                        className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                                                     >
                                                         <PlusIcon />
                                                         {jumlahUntukMenu(menu) > 0 && (
@@ -592,8 +614,9 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                                                 <button
                                                     type="button"
                                                     onClick={() => tambahJumlah(item.kunci)}
+                                                    disabled={!bisaTambah(menuDariItem(item))}
                                                     aria-label={`Tambah ${item.nama}`}
-                                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700"
+                                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                                                 >
                                                     <PlusIcon />
                                                 </button>
@@ -758,6 +781,11 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                             <div className="min-w-0">
                                 <h2 className="truncate text-base font-bold text-slate-900">{menuVarian.nama}</h2>
                                 <p className="mt-0.5 text-xs text-slate-500">Pilih minuman dingin atau panas.</p>
+                                {menuVarian.pakai_qty && (
+                                    <p className="mt-0.5 text-[11px] font-semibold text-emerald-700">
+                                        Sisa stok: {sisaStok(menuVarian)}
+                                    </p>
+                                )}
                             </div>
                             <button
                                 type="button"
@@ -822,9 +850,14 @@ export default function Pesan({ pengguna, kategoriMenus = [], menus = [], mejaAw
                                     <span className="w-5 text-center text-sm font-bold text-slate-800">{jumlahPilihan}</span>
                                     <button
                                         type="button"
-                                        onClick={() => setJumlahPilihan((jumlah) => Math.min(99, jumlah + 1))}
+                                        onClick={() =>
+                                            setJumlahPilihan((jumlah) =>
+                                                Math.min(Math.min(99, sisaStok(menuVarian)), jumlah + 1),
+                                            )
+                                        }
+                                        disabled={jumlahPilihan >= Math.min(99, sisaStok(menuVarian))}
                                         aria-label="Tambah jumlah"
-                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700"
+                                        className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                                     >
                                         <PlusIcon />
                                     </button>

@@ -86,6 +86,14 @@ function TableIcon({ className = 'h-4 w-4' }) {
     );
 }
 
+function PlusIcon({ className = 'h-3.5 w-3.5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2.2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+    );
+}
+
 function BankIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.9} stroke="currentColor">
@@ -123,6 +131,28 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
     const [menghapusId, setMenghapusId] = useState(null);
     const bisaHapusSesi =
         Boolean(pembayaran.bisa_hapus_sesi) && !lunas && pembayaran.status_pembayaran !== 'menunggu_verifikasi';
+    const bisaTambahSesi = Boolean(pembayaran.bisa_tambah_sesi);
+    const jadwalPertama = pembayaran.bookings[0] ?? null;
+    const tautanTambahJadwal = (() => {
+        if (!jadwalPertama) {
+            return '/booking';
+        }
+
+        const params = new URLSearchParams({
+            kode_pembayaran: pembayaran.kode_pembayaran,
+            tgl_main: jadwalPertama.tgl_main,
+            meja_id: jadwalPertama.id_meja,
+            jam_terisi: pembayaran.bookings
+                .map((booking) => String(booking.jam_mulai).slice(0, 5))
+                .join(','),
+        });
+
+        if (pembayaran.tipe_booking) {
+            params.set('tipe_booking', pembayaran.tipe_booking);
+        }
+
+        return `/booking?${params.toString()}`;
+    })();
 
     const { data, setData, post, processing, errors } = useForm({
         sistem_pembayaran: menggunakanVoucher ? 'voucher' : metodePembayaran[0]?.metode ?? 'transfer',
@@ -296,7 +326,18 @@ export default function Pembayaran({ pembayaran, pengaturanPembayaran }) {
                 </section>
 
                 <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                    <h2 className="mb-3 text-sm font-bold text-slate-800">Rincian Jadwal</h2>
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-bold text-slate-800">Rincian Jadwal</h2>
+                        {bisaTambahSesi && (
+                            <Link
+                                href={tautanTambahJadwal}
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 active:scale-95"
+                            >
+                                <PlusIcon className="h-3 w-3" />
+                                Tambah jam
+                            </Link>
+                        )}
+                    </div>
 
                     <div className="space-y-2">
                         {pembayaran.bookings.map((booking) => (

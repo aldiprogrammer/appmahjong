@@ -22,6 +22,10 @@ function formatRupiah(value) {
     }).format(Number(value) || 0);
 }
 
+function formatAngka(value) {
+    return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+}
+
 function CloseIcon() {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -66,6 +70,8 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
         harga: '',
         harga_dingin: '',
         harga_panas: '',
+        pakai_qty: false,
+        qty: '',
         status: 'aktif',
     });
 
@@ -177,6 +183,8 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
             harga: menu.harga,
             harga_dingin: menu.harga_dingin ?? '',
             harga_panas: menu.harga_panas ?? '',
+            pakai_qty: Boolean(menu.pakai_qty),
+            qty: menu.pakai_qty ? menu.qty : '',
             status: menu.status,
         });
         setGambarPreview(menu.gambar_url ?? null);
@@ -455,7 +463,7 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[1080px] text-left text-sm">
+                                <table className="w-full min-w-[1160px] text-left text-sm">
                                     <thead className="bg-emerald-50/60 text-xs uppercase tracking-wide text-emerald-800">
                                         <tr>
                                             <th className="px-5 py-3 font-semibold">No</th>
@@ -466,6 +474,7 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
                                             <th className="px-5 py-3 font-semibold">Suplayer</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat di</th>
                                             <th className="px-5 py-3 font-semibold">Harga</th>
+                                            <th className="px-5 py-3 font-semibold">Qty</th>
                                             <th className="px-5 py-3 font-semibold">Status</th>
                                             <th className="px-5 py-3 font-semibold">Dibuat</th>
                                             <th className="px-5 py-3 text-right font-semibold">Aksi</th>
@@ -552,6 +561,22 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
                                                         </div>
                                                     ) : (
                                                         formatRupiah(menu.harga)
+                                                    )}
+                                                </td>
+                                                <td className="px-5 py-3.5">
+                                                    {menu.pakai_qty ? (
+                                                        <span className="inline-flex flex-col">
+                                                            <span className="font-semibold text-slate-800">
+                                                                {formatAngka(menu.qty)}
+                                                            </span>
+                                                            <span className="text-[11px] uppercase tracking-wide text-slate-400">
+                                                                Stok tersedia
+                                                            </span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                                                            Tanpa qty
+                                                        </span>
                                                     )}
                                                 </td>
                                                 <td className="px-5 py-3.5">
@@ -945,6 +970,55 @@ export default function Index({ menus, kategoriMenus, vanues = [], suplayerFoods
                                     </select>
                                     {errors.status && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.status}</p>}
                                 </div>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                                <label className="flex cursor-pointer items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(data.pakai_qty)}
+                                        onChange={(event) =>
+                                            setData((current) => ({
+                                                ...current,
+                                                pakai_qty: event.target.checked,
+                                                qty: event.target.checked ? current.qty : '',
+                                            }))
+                                        }
+                                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                    />
+                                    <span>
+                                        <span className="block text-sm font-semibold text-slate-800">Pakai qty</span>
+                                        <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">
+                                            Jika aktif, menu memiliki stok dan jumlah pesanan dibatasi. Jika tidak, menu tidak dibatasi stok.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                {data.pakai_qty && (
+                                    <div className="mt-3 border-t border-slate-200 pt-3">
+                                        <label htmlFor="qty" className="mb-1.5 block text-sm font-medium text-slate-700">
+                                            Qty / Stok Awal <span className="text-rose-500">*</span>
+                                        </label>
+                                        <input
+                                            id="qty"
+                                            type="number"
+                                            min="0"
+                                            max="999999"
+                                            step="1"
+                                            value={data.qty}
+                                            onChange={(event) => setData('qty', event.target.value)}
+                                            placeholder="Contoh: 20"
+                                            required
+                                            className={`w-full rounded-xl border px-3.5 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 ${
+                                                errors.qty ? 'border-rose-300 bg-rose-50/40' : 'border-slate-200 bg-white'
+                                            }`}
+                                        />
+                                        {errors.qty && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.qty}</p>}
+                                        <p className="mt-1.5 text-xs text-slate-500">
+                                            Stok berkurang otomatis saat pesanan dibuat dan kembali saat pesanan dibatalkan.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {isMinuman && (

@@ -8,6 +8,7 @@ use App\Models\Meja;
 use App\Models\Menu;
 use App\Models\Pesanan;
 use App\Models\Printer;
+use App\Services\StokMenuService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,6 +95,8 @@ class KasirController extends Controller
                 'harga' => (int) $menu->harga,
                 'harga_dingin' => $menu->harga_dingin !== null ? (int) $menu->harga_dingin : null,
                 'harga_panas' => $menu->harga_panas !== null ? (int) $menu->harga_panas : null,
+                'pakai_qty' => (bool) $menu->pakai_qty,
+                'qty' => $menu->pakai_qty ? (int) $menu->qty : null,
             ])
             ->values()
             ->all();
@@ -120,7 +123,7 @@ class KasirController extends Controller
     /**
      * Buat pesanan manual oleh kasir (POS sederhana).
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, StokMenuService $stokMenu): RedirectResponse
     {
         $admin = $this->adminAktif($request);
         $vanueTerbatas = $this->vanueTerbatas($admin);
@@ -199,10 +202,11 @@ class KasirController extends Controller
                 'harga' => $harga,
                 'jumlah' => $jumlah,
                 'subtotal' => $subtotal,
+                'stok_dikurangi' => (bool) $menu->pakai_qty,
             ];
         }
 
-        $pesanan = DB::transaction(function () use ($validated, $rincian, $total): Pesanan {
+        $pesanan = DB::transaction(function () use ($validated, $rincian, $total, $stokMenu): Pesanan {
             $pesanan = Pesanan::create([
                 'kode_pesanan' => Pesanan::buatKodePesanan(),
                 'id_pengguna' => null,
@@ -215,6 +219,7 @@ class KasirController extends Controller
             ]);
 
             $pesanan->details()->createMany($rincian);
+            $stokMenu->kurangiStokDariRincian($rincian);
 
             return $pesanan;
         });
@@ -282,7 +287,7 @@ class KasirController extends Controller
         return $query->count();
     }
 
-    public function updateStatus(Request $request, Pesanan $pesanan): RedirectResponse
+    public function updateStatus(Request $request, Pesanan $pesanan, StokMenuService $stokMenu): RedirectResponse
     {
         $validated = $request->validate([
             'status' => [
@@ -300,7 +305,18 @@ class KasirController extends Controller
             'status.in' => 'Status pesanan tidak valid.',
         ]);
 
-        $pesanan->update(['status' => $validated['status']]);
+        $statusLama = (string) $pesanan->status;
+        $statusBaru = (string) $validated['status'];
+
+        DB::transaction(function () use ($pesanan, $statusLama, $statusBaru, $stokMenu): void {
+            if ($statusLama !== Pesanan::STATUS_DIBATALKAN && $statusBaru === Pesanan::STATUS_DIBATALKAN) {
+                $stokMenu->kembalikanStokPesanan($pesanan);
+            } elseif ($statusLama === Pesanan::STATUS_DIBATALKAN && $statusBaru !== Pesanan::STATUS_DIBATALKAN) {
+                $stokMenu->potongStokPesanan($pesanan);
+            }
+
+            $pesanan->update(['status' => $statusBaru]);
+        });
 
         return back()->with('success', 'Status pesanan berhasil diperbarui.');
     }

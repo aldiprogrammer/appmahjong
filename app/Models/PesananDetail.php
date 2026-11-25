@@ -16,6 +16,7 @@ class PesananDetail extends Model
         'harga',
         'jumlah',
         'subtotal',
+        'stok_dikurangi',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class PesananDetail extends Model
             'harga' => 'integer',
             'jumlah' => 'integer',
             'subtotal' => 'integer',
+            'stok_dikurangi' => 'boolean',
         ];
     }
 

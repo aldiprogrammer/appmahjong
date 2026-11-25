@@ -290,15 +290,27 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
     const pageProps = usePage().props;
     const bookingDataDimuat = deferredKeys.every((key) => pageProps[key] !== undefined);
 
-    const presetVoucher = new URLSearchParams(window.location.search).get('voucher') || '';
+    const searchParams = new URLSearchParams(window.location.search);
+    const presetVoucher = searchParams.get('voucher') || '';
+    const presetKodePembayaran = searchParams.get('kode_pembayaran') || '';
+    const presetTglMain = searchParams.get('tgl_main') || '';
+    const presetMejaId = searchParams.get('meja_id') || '';
+    const presetTipeBooking = searchParams.get('tipe_booking') || '';
+    const presetJamTerisi = (searchParams.get('jam_terisi') || '')
+        .split(',')
+        .map((jam) => jam.trim())
+        .filter(Boolean);
+    const modeTambahJam = presetKodePembayaran !== '';
+    const tanggalPresetValid = /^\d{4}-\d{2}-\d{2}$/.test(presetTglMain) && presetTglMain >= todayISO();
     const voucherPresetValid = vouchers.some((voucher) => voucher.kode_voucher === presetVoucher);
 
     const { data, setData, post, processing, errors } = useForm({
-        tgl_main: todayISO(),
-        meja_id: '',
+        tgl_main: tanggalPresetValid ? presetTglMain : todayISO(),
+        meja_id: presetMejaId,
         jam_main_ids: [],
         kode_voucher: voucherPresetValid ? presetVoucher : '',
-        tipe_booking: '',
+        tipe_booking: ['public', 'private'].includes(presetTipeBooking) ? presetTipeBooking : '',
+        kode_pembayaran: presetKodePembayaran,
     });
 
     const [step, setStep] = useState(1);
@@ -321,6 +333,31 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
             setData('kode_voucher', presetVoucher);
         }
     }, [presetVoucher, voucherPresetValid, data.kode_voucher, setData]);
+
+    // Saat membuka "Tambah jam", tanggal dan meja sudah ditentukan dari halaman pembayaran.
+    useEffect(() => {
+        if (!modeTambahJam || !bookingDataDimuat || !presetMejaId) {
+            return;
+        }
+
+        const meja = mejas.find(
+            (item) =>
+                String(item.id) === String(presetMejaId) ||
+                String(item.kode_meja || '') === String(presetMejaId),
+        );
+
+        if (!meja) {
+            return;
+        }
+
+        setVanueId(String(meja.vanue_id ?? ''));
+
+        if (String(data.meja_id) !== String(meja.id)) {
+            setData('meja_id', String(meja.id));
+        }
+
+        setStep(2);
+    }, [modeTambahJam, bookingDataDimuat, presetMejaId, mejas, data.meja_id, setData]);
 
     const [deferredStuck, setDeferredStuck] = useState(false);
     const [deferredRetry, setDeferredRetry] = useState(0);
@@ -383,6 +420,7 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                 formatTime(booking.jam_mulai) === formatTime(jam.jam_mulai) &&
                 formatTime(booking.jam_selesai) === formatTime(jam.jam_selesai),
         );
+    const jamSudahTerjadwal = (jam) => presetJamTerisi.includes(formatTime(jam.jam_mulai));
 
     const jamTerpilih = jamMains.filter((jam) => data.jam_main_ids.includes(String(jam.id)));
     const jamTampil = jamMains.filter((jam) => !jamSudahLewat(jam));
@@ -696,9 +734,11 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                             <div className="min-w-0">
                                 <h1 className="text-lg font-bold">Booking Mahjong</h1>
                                 <p className="text-xs text-emerald-100">
-                                    {vanueId
-                                        ? `Langkah ${step} dari 3 \u00b7 ${langkahBooking[step - 1].judul}`
-                                        : 'Pilih venue untuk mulai booking'}
+                                    {modeTambahJam
+                                        ? `Tambah jam · ${presetKodePembayaran}`
+                                        : vanueId
+                                            ? `Langkah ${step} dari 3 \u00b7 ${langkahBooking[step - 1].judul}`
+                                            : 'Pilih venue untuk mulai booking'}
                                 </p>
                             </div>
                         </div>
@@ -710,6 +750,13 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                 {pageProps.flash?.error && (
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium leading-relaxed text-rose-700">
                         {pageProps.flash.error}
+                    </div>
+                )}
+
+                {modeTambahJam && (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-relaxed text-emerald-700">
+                        Menambah jam pada jadwal <span className="font-bold">{presetKodePembayaran}</span>. Tanggal dan meja
+                        sudah disesuaikan. Pilih jam baru yang belum ada pada jadwal.
                     </div>
                 )}
 
@@ -754,7 +801,8 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                 value={data.tgl_main}
                                                 min={todayISO()}
                                                 onChange={(event) => setData('tgl_main', event.target.value)}
-                                                className={inputClass('tgl_main')}
+                                                disabled={modeTambahJam}
+                                                className={`${inputClass('tgl_main')} ${modeTambahJam ? 'bg-slate-50 text-slate-500' : ''}`}
                                             />
                                             {errors.tgl_main && <p className="mt-1.5 text-xs font-medium text-rose-600">{errors.tgl_main}</p>}
                                             <div className="flex flex-wrap items-center gap-2">
@@ -776,7 +824,7 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
 
                                             <div className="mb-2 flex items-center justify-between gap-2">
                                     <p className="text-xs font-medium text-slate-600">Pilih meja</p>
-                                    {vanues.length > 1 && (
+                                    {vanues.length > 1 && !modeTambahJam && (
                                         <button
                                             type="button"
                                             onClick={() => setVanueId('')}
@@ -806,8 +854,9 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                                 key={meja.id}
                                                                 type="button"
                                                                 onClick={() => setData('meja_id', String(meja.id))}
+                                                                disabled={modeTambahJam}
                                                                 aria-pressed={active}
-                                                                className={`group overflow-hidden rounded-2xl border text-left transition duration-200 ${active
+                                                                className={`group overflow-hidden rounded-2xl border text-left transition duration-200 ${modeTambahJam ? 'cursor-default' : ''} ${active
                                                                     ? 'scale-[1.02] border-emerald-600 shadow-lg shadow-emerald-900/25 ring-2 ring-emerald-500/60'
                                                                     : 'border-slate-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md hover:shadow-emerald-900/10'
                                                                     }`}
@@ -888,14 +937,16 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                         {vanueTerpilihObj.nama}
                                                     </span>
                                                 )}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => pindahStep(1)}
-                                                    className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
-                                                >
-                                                    <EditIcon className="h-3 w-3" />
-                                                    Ubah
-                                                </button>
+                                                {!modeTambahJam && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => pindahStep(1)}
+                                                        className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700 hover:shadow-md active:scale-95"
+                                                    >
+                                                        <EditIcon className="h-3 w-3" />
+                                                        Ubah
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {!data.meja_id ? (
@@ -915,7 +966,7 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                     </p>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {jamTampil.map((jam) => {
-                                                            const booked = jamSudahDibooking(jam);
+                                                            const booked = jamSudahDibooking(jam) || jamSudahTerjadwal(jam);
                                                             const active = !booked && data.jam_main_ids.includes(String(jam.id));
                                                             const hargaJam = hargaVenue(jam);
                                                             const diskonJam = Number(hargaJam?.diskon) || 0;
@@ -952,7 +1003,7 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                                         {booked ? (
                                                                             <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-bold text-rose-500">
                                                                                 <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                                                                                Booked
+                                                                                {jamSudahTerjadwal(jam) ? 'Sudah dijadwalkan' : 'Booked'}
                                                                             </span>
                                                                         ) : hargaJam ? (
                                                                             <span
@@ -1227,9 +1278,9 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                                 <h2 className="text-sm font-bold text-slate-800">Pembayaran</h2>
                                             </div>
                                             <p className="text-[11px] leading-relaxed text-slate-500">
-                                                Tekan <span className="font-semibold text-slate-700">Lanjut ke Pembayaran</span> untuk
-                                                melihat instruksi pembayaran. Booking baru tersimpan setelah kamu mengirim
-                                                bukti bayar di halaman berikutnya.
+                                                {modeTambahJam
+                                                    ? 'Jam yang dipilih akan ditambahkan ke kode pembayaran ini. Total bayar dihitung ulang otomatis, lalu kamu kembali ke rincian jadwal.'
+                                                    : 'Tekan Lanjut ke Pembayaran untuk melihat instruksi pembayaran. Booking baru tersimpan setelah kamu mengirim bukti bayar di halaman berikutnya.'}
                                             </p>
                                         </section>
                                     </>
@@ -1261,7 +1312,13 @@ export default function Booking({ pengguna, vanues = [], vanueAwalId = null, mej
                                             disabled={processing || hargaTidakTersedia || jamTerpilih.length === 0}
                                             className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                         >
-                                            {processing ? 'Menyiapkan pembayaran...' : 'Lanjut ke Pembayaran'}
+                                            {processing
+                                                ? modeTambahJam
+                                                    ? 'Menambahkan jam...'
+                                                    : 'Menyiapkan pembayaran...'
+                                                : modeTambahJam
+                                                    ? 'Tambahkan jam'
+                                                    : 'Lanjut ke Pembayaran'}
                                         </button>
                                     )}
                                 </div>

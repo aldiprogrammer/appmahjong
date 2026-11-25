@@ -6,6 +6,7 @@ use App\Models\Kategorimenu;
 use App\Models\Menu;
 use App\Models\Pengguna;
 use App\Models\Pesanan;
+use App\Models\Vanue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -443,5 +444,185 @@ class PesananFlowTest extends TestCase
                 ->where('filters.status', 'diproses')
                 ->where('ringkasan.total', 2)
             );
+    }
+
+    public function test_pesanan_menu_berqty_mengurangi_stok(): void
+    {
+        $menu = $this->buatMenu();
+        $menu->update(['pakai_qty' => true, 'qty' => 5]);
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '4',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 2],
+            ],
+        ])->assertRedirect();
+
+        $this->assertSame(3, $menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_menu' => (string) $menu->id,
+            'jumlah' => 2,
+            'stok_dikurangi' => true,
+        ]);
+    }
+
+    public function test_pesanan_dengan_stok_tidak_cukup_ditolak(): void
+    {
+        $menu = $this->buatMenu();
+        $menu->update(['pakai_qty' => true, 'qty' => 2]);
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '4',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 3],
+            ],
+        ])->assertSessionHasErrors('items');
+
+        $this->assertSame(2, $menu->fresh()->qty);
+        $this->assertSame(0, Pesanan::query()->count());
+    }
+
+    public function test_menu_tanpa_qty_tidak_memiliki_stok(): void
+    {
+        $menu = $this->buatMenu();
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '4',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 5],
+            ],
+        ])->assertRedirect();
+
+        $this->assertNull($menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_menu' => (string) $menu->id,
+            'stok_dikurangi' => false,
+        ]);
+    }
+
+    public function test_pembatalan_mengembalikan_stok_dan_pengaktifan_ulang_memotongnya(): void
+    {
+        $menu = $this->buatMenu();
+        $menu->update(['pakai_qty' => true, 'qty' => 5]);
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '4',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 2],
+            ],
+        ])->assertRedirect();
+
+        $pesanan = Pesanan::query()->firstOrFail();
+
+        $this->withSession(['admin_id' => 1])
+            ->patch("/admin/kasir/{$pesanan->id}/status", ['status' => Pesanan::STATUS_DIBATALKAN])
+            ->assertSessionHas('success');
+
+        $this->assertSame(5, $menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_pesanan' => $pesanan->id,
+            'stok_dikurangi' => false,
+        ]);
+
+        $this->withSession(['admin_id' => 1])
+            ->patch("/admin/kasir/{$pesanan->id}/status", ['status' => Pesanan::STATUS_BARU])
+            ->assertSessionHas('success');
+
+        $this->assertSame(3, $menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_pesanan' => $pesanan->id,
+            'stok_dikurangi' => true,
+        ]);
+    }
+
+    public function test_menu_yang_tidak_lagi_memakai_qty_tidak_terpengaruh_status_pesanan(): void
+    {
+        $menu = $this->buatMenu();
+        $menu->update(['pakai_qty' => true, 'qty' => 5]);
+
+        $this->post('/pesan', [
+            'atas_nama' => 'Rina',
+            'nomor_meja' => '4',
+            'items' => [
+                ['id' => $menu->id, 'jumlah' => 2],
+            ],
+        ])->assertRedirect();
+
+        $pesanan = Pesanan::query()->firstOrFail();
+
+        $this->withSession(['admin_id' => 1])
+            ->put("/admin/menus/{$menu->id}", [
+                'id_kategori' => (string) $menu->id_kategori,
+                'nama' => $menu->nama,
+                'dibuat_di' => 'Dapur',
+                'harga' => $menu->harga,
+                'status' => 'aktif',
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($menu->fresh()->qty);
+
+        $this->withSession(['admin_id' => 1])
+            ->patch("/admin/kasir/{$pesanan->id}/status", ['status' => Pesanan::STATUS_DIBATALKAN])
+            ->assertSessionHas('success');
+
+        $this->assertNull($menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_pesanan' => $pesanan->id,
+            'stok_dikurangi' => false,
+        ]);
+
+        $this->withSession(['admin_id' => 1])
+            ->patch("/admin/kasir/{$pesanan->id}/status", ['status' => Pesanan::STATUS_BARU])
+            ->assertSessionHas('success');
+
+        $this->assertNull($menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_pesanan' => $pesanan->id,
+            'stok_dikurangi' => false,
+        ]);
+    }
+
+    public function test_pesanan_kasir_juga_memotong_stok_menu(): void
+    {
+        $vanue = Vanue::create([
+            'nama' => 'Venue Maju',
+            'alamat' => 'Jl. Contoh No. 1',
+            'logo' => 'vanues/venue-maju.png',
+            'status' => Vanue::STATUS_AKTIF,
+        ]);
+        $kategori = Kategorimenu::create(['kategori' => 'Makanan']);
+        $menu = Menu::create([
+            'vanue_id' => $vanue->id,
+            'id_kategori' => (string) $kategori->id,
+            'nama' => 'Nasi Goreng',
+            'dibuat_di' => 'Dapur',
+            'harga' => '25000',
+            'pakai_qty' => true,
+            'qty' => 4,
+            'status' => 'aktif',
+        ]);
+
+        $this->withSession(['admin_id' => 1])
+            ->post('/admin/kasir', [
+                'vanue_id' => $vanue->id,
+                'tipe_pesanan' => Pesanan::TIPE_DINE_IN,
+                'nomor_meja' => '7',
+                'atas_nama' => 'Kasir',
+                'items' => [
+                    ['id' => $menu->id, 'jumlah' => 3],
+                ],
+            ])
+            ->assertSessionHas('success');
+
+        $this->assertSame(1, $menu->fresh()->qty);
+        $this->assertDatabaseHas('pesanan_details', [
+            'id_menu' => (string) $menu->id,
+            'stok_dikurangi' => true,
+        ]);
     }
 }

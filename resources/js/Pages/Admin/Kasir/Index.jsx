@@ -594,7 +594,22 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
 
     const punyaVarianSuhu = (menu) => menu.harga_dingin !== null && menu.harga_panas !== null;
 
+    const jumlahDiKeranjang = (idMenu) =>
+        formKeranjang
+            .filter((item) => String(item.id) === String(idMenu))
+            .reduce((total, item) => total + item.jumlah, 0);
+
+    const sisaStokKasir = (menu) =>
+        menu.pakai_qty ? Math.max(0, Number(menu.qty ?? 0) - jumlahDiKeranjang(menu.id)) : Infinity;
+
+    const bisaTambahKasir = (menu, jumlah = 1) =>
+        Boolean(menu) && (!menu.pakai_qty || jumlah <= sisaStokKasir(menu));
+
     const tambahKeKeranjang = (menu, suhu = null) => {
+        if (!bisaTambahKasir(menu)) {
+            return;
+        }
+
         const kunci = `${menu.id}-${suhu ?? 'x'}`;
         const harga = suhu === 'Panas' ? menu.harga_panas : suhu === 'Dingin' ? menu.harga_dingin : menu.harga;
 
@@ -628,9 +643,17 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
             return;
         }
 
-        setFormKeranjang((keranjang) =>
-            keranjang.map((item) => (item.kunci === kunci ? { ...item, jumlah: Math.min(jumlah, 99) } : item)),
-        );
+        setFormKeranjang((keranjang) => {
+            const itemSaatIni = keranjang.find((item) => item.kunci === kunci);
+            const menu = menus.find((menuItem) => String(menuItem.id) === String(itemSaatIni?.id));
+            const batas = menu?.pakai_qty
+                ? Math.min(99, sisaStokKasir(menu) + (itemSaatIni?.jumlah ?? 0))
+                : 99;
+
+            return keranjang.map((item) =>
+                item.kunci === kunci ? { ...item, jumlah: Math.min(jumlah, Math.max(1, batas)) } : item,
+            );
+        });
     };
 
     const totalKeranjang = formKeranjang.reduce((jumlah, item) => jumlah + item.harga * item.jumlah, 0);
@@ -1266,6 +1289,7 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
                                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                                                     {grup.items.map((menu) => {
                                                         const varian = punyaVarianSuhu(menu);
+                                                        const stokHabis = menu.pakai_qty && sisaStokKasir(menu) <= 0;
 
                                                         return (
                                                             <div key={menu.id} className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
@@ -1273,20 +1297,27 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
                                                                 <p className="text-[11px] text-slate-500">
                                                                     {formatRupiah(varian ? Math.min(menu.harga_dingin, menu.harga_panas) : menu.harga)}
                                                                 </p>
+                                                                {menu.pakai_qty && (
+                                                                    <p className={`mt-0.5 text-[10px] font-semibold ${stokHabis ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                                                        Sisa {sisaStokKasir(menu)}
+                                                                    </p>
+                                                                )}
 
                                                                 {varian ? (
                                                                     <div className="mt-2 grid grid-cols-2 gap-1">
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => tambahKeKeranjang(menu, 'Dingin')}
-                                                                            className="rounded-lg bg-sky-50 px-1.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100"
+                                                                            disabled={stokHabis}
+                                                                            className="rounded-lg bg-sky-50 px-1.5 py-1.5 text-[11px] font-semibold text-sky-700 transition hover:bg-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                                         >
                                                                             + Dingin
                                                                         </button>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => tambahKeKeranjang(menu, 'Panas')}
-                                                                            className="rounded-lg bg-amber-50 px-1.5 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100"
+                                                                            disabled={stokHabis}
+                                                                            className="rounded-lg bg-amber-50 px-1.5 py-1.5 text-[11px] font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                                         >
                                                                             + Panas
                                                                         </button>
@@ -1295,7 +1326,8 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => tambahKeKeranjang(menu)}
-                                                                        className="mt-2 w-full rounded-lg bg-emerald-50 px-1.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                                                        disabled={stokHabis}
+                                                                        className="mt-2 w-full rounded-lg bg-emerald-50 px-1.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                                     >
                                                                         + Tambah
                                                                     </button>
@@ -1352,7 +1384,8 @@ export default function Index({ pesanans, ringkasan, vanues, bolehPilihVanue, me
                                                         <button
                                                             type="button"
                                                             onClick={() => ubahJumlahKeranjang(item.kunci, item.jumlah + 1)}
-                                                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                                                            disabled={!bisaTambahKasir(menus.find((menu) => String(menu.id) === String(item.id)))}
+                                                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                             aria-label="Tambah jumlah"
                                                         >
                                                             +

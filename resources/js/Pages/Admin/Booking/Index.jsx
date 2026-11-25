@@ -127,7 +127,9 @@ function EmptyIcon() {
 
 export default function Index({ bookings, vanues, bolehPilihVanue, filters, mejas, jamMains, hargas, bookedSlots }) {
     const { flash } = usePage().props;
-    const [search, setSearch] = useState(filters?.search ?? '');
+    const [kodeBooking, setKodeBooking] = useState(filters?.kode_booking ?? '');
+    const [user, setUser] = useState(filters?.user ?? '');
+    const [tanggal, setTanggal] = useState(filters?.tanggal ?? '');
     const [status, setStatus] = useState(filters?.status ?? '');
     const [vanueId, setVanueId] = useState(filters?.vanue_id ?? '');
     const [successMessage, setSuccessMessage] = useState(flash?.success ?? null);
@@ -161,11 +163,17 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters, meja
     const submitSearch = (event) => {
         event.preventDefault();
 
-        router.get('/admin/bookings', { search, status, vanue_id: vanueId }, { preserveState: true, replace: true });
+        router.get(
+            '/admin/bookings',
+            { kode_booking: kodeBooking, user, tanggal, status, vanue_id: vanueId },
+            { preserveState: true, replace: true },
+        );
     };
 
     const resetSearch = () => {
-        setSearch('');
+        setKodeBooking('');
+        setUser('');
+        setTanggal('');
         setStatus('');
         setVanueId('');
         router.get('/admin/bookings', {}, { preserveState: true, replace: true });
@@ -211,7 +219,13 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters, meja
         });
     };
 
-    const hasFilter = Boolean(filters?.search) || Boolean(filters?.status) || Boolean(filters?.vanue_id);
+    const hasFilter =
+        Boolean(filters?.search) ||
+        Boolean(filters?.kode_booking) ||
+        Boolean(filters?.user) ||
+        Boolean(filters?.tanggal) ||
+        Boolean(filters?.status) ||
+        Boolean(filters?.vanue_id);
 
     return (
         <>
@@ -245,26 +259,36 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters, meja
                 </div>
 
                 <div className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
-                    <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                        <form onSubmit={submitSearch} className="flex w-full flex-col gap-2 sm:max-w-2xl sm:flex-row">
-                            <div className="relative flex-1">
-                                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 11a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" />
-                                    </svg>
-                                </span>
-                                <input
-                                    type="text"
-                                    value={search}
-                                    onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Cari kode booking, pengguna, meja, atau tanggal..."
-                                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                />
-                            </div>
+                    <div className="flex flex-col gap-3 border-b border-emerald-100 px-4 py-4 sm:px-5">
+                        <form onSubmit={submitSearch} className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                            <input
+                                type="text"
+                                value={kodeBooking}
+                                onChange={(event) => setKodeBooking(event.target.value)}
+                                placeholder="Kode booking"
+                                aria-label="Cari kode booking"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                            <input
+                                type="text"
+                                value={user}
+                                onChange={(event) => setUser(event.target.value)}
+                                placeholder="Nama / No. WA user"
+                                aria-label="Cari nama atau nomor WhatsApp user"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm transition placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
+                            <input
+                                type="date"
+                                value={tanggal}
+                                onChange={(event) => setTanggal(event.target.value)}
+                                aria-label="Filter tanggal main"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                            />
                             <select
                                 value={status}
                                 onChange={(event) => setStatus(event.target.value)}
-                                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                                aria-label="Filter status booking"
+                                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                             >
                                 <option value="">Semua status</option>
                                 <option value="menunggu">Menunggu</option>
@@ -275,7 +299,8 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters, meja
                                 <select
                                     value={vanueId}
                                     onChange={(event) => setVanueId(event.target.value)}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 sm:w-44"
+                                    aria-label="Filter venue"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                                 >
                                     <option value="">Semua venue</option>
                                     {vanues.map((vanue) => (
@@ -285,21 +310,23 @@ export default function Index({ bookings, vanues, bolehPilihVanue, filters, meja
                                     ))}
                                 </select>
                             )}
-                            <button
-                                type="submit"
-                                className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                            >
-                                Cari
-                            </button>
-                            {hasFilter && (
+                            <div className="flex gap-2">
                                 <button
-                                    type="button"
-                                    onClick={resetSearch}
-                                    className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
+                                    type="submit"
+                                    className="inline-flex flex-1 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
                                 >
-                                    Reset
+                                    Cari
                                 </button>
-                            )}
+                                {hasFilter && (
+                                    <button
+                                        type="button"
+                                        onClick={resetSearch}
+                                        className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
+                                    >
+                                        Reset
+                                    </button>
+                                )}
+                            </div>
                         </form>
 
                         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">

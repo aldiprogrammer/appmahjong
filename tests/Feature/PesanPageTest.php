@@ -137,4 +137,36 @@ class PesanPageTest extends TestCase
                 ->where('mejaAwal', null)
             );
     }
+
+    public function test_halaman_pesan_menyertakan_pengaturan_qty_menu(): void
+    {
+        $kategori = Kategorimenu::create(['kategori' => 'Makanan']);
+
+        Menu::create([
+            'id_kategori' => (string) $kategori->id,
+            'nama' => 'Ayam Bakar',
+            'harga' => '30000',
+            'pakai_qty' => true,
+            'qty' => 7,
+            'status' => 'aktif',
+        ]);
+        Menu::create([
+            'id_kategori' => (string) $kategori->id,
+            'nama' => 'Nasi Goreng',
+            'harga' => '25000',
+            'status' => 'aktif',
+        ]);
+
+        $this->get('/pesan')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('menus', 2)
+                ->where('menus.0.nama', 'Ayam Bakar')
+                ->where('menus.0.pakai_qty', true)
+                ->where('menus.0.qty', 7)
+                ->where('menus.1.nama', 'Nasi Goreng')
+                ->where('menus.1.pakai_qty', false)
+                ->where('menus.1.qty', null)
+            );
+    }
 }

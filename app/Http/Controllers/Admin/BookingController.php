@@ -29,6 +29,9 @@ class BookingController extends Controller
     public function index(Request $request): Response
     {
         $search = trim((string) $request->query('search', ''));
+        $kodeBooking = trim((string) $request->query('kode_booking', ''));
+        $user = trim((string) $request->query('user', ''));
+        $tanggal = trim((string) $request->query('tanggal', ''));
         $status = (string) $request->query('status', '');
         $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
         $vanueIdFilter = $this->vanueFilter($request);
@@ -75,6 +78,26 @@ class BookingController extends Controller
                         });
                 });
             })
+            ->when($kodeBooking !== '', function ($query) use ($kodeBooking) {
+                $query->where('kode_booking', 'like', "%{$kodeBooking}%");
+            })
+            ->when($user !== '', function ($query) use ($user) {
+                $query->where(function ($query) use ($user) {
+                    $query->where('nama_pengguna', 'like', "%{$user}%")
+                        ->orWhere('no_wa', 'like', "%{$user}%")
+                        ->orWhere('id_pengguna', 'like', "%{$user}%")
+                        ->orWhereHas('pengguna', function ($query) use ($user) {
+                            $query->where('nama_depan', 'like', "%{$user}%")
+                                ->orWhere('nama_balakang', 'like', "%{$user}%")
+                                ->orWhere('nowa', 'like', "%{$user}%")
+                                ->orWhere('email', 'like', "%{$user}%")
+                                ->orWhere('kode_user', 'like', "%{$user}%");
+                        });
+                });
+            })
+            ->when($tanggal !== '', function ($query) use ($tanggal) {
+                $query->where('tgl_main', $tanggal);
+            })
             ->when(in_array($status, ['200', '400'], true), function ($query) use ($status) {
                 $query->where('status_booking', $status);
             })
@@ -104,6 +127,9 @@ class BookingController extends Controller
             'bolehPilihVanue' => $vanueTerbatas === null,
             'filters' => [
                 'search' => $search,
+                'kode_booking' => $kodeBooking,
+                'user' => $user,
+                'tanggal' => $tanggal,
                 'status' => $status,
                 'vanue_id' => $vanueIdFilter,
             ],

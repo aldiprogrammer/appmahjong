@@ -22,6 +22,8 @@ class Menu extends Model
         'harga',
         'harga_dingin',
         'harga_panas',
+        'pakai_qty',
+        'qty',
         'status',
     ];
 
@@ -29,6 +31,8 @@ class Menu extends Model
     {
         return [
             'harga' => 'string',
+            'pakai_qty' => 'boolean',
+            'qty' => 'integer',
         ];
     }
 

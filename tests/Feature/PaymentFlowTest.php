@@ -1430,6 +1430,147 @@ class PaymentFlowTest extends TestCase
         $this->assertSame('room', $bookingPendatang->sistem_pembayaran);
     }
 
+    public function test_user_can_add_jam_to_draft_pembayaran_with_same_meja_and_tanggal(): void
+    {
+        [$pengguna, $meja, $jam, $tanggal] = $this->siapkanJadwal();
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $response = $this->withSession(['pengguna_id' => $pengguna->id])->post('/booking', [
+            'meja_id' => (string) $meja->id,
+            'jam_main_ids' => [(string) $jam->id],
+            'tgl_main' => $tanggal->toDateString(),
+        ]);
+
+        $kodePembayaran = $this->kodePembayaranDariRedirect($response);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jamKedua->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_pembayaran' => $kodePembayaran,
+            ])
+            ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $this->assertSame(
+            [(string) $jam->id, (string) $jamKedua->id],
+            session('booking_drafts.'.$kodePembayaran.'.jam_main_ids'),
+        );
+        $this->assertDatabaseCount('bookings', 0);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->where('pembayaran.bisa_tambah_sesi', true)
+                ->where('pembayaran.total', 100000)
+                ->has('pembayaran.bookings', 2));
+    }
+
+    public function test_user_can_add_jam_to_saved_pembayaran_and_total_is_recalculated(): void
+    {
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna, $meja, , $tanggal] = $jadwal;
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $kodePembayaran = 'PAY-TEST-TAMBAH-1';
+        $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-TAMBAH-1', '10:00', '11:00');
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jamKedua->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_pembayaran' => $kodePembayaran,
+            ])
+            ->assertRedirect(route('booking.pembayaran', $kodePembayaran));
+
+        $bookings = Booking::query()->where('kode_pembayaran', $kodePembayaran)->orderBy('jam_mulai')->get();
+
+        $this->assertCount(2, $bookings);
+        $this->assertSame(1, $bookings->pluck('kode_pembayaran')->unique()->count());
+        $this->assertSame(1, $bookings->pluck('id_meja')->unique()->count());
+        $this->assertSame(1, $bookings->pluck('tgl_main')->unique()->count());
+        $this->assertSame(['10:00', '11:00'], $bookings->map(fn (Booking $booking) => substr((string) $booking->jam_mulai, 0, 5))->all());
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('User/Pembayaran')
+                ->where('pembayaran.bisa_tambah_sesi', true)
+                ->where('pembayaran.total', 100000)
+                ->has('pembayaran.bookings', 2));
+    }
+
+    public function test_tambah_jadwal_ditolak_jika_meja_atau_tanggal_berbeda(): void
+    {
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna, $meja, , $tanggal] = $jadwal;
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+        $mejaLain = Meja::create(['kode_meja' => 'MJ-02', 'nama_meja' => 'Meja 02']);
+
+        $kodePembayaran = 'PAY-TEST-TAMBAH-2';
+        $this->buatBookingSesi($jadwal, $kodePembayaran, 'BK-TEST-TAMBAH-2', '10:00', '11:00');
+
+        $payload = [
+            'meja_id' => (string) $mejaLain->id,
+            'jam_main_ids' => [(string) $jamKedua->id],
+            'tgl_main' => $tanggal->toDateString(),
+            'kode_pembayaran' => $kodePembayaran,
+        ];
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', $payload)
+            ->assertSessionHasErrors('meja_id');
+
+        $payload['meja_id'] = (string) $meja->id;
+        $payload['tgl_main'] = $tanggal->copy()->addDay()->toDateString();
+        $this->buatHarga($jamKedua, $tanggal->copy()->addDay());
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', $payload)
+            ->assertSessionHasErrors('tgl_main');
+
+        $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_tambah_jadwal_ditolak_jika_pembayaran_sudah_diproses(): void
+    {
+        $jadwal = $this->siapkanJadwal();
+        [$pengguna, $meja, , $tanggal] = $jadwal;
+        $jamKedua = jam_main::create(['jam_mulai' => '11:00', 'jam_selesai' => '12:00', 'status' => 'aktif']);
+        $this->buatHarga($jamKedua, $tanggal);
+
+        $kodePembayaran = 'PAY-TEST-TAMBAH-3';
+        $this->buatBookingSesi(
+            $jadwal,
+            $kodePembayaran,
+            'BK-TEST-TAMBAH-3',
+            '10:00',
+            '11:00',
+            'menunggu_verifikasi',
+        );
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->post('/booking', [
+                'meja_id' => (string) $meja->id,
+                'jam_main_ids' => [(string) $jamKedua->id],
+                'tgl_main' => $tanggal->toDateString(),
+                'kode_pembayaran' => $kodePembayaran,
+            ])
+            ->assertSessionHasErrors('kode_pembayaran');
+
+        $this->assertDatabaseCount('bookings', 1);
+
+        $this->withSession(['pengguna_id' => $pengguna->id])
+            ->get(route('booking.pembayaran', $kodePembayaran))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('pembayaran.bisa_tambah_sesi', false));
+    }
+
     /**
      * @return array{0: Pengguna, 1: Meja, 2: jam_main, 3: Carbon}
      */

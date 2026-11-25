@@ -68,13 +68,15 @@ class MenuController extends Controller
         $vanueTerbatas = $this->vanueTerbatas($this->adminAktif($request));
 
         $isMinuman = $this->kategoriMinuman($request);
+        $pakaiQty = $request->boolean('pakai_qty');
 
         $validated = $request->validate(
-            $this->aturanValidasi($isMinuman, false, $vanueTerbatas ?? $this->vanueDariInput($request)),
+            $this->aturanValidasi($isMinuman, false, $vanueTerbatas ?? $this->vanueDariInput($request), $pakaiQty),
             $this->pesanValidasi(),
         );
 
         $validated = $this->normalisasiHarga($validated, $isMinuman);
+        $validated = $this->normalisasiQty($validated, $pakaiQty);
 
         if ($request->hasFile('gambar')) {
             $validated['gambar'] = $request->file('gambar')->store('menus', 'public');
@@ -94,13 +96,15 @@ class MenuController extends Controller
         $this->batasiAksesVanue($request, $menu->vanue_id !== null ? (int) $menu->vanue_id : null);
 
         $isMinuman = $this->kategoriMinuman($request);
+        $pakaiQty = $request->boolean('pakai_qty');
 
         $validated = $request->validate(
-            $this->aturanValidasi($isMinuman, true, $menu->vanue_id),
+            $this->aturanValidasi($isMinuman, true, $menu->vanue_id, $pakaiQty),
             $this->pesanValidasi(),
         );
 
         $validated = $this->normalisasiHarga($validated, $isMinuman);
+        $validated = $this->normalisasiQty($validated, $pakaiQty);
 
         if ($request->hasFile('gambar')) {
             if ($menu->gambar) {
@@ -168,7 +172,7 @@ class MenuController extends Controller
     /**
      * @return array<string, array<int, mixed>>
      */
-    private function aturanValidasi(bool $isMinuman, bool $untukUpdate, ?int $vanueTarget): array
+    private function aturanValidasi(bool $isMinuman, bool $untukUpdate, ?int $vanueTarget, bool $pakaiQty): array
     {
         $aturan = [
             'id_kategori' => [
@@ -195,6 +199,8 @@ class MenuController extends Controller
             'harga' => [$isMinuman ? 'nullable' : 'required', 'numeric', 'min:0'],
             'harga_dingin' => [$isMinuman ? 'required' : 'nullable', 'numeric', 'min:0'],
             'harga_panas' => [$isMinuman ? 'required' : 'nullable', 'numeric', 'min:0'],
+            'pakai_qty' => ['sometimes', 'boolean'],
+            'qty' => [Rule::requiredIf($pakaiQty), 'nullable', 'integer', 'min:0', 'max:999999'],
             'status' => ['required', 'string', Rule::in(['aktif', 'nonaktif'])],
         ];
 
@@ -233,6 +239,10 @@ class MenuController extends Controller
             'harga_panas.required' => 'Harga minuman panas wajib diisi.',
             'harga_panas.numeric' => 'Harga minuman panas harus berupa angka.',
             'harga_panas.min' => 'Harga minuman panas tidak boleh negatif.',
+            'qty.required' => 'Qty wajib diisi saat menu memakai qty.',
+            'qty.integer' => 'Qty harus berupa angka bulat.',
+            'qty.min' => 'Qty tidak boleh negatif.',
+            'qty.max' => 'Qty maksimal 999999.',
             'status.required' => 'Status menu wajib dipilih.',
             'status.in' => 'Status menu tidak valid.',
             'vanue_id.integer' => 'Venue yang dipilih tidak valid.',
@@ -257,6 +267,18 @@ class MenuController extends Controller
         }
 
         unset($validated['hapus_gambar']);
+
+        return $validated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalisasiQty(array $validated, bool $pakaiQty): array
+    {
+        $validated['pakai_qty'] = $pakaiQty;
+        $validated['qty'] = $pakaiQty ? (int) $validated['qty'] : null;
 
         return $validated;
     }

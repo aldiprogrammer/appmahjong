@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Menu;
 use App\Models\Pengguna;
 use App\Models\Pesanan;
+use App\Services\StokMenuService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ use Inertia\Response;
 
 class PesananController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, StokMenuService $stokMenu): RedirectResponse
     {
         $validated = $request->validate([
             'atas_nama' => ['required', 'string', 'max:100'],
@@ -88,12 +89,13 @@ class PesananController extends Controller
                 'harga' => $harga,
                 'jumlah' => $jumlah,
                 'subtotal' => $subtotal,
+                'stok_dikurangi' => (bool) $menu->pakai_qty,
             ];
         }
 
         $pengguna = $this->currentPengguna($request);
 
-        $pesanan = DB::transaction(function () use ($validated, $rincian, $total, $pengguna): Pesanan {
+        $pesanan = DB::transaction(function () use ($validated, $rincian, $total, $pengguna, $stokMenu): Pesanan {
             $pesanan = Pesanan::create([
                 'kode_pesanan' => Pesanan::buatKodePesanan(),
                 'id_pengguna' => $pengguna ? (string) $pengguna->id : null,
@@ -106,6 +108,7 @@ class PesananController extends Controller
             ]);
 
             $pesanan->details()->createMany($rincian);
+            $stokMenu->kurangiStokDariRincian($rincian);
 
             return $pesanan;
         });

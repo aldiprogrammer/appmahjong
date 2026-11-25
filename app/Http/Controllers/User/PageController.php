@@ -108,6 +108,8 @@ class PageController extends Controller
                 'dibuat_di' => $menu->dibuat_di,
                 'harga_dingin' => $menu->harga_dingin !== null ? (int) $menu->harga_dingin : null,
                 'harga_panas' => $menu->harga_panas !== null ? (int) $menu->harga_panas : null,
+                'pakai_qty' => (bool) $menu->pakai_qty,
+                'qty' => $menu->pakai_qty ? (int) $menu->qty : null,
             ]);
 
         $vanues = Vanue::query()
@@ -246,6 +248,7 @@ class PageController extends Controller
             'tgl_main' => ['required', 'date', 'after_or_equal:today'],
             'kode_voucher' => ['nullable', 'string', 'max:50'],
             'tipe_booking' => ['nullable', 'string', Rule::in(['public', 'private'])],
+            'kode_pembayaran' => ['nullable', 'string', 'max:100'],
         ]);
 
         $pengguna = $this->currentPengguna($request);
@@ -261,6 +264,10 @@ class PageController extends Controller
         }
 
         $validated['tipe_booking'] = $this->resolveTipeBooking($validated['tipe_booking'] ?? null);
+
+        if (filled($validated['kode_pembayaran'] ?? null)) {
+            return $this->tambahSesiPembayaran($validated, $pengguna, (string) $validated['kode_pembayaran']);
+        }
 
         // Pilihan user hanya disimpan sebagai draf di session. Baru saat bukti
         // pembayaran dikirim draf ini dibuatkan baris booking di database.
@@ -287,11 +294,241 @@ class PageController extends Controller
     }
 
     /**
+     * Tambahkan jam ke pembayaran yang sudah disiapkan. Tanggal dan meja harus
+     * sama dengan jadwal awal, dan pembayaran belum boleh diproses.
+     *
+     * @param  array{meja_id:mixed, jam_main_ids:array<int,mixed>, tgl_main:string, kode_voucher?:string|null, tipe_booking?:string|null, kode_pembayaran?:string|null}  $validated
+     */
+    private function tambahSesiPembayaran(array $validated, Pengguna $pengguna, string $kodePembayaran): RedirectResponse
+    {
+        $bookings = Booking::query()
+            ->where('kode_pembayaran', $kodePembayaran)
+            ->where('id_pengguna', (string) $pengguna->id)
+            ->where('status_hapus', '!=', '1')
+            ->orderBy('jam_mulai')
+            ->get();
+
+        $draft = $bookings->isEmpty() ? $this->draftBooking($kodePembayaran, $pengguna) : null;
+
+        abort_if($bookings->isEmpty() && $draft === null, 404);
+
+        return $draft !== null
+            ? $this->tambahSesiDraft($validated, $pengguna, $kodePembayaran, $draft)
+            : $this->tambahSesiTersimpan($validated, $pengguna, $kodePembayaran, $bookings);
+    }
+
+    private function pastikanBisaTambahSesi(
+        string $tglMain,
+        bool $menggunakanVoucher,
+        ?string $statusPembayaran = null,
+        ?string $statusBooking = null,
+    ): void {
+        if (Carbon::parse($tglMain)->toDateString() < Carbon::today()->toDateString()) {
+            throw ValidationException::withMessages([
+                'tgl_main' => 'Tanggal booking sudah berlalu, jam tidak dapat ditambahkan.',
+            ]);
+        }
+
+        if ($menggunakanVoucher) {
+            throw ValidationException::withMessages([
+                'kode_voucher' => 'Jadwal dengan voucher tidak dapat ditambah jam.',
+            ]);
+        }
+
+        if (in_array($statusPembayaran, ['lunas', 'menunggu_verifikasi'], true)) {
+            throw ValidationException::withMessages([
+                'kode_pembayaran' => 'Pembayaran sudah diproses, jadwal tidak dapat ditambah.',
+            ]);
+        }
+
+        if ($statusBooking === '200') {
+            throw ValidationException::withMessages([
+                'kode_pembayaran' => 'Booking yang sudah disetujui tidak dapat ditambah jam.',
+            ]);
+        }
+    }
+
+    private function pastikanMejaDanTanggalSama(array $validated, Meja $mejaDipilih, string $idMejaLama, string $tglLama): void
+    {
+        $mejaLama = $this->mejaDariKode($idMejaLama);
+
+        if (! $mejaLama || (string) $mejaLama->id !== (string) $mejaDipilih->id) {
+            throw ValidationException::withMessages([
+                'meja_id' => 'Tambah jam hanya boleh pada meja yang sama dengan jadwal awal.',
+            ]);
+        }
+
+        if ((string) $validated['tgl_main'] !== $tglLama) {
+            throw ValidationException::withMessages([
+                'tgl_main' => 'Tambah jam hanya boleh pada tanggal yang sama dengan jadwal awal.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $draft
+     */
+    private function tambahSesiDraft(array $validated, Pengguna $pengguna, string $kodePembayaran, array $draft): RedirectResponse
+    {
+        $mejaDipilih = Meja::query()->findOrFail($validated['meja_id']);
+        $jamLama = array_values(array_map('strval', $draft['jam_main_ids'] ?? []));
+        $jamBaru = array_values(array_unique(array_map('strval', $validated['jam_main_ids'])));
+
+        $this->pastikanBisaTambahSesi((string) $draft['tgl_main'], filled($draft['kode_voucher'] ?? null));
+        $this->pastikanMejaDanTanggalSama($validated, $mejaDipilih, (string) $draft['meja_id'], (string) $draft['tgl_main']);
+
+        $jamUnik = array_values(array_diff($jamBaru, $jamLama));
+
+        if ($jamUnik === []) {
+            throw ValidationException::withMessages([
+                'jam_main_ids' => 'Jam yang dipilih sudah ada pada jadwal ini.',
+            ]);
+        }
+
+        $semuaJam = array_values(array_unique(array_merge($jamLama, $jamUnik)));
+
+        // Pastikan jam baru masih tersedia dan harganya valid sebelum draf diperbarui.
+        $this->rincianSesiBooking(
+            array_merge($validated, ['jam_main_ids' => $semuaJam]),
+            $pengguna,
+            $draft['kode_room'] ?? null,
+        );
+
+        $draft['jam_main_ids'] = $semuaJam;
+        $this->simpanDraftBooking($kodePembayaran, $draft);
+
+        return redirect()
+            ->route('booking.pembayaran', $kodePembayaran)
+            ->with('success', 'Jam tambahan berhasil ditambahkan. Total bayar sudah diperbarui.');
+    }
+
+    /**
+     * @param  Collection<int, Booking>  $bookings
+     */
+    private function tambahSesiTersimpan(array $validated, Pengguna $pengguna, string $kodePembayaran, Collection $bookings): RedirectResponse
+    {
+        $pertama = $bookings->first();
+        $mejaDipilih = Meja::query()->findOrFail($validated['meja_id']);
+        $idMeja = $mejaDipilih->kode_meja ?: (string) $mejaDipilih->id;
+
+        $this->pastikanBisaTambahSesi(
+            (string) $pertama->tgl_main,
+            $bookings->contains(fn (Booking $booking): bool => filled($booking->kode_voucher)),
+            $pertama->status_pembayaran,
+            $pertama->status_booking,
+        );
+        $this->pastikanMejaDanTanggalSama($validated, $mejaDipilih, (string) $pertama->id_meja, (string) $pertama->tgl_main);
+
+        $jamBaruIds = array_values(array_unique(array_map('strval', $validated['jam_main_ids'])));
+        $jamLamaKeys = $bookings
+            ->map(fn (Booking $booking): string => substr((string) $booking->jam_mulai, 0, 5).'|'.substr((string) $booking->jam_selesai, 0, 5))
+            ->all();
+
+        $jamMainBaru = jam_main::query()
+            ->whereIn('id', $jamBaruIds)
+            ->where('status', 'aktif')
+            ->get()
+            ->keyBy(fn (jam_main $jamMain): string => (string) $jamMain->id);
+
+        foreach ($jamBaruIds as $jamId) {
+            $jamMain = $jamMainBaru->get($jamId);
+
+            if (! $jamMain) {
+                throw ValidationException::withMessages([
+                    'jam_main_ids' => 'Jam yang dipilih tidak tersedia.',
+                ]);
+            }
+
+            $kunci = substr((string) $jamMain->jam_mulai, 0, 5).'|'.substr((string) $jamMain->jam_selesai, 0, 5);
+
+            if (in_array($kunci, $jamLamaKeys, true)) {
+                throw ValidationException::withMessages([
+                    'jam_main_ids' => 'Jam yang dipilih sudah ada pada jadwal ini.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($validated, $pengguna, $kodePembayaran, $pertama, $mejaDipilih, $idMeja, $jamBaruIds, $jamMainBaru): void {
+            Meja::query()->whereKey($mejaDipilih->id)->lockForUpdate()->firstOrFail();
+
+            foreach ($jamBaruIds as $jamId) {
+                $jamMain = $jamMainBaru->get($jamId);
+                $sudahDibooking = Booking::query()
+                    ->where('kode_pembayaran', '!=', $kodePembayaran)
+                    ->where('status_hapus', '!=', '1')
+                    ->where('status_booking', '!=', '400')
+                    ->where('id_meja', $idMeja)
+                    ->where('tgl_main', (string) $pertama->tgl_main)
+                    ->where('jam_mulai', substr((string) $jamMain->jam_mulai, 0, 5))
+                    ->where('jam_selesai', substr((string) $jamMain->jam_selesai, 0, 5))
+                    ->exists();
+
+                if ($sudahDibooking) {
+                    throw ValidationException::withMessages([
+                        'jam_main_ids' => 'Jam yang dipilih sudah terbooking untuk meja ini pada tanggal tersebut.',
+                    ]);
+                }
+            }
+
+            // Hitung harga dasar jam baru. Harga paket dihitung ulang setelah
+            // seluruh sesi (lama + baru) tergabung di bawah satu kode pembayaran.
+            $rincian = $this->rincianSesiBooking(
+                array_merge($validated, ['jam_main_ids' => $jamBaruIds]),
+                $pengguna,
+                $pertama->kode_room,
+            );
+
+            foreach ($rincian['sesi'] as $sesi) {
+                Booking::create([
+                    'kode_booking' => $pertama->kode_booking,
+                    'kode_pembayaran' => $kodePembayaran,
+                    'kode_voucher' => null,
+                    'tipe_booking' => $pertama->tipe_booking,
+                    'kode_room' => $pertama->kode_room,
+                    'kapasitas_user' => $pertama->kapasitas_user,
+                    'mode_pembayaran' => $pertama->mode_pembayaran,
+                    'id_pengguna' => (string) $pertama->id_pengguna,
+                    'nama_pengguna' => $pertama->nama_pengguna,
+                    'no_wa' => $pertama->no_wa,
+                    'id_meja' => $sesi['id_meja'],
+                    'jam_mulai' => $sesi['jam_mulai'],
+                    'jam_selesai' => $sesi['jam_selesai'],
+                    'tgl_main' => $sesi['tgl_main'],
+                    'tgl_booking' => Carbon::now()->toDateString(),
+                    'sistem_pembayaran' => $pertama->sistem_pembayaran,
+                    'harga' => $sesi['harga'],
+                    'total_harga' => $sesi['total_harga'],
+                    'diskon_paket' => '0',
+                    'diskon_paket_persen' => null,
+                    'harga_paket' => null,
+                    'bukti_pembayaran' => $pertama->bukti_pembayaran,
+                    'status_booking' => $pertama->status_booking,
+                    'status_pembayaran' => $pertama->status_pembayaran,
+                    'dibayar_pada' => $pertama->dibayar_pada,
+                    'status_hapus' => '0',
+                ]);
+            }
+
+            $semuaSesi = Booking::query()
+                ->where('kode_pembayaran', $kodePembayaran)
+                ->where('status_hapus', '!=', '1')
+                ->orderBy('jam_mulai')
+                ->get();
+
+            $this->hitungUlangHargaSesi($semuaSesi);
+        });
+
+        return redirect()
+            ->route('booking.pembayaran', $kodePembayaran)
+            ->with('success', 'Jam tambahan berhasil ditambahkan. Total bayar sudah diperbarui.');
+    }
+
+    /**
      * Hitung rincian sesi dan harga tanpa menulis ke database. Dipakai saat
      * menyiapkan draf dan lagi saat draf difinalisasi agar harga serta
      * ketersediaan jam tetap sesuai data terkini.
      *
-     * @param  array{meja_id:mixed, jam_main_ids:array<int,mixed>, tgl_main:string, kode_voucher?:string|null, tipe_booking?:string|null}  $validated
+     * @param  array{meja_id:mixed, jam_main_ids:array<int,mixed>, tgl_main:string, kode_voucher?:string|null, tipe_booking?:string|null, kode_pembayaran?:string|null}  $validated
      * @return array{kode_room: string|null, kapasitas_user: int|null, mode_pembayaran: string|null, harga_paket: int|null, sesi: array<int, array{id_meja:string, jam_mulai:string, jam_selesai:string, tgl_main:string, harga:string, total_harga:string, diskon_paket:string, diskon_paket_persen:float|null, harga_paket:string|null, pakai_voucher:bool}>}
      */
     private function rincianSesiBooking(array $validated, Pengguna $pengguna, ?string $kodeRoom = null): array
@@ -947,6 +1184,9 @@ class PageController extends Controller
                 'harga_paket' => $rincian['harga_paket'],
                 'total' => $totalBayar,
                 'bisa_hapus_sesi' => ! $menggunakanVoucher,
+                'bisa_tambah_sesi' => ! $menggunakanVoucher
+                    && Carbon::parse($validated['tgl_main'])->toDateString() >= Carbon::today()->toDateString(),
+                'tipe_booking' => $validated['tipe_booking'] ?? null,
                 'menggunakan_voucher' => $menggunakanVoucher,
                 'bookings' => $sesi->map(fn (array $item, int $index): array => [
                     'id' => 'draft-'.$index,
@@ -980,6 +1220,13 @@ class PageController extends Controller
 
             $mejaBooking = $this->mejaDariKode((string) $pertama->id_meja);
 
+            $bisaTambahSesi = $pertama->status_booking !== '200'
+                && ! in_array($pertama->status_pembayaran, ['lunas', 'menunggu_verifikasi'], true)
+                && ! $bookings->contains(fn (Booking $booking): bool => filled($booking->kode_voucher))
+                && $bookings->every(fn (Booking $booking): bool => (string) $booking->id_meja === (string) $pertama->id_meja)
+                && $bookings->every(fn (Booking $booking): bool => $booking->tgl_main === $pertama->tgl_main)
+                && Carbon::parse($pertama->tgl_main)->toDateString() >= Carbon::today()->toDateString();
+
             $dataPembayaran = [
                 'status_pembayaran' => $pertama->status_pembayaran,
                 'sistem_pembayaran' => $pertama->sistem_pembayaran,
@@ -991,6 +1238,8 @@ class PageController extends Controller
                 'harga_paket' => $hargaPaket,
                 'total' => $totalBayar,
                 'bisa_hapus_sesi' => true,
+                'bisa_tambah_sesi' => $bisaTambahSesi,
+                'tipe_booking' => $pertama->tipe_booking,
                 'menggunakan_voucher' => false,
                 'bookings' => $bookings->map(fn (Booking $booking): array => [
                     'id' => $booking->id,
