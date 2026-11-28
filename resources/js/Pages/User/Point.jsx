@@ -11,6 +11,7 @@ function ambilXsrfToken() {
 }
 
 const KUNCI_KODE_BOOKING = 'mahjong_kode_booking';
+const KUNCI_JAWABAN_BUKAAN = 'mahjong_bukaan_dijawab:';
 
 const GRUP_KARTU = [
     { key: 'w', nama: 'Wan', warna: 'bg-rose-50 text-rose-700 ring-rose-200' },
@@ -28,12 +29,12 @@ const POSISI_DUDUK = [
 ];
 
 const KONDISI_HK = [
-    { key: 'selfDraw', label: 'Menang sendiri', hanzi: '', hint: 'Self Draw' },
-    { key: 'concealed', label: 'Kartu tertutup', hanzi: '', hint: 'Concealed Hand' },
-    { key: 'noFlowers', label: 'Tanpa bunga', hanzi: '', hint: 'No Flowers' },
-    { key: 'lastTile', label: 'Kartu terakhir', hanzi: '', hint: 'Last Tile' },
-    { key: 'robbingKong', label: 'Merebut kong', hanzi: '', hint: 'Robbing Kong' },
-    { key: 'kongReplacement', label: 'Kartu pengganti kong', hanzi: '', hint: 'Kong Replacement' },
+    { key: 'selfDraw', label: 'Menang sendiri', hanzi: '', hint: 'Self Draw', faanKey: 'selfDraw' },
+    { key: 'concealed', label: 'Kartu tertutup', hanzi: '', hint: 'Concealed Hand', faanKey: 'concealed' },
+    { key: 'noFlowers', label: 'Tanpa bunga', hanzi: '', hint: 'No Flowers', faanKey: 'noFlowers' },
+    { key: 'lastTile', label: 'Kartu terakhir', hanzi: '', hint: 'Last Tile', faanKey: 'lastTile' },
+    { key: 'robbingKong', label: 'Merebut kong', hanzi: '', hint: 'Robbing Kong', faanKey: 'robbingKong' },
+    { key: 'kongReplacement', label: 'Kartu pengganti kong', hanzi: '', hint: 'Kong Replacement', faanKey: 'kongReplacement' },
 ];
 
 const WARNA_TIPE = {
@@ -95,10 +96,12 @@ export default function Point({
     pendingScan = null,
     riwayat = [],
     kartu = [],
-    chickenScoring = 'Chow 1 point · Pung 2 point · Kong 3 point · Bunga kursi 1 point',
+    chickenScoring = 'Chow 1 point · Pung 2 point · Kong 1 point · Own Flowers 1 point · Own Season 1 point',
     scoringModes = [],
     hkMinFaan = 3,
-    hkMaxFaan = 14,
+    hkMaxFaan = 13,
+    faanValues = {},
+    aturanPoint = { tersedia: true, nama: null },
 }) {
     const { flash, errors } = usePage().props;
     const fileRef = useRef(null);
@@ -126,6 +129,12 @@ export default function Point({
         kongReplacement: Boolean(pendingScan?.is_kong_replacement),
     });
     const [konfirmasiTerbuka, setKonfirmasiTerbuka] = useState(false);
+    const [pertanyaanTerbuka, setPertanyaanTerbuka] = useState(false);
+    const [hasilTerbuka, setHasilTerbuka] = useState(true);
+    const [bantuanBukaan, setBantuanBukaan] = useState('Foto tidak bisa membedakan, dan jawabannya mengubah skor.');
+    const [jenisBukaan, setJenisBukaan] = useState(null);
+    const [winningTile, setWinningTile] = useState(pendingScan?.winning_tile ?? null);
+    const bukaanDicekRef = useRef(null);
 
     useEffect(() => {
         setTiles(pendingScan?.tiles ?? []);
@@ -151,6 +160,11 @@ export default function Point({
         pendingScan?.is_robbing_kong,
         pendingScan?.is_kong_replacement,
     ]);
+
+    useEffect(() => {
+        setJenisBukaan(null);
+        setWinningTile(pendingScan?.winning_tile ?? null);
+    }, [pendingScan?.id]);
 
     useEffect(() => () => {
         if (preview) {
@@ -184,6 +198,18 @@ export default function Point({
             kong_replacement: flags.kongReplacement ? 1 : 0,
         };
     };
+
+    const opsiDariScan = (scan) => ({
+        seatWind: scan?.seat_wind ?? '',
+        kondisi: {
+            selfDraw: Boolean(scan?.is_self_draw),
+            concealed: Boolean(scan?.is_concealed),
+            noFlowers: Boolean(scan?.is_no_flowers),
+            lastTile: Boolean(scan?.is_last_tile),
+            robbingKong: Boolean(scan?.is_robbing_kong),
+            kongReplacement: Boolean(scan?.is_kong_replacement),
+        },
+    });
 
     const bukaModalKode = () => {
         setGalatKode('');
@@ -291,6 +317,12 @@ export default function Point({
     const pilihFoto = (event) => {
         const file = event.target.files?.[0];
 
+        if (!aturanPoint?.tersedia) {
+            event.target.value = '';
+
+            return;
+        }
+
         if (!file) {
             return;
         }
@@ -322,6 +354,12 @@ export default function Point({
         router.post('/point/scan', formData, {
             forceFormData: true,
             preserveScroll: true,
+            onSuccess: () => {
+                setHasilTerbuka(false);
+                setJenisBukaan(null);
+                setWinningTile(null);
+                setPertanyaanTerbuka(false);
+            },
             onFinish: () => {
                 setMengunggah(false);
                 event.target.value = '';
@@ -338,7 +376,7 @@ export default function Point({
     };
 
     const hitungUlang = () => {
-        if (!pendingScan) {
+        if (!pendingScan || !aturanPoint?.tersedia) {
             return;
         }
 
@@ -346,7 +384,7 @@ export default function Point({
     };
 
     const gantiMode = (modeBaru) => {
-        if (modeBaru === mode) {
+        if (modeBaru === mode || !aturanPoint?.tersedia) {
             return;
         }
 
@@ -370,7 +408,7 @@ export default function Point({
             setKondisi((sebelumnya) => ({ ...sebelumnya, ...override.kondisi }));
         }
 
-        if (!pendingScan) {
+        if (!pendingScan || !aturanPoint?.tersedia) {
             return;
         }
 
@@ -398,6 +436,146 @@ export default function Point({
         }
 
         router.delete(`/point/scan/${pendingScan.id}`, { preserveScroll: true });
+    };
+
+    const pilihJenisBukaan = (jenis) => {
+        setJenisBukaan(jenis);
+
+        if (jenis === 'exposed' && !winningTile) {
+            setWinningTile([...tiles].reverse().find((code) => code?.[0] !== 'f') ?? null);
+        }
+    };
+
+    const lewatiPertanyaan = () => {
+        setPertanyaanTerbuka(false);
+        setHasilTerbuka(true);
+    };
+
+    /**
+     * Ikut perilaku Tilerank: pertanyaan Concealed/Exposed hanya muncul bila
+     * jawabannya mengubah skor. Seven Pairs / Thirteen Orphans otomatis
+     * tertutup, dan skor yang identik langsung ditampilkan.
+     */
+    const periksaKebutuhanBukaan = async (scan) => {
+        if (!scan?.id || !aturanPoint?.tersedia) {
+            setHasilTerbuka(true);
+
+            return;
+        }
+
+        const kunciJawaban = `${KUNCI_JAWABAN_BUKAAN}${scan.id}`;
+
+        if (typeof window !== 'undefined' && window.localStorage.getItem(kunciJawaban)) {
+            setHasilTerbuka(true);
+
+            return;
+        }
+
+        const opsiScan = opsiDariScan(scan);
+
+        try {
+            const response = await fetch(`/point/scan/${scan.id}/bandingkan`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': ambilXsrfToken(),
+                },
+                body: JSON.stringify({
+                    tiles: scan.tiles ?? [],
+                    mode: scan.scoring_mode ?? mode,
+                    ...dataOpsi(opsiScan),
+                }),
+            });
+
+            if (!response.ok) {
+                setHasilTerbuka(true);
+
+                return;
+            }
+
+            const hasil = await response.json();
+
+            setBantuanBukaan(hasil.bantuan || 'Jawabannya mengubah skor hand ini.');
+
+            if (hasil.paksa_tertutup) {
+                setKondisi((sebelumnya) => ({ ...sebelumnya, concealed: true }));
+
+                if (!scan.is_concealed && scan.id === pendingScan?.id) {
+                    router.post(
+                        `/point/scan/${scan.id}/kartu`,
+                        {
+                            tiles: scan.tiles ?? [],
+                            mode: scan.scoring_mode ?? mode,
+                            ...dataOpsi({
+                                ...opsiScan,
+                                kondisi: { ...opsiScan.kondisi, concealed: true },
+                            }),
+                        },
+                        { preserveScroll: true },
+                    );
+                }
+
+                setHasilTerbuka(true);
+
+                return;
+            }
+
+            if (hasil.perlu_ditanya) {
+                setHasilTerbuka(false);
+                setJenisBukaan(null);
+                setWinningTile(scan.winning_tile ?? [...(scan.tiles ?? [])].reverse().find((code) => code?.[0] !== 'f') ?? null);
+                setPertanyaanTerbuka(true);
+
+                return;
+            }
+
+            setHasilTerbuka(true);
+        } catch {
+            setHasilTerbuka(true);
+        }
+    };
+
+    useEffect(() => {
+        if (!pendingScan?.id || bukaanDicekRef.current === pendingScan.id) {
+            return;
+        }
+
+        bukaanDicekRef.current = pendingScan.id;
+        setHasilTerbuka(false);
+        periksaKebutuhanBukaan(pendingScan);
+    }, [pendingScan?.id]);
+
+    const lanjutDariPertanyaan = () => {
+        if (!jenisBukaan || !pendingScan || !aturanPoint?.tersedia) {
+            lewatiPertanyaan();
+
+            return;
+        }
+
+        const concealed = jenisBukaan === 'concealed';
+
+        setKondisi((sebelumnya) => ({ ...sebelumnya, concealed }));
+
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem(`${KUNCI_JAWABAN_BUKAAN}${pendingScan.id}`, jenisBukaan);
+        }
+
+        router.post(
+            `/point/scan/${pendingScan.id}/kartu`,
+            {
+                tiles,
+                mode,
+                ...dataOpsi({ kondisi: { concealed } }),
+                winning_tile: concealed ? null : winningTile,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: lewatiPertanyaan,
+            },
+        );
     };
 
     return (
@@ -459,6 +637,15 @@ export default function Point({
                     </div>
                 )}
 
+                {!aturanPoint?.tersedia && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs leading-relaxed text-rose-700">
+                        <p className="font-bold">Aturan point belum dikonfigurasi.</p>
+                        <p className="mt-0.5">
+                            Scan point dinonaktifkan sampai admin mengaktifkan satu aturan mahjong dan melengkapi aturan dasar faan serta faan hand.
+                        </p>
+                    </div>
+                )}
+
                 <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                     <div className="flex items-start gap-3 px-4 pt-4">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -502,7 +689,9 @@ export default function Point({
                                 Posisi duduk <span className="text-rose-500">*</span>
                             </p>
                             <span className="text-[10px] font-semibold text-fuchsia-700">
-                                {mode === 'hk' ? '+1 faan jika pung angin cocok' : 'Wajib dipilih sebelum scan'}
+                                {mode === 'hk'
+                                    ? `+${faanValues.seatWindPung ?? 0} faan angin kursi · +${faanValues.prevailingWindPung ?? 0} faan angin meja`
+                                    : 'Wajib dipilih sebelum scan'}
                             </span>
                         </div>
                         <div className="mt-2 grid grid-cols-4 gap-2">
@@ -544,19 +733,21 @@ export default function Point({
                         <button
                             type="button"
                             onClick={bukaScan}
-                            disabled={mengunggah || memeriksaKode || !seatWind}
+                            disabled={mengunggah || memeriksaKode || !seatWind || !aturanPoint?.tersedia}
                             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         >
                             <ScanIcon className="h-4 w-4" />
-                            {memeriksaKode
-                                ? 'Memeriksa Kode...'
-                                : mengunggah
-                                    ? 'Memindai...'
-                                    : !seatWind
-                                        ? 'Pilih Posisi Duduk Dulu'
-                                        : pendingScan
-                                            ? 'Scan Ulang'
-                                            : 'Buka Kamera / Pilih Foto'}
+                            {!aturanPoint?.tersedia
+                                ? 'Aturan Point Belum Dikonfigurasi'
+                                : memeriksaKode
+                                    ? 'Memeriksa Kode...'
+                                    : mengunggah
+                                        ? 'Memindai...'
+                                        : !seatWind
+                                            ? 'Pilih Posisi Duduk Dulu'
+                                            : pendingScan
+                                                ? 'Scan Ulang'
+                                                : 'Buka Kamera / Pilih Foto'}
                         </button>
                         <p className="mt-2 text-center text-[10px] leading-relaxed text-slate-400">
                             Pastikan seluruh kartu terlihat jelas, tidak terpotong, dan pencahayaan cukup.
@@ -579,7 +770,7 @@ export default function Point({
                     </div>
                 </section>
 
-                {pendingScan && (
+                {pendingScan && hasilTerbuka && (
                     <section className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-sm">
                         <div className="flex items-center justify-between gap-2 border-b border-emerald-50 px-4 py-3">
                             <div>
@@ -673,8 +864,8 @@ export default function Point({
                                 <div className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/40 p-3">
                                     <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700">Penanda manual HK</p>
                                     <p className="mt-0.5 text-[10px] text-slate-500">
-                                        Pilih posisi duduk, lalu tandai kondisi yang terjadi. All Chows, Own Flower, dan
-                                        Dragon Pung dihitung otomatis dari foto.
+                                        Pilih posisi duduk, lalu tandai kondisi yang terjadi. All Chows, Own Flowers/Own Season,
+                                        Dragon Pung, dan Pung angin kursi/meja dihitung otomatis dari foto.
                                     </p>
 
                                     {/* <label className="mt-2.5 block">
@@ -713,13 +904,13 @@ export default function Point({
                                                     {item.label} <span className="font-normal text-slate-400">· {item.hint}</span>{' '}
                                                     {item.hanzi}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-fuchsia-700">+1 faan</span>
+                                                <span className="text-[10px] font-bold text-fuchsia-700">+{faanValues[item.faanKey] ?? 0} faan</span>
                                             </label>
                                         ))}
                                     </div>
 
                                     <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
-                                        Setiap kondisi bernilai 1 faan. Total minimal {hkMinFaan} faan dan maksimal{' '}
+                                        Nilai kondisi mengikuti aturan aktif. Total minimal {hkMinFaan} faan dan maksimal{' '}
                                         {hkMaxFaan} faan. Di bawah {hkMinFaan} faan belum bisa menang.
                                     </p>
                                 </div>
@@ -851,6 +1042,117 @@ export default function Point({
                     )}
                 </section>
             </div>
+
+            {pertanyaanTerbuka && pendingScan && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+                        <div className="flex items-start gap-3">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-fuchsia-50 text-fuchsia-600">
+                                <ScanIcon className="h-5 w-5" />
+                            </span>
+                            <div>
+                                <span className="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-700">
+                                    Wajib dijawab
+                                </span>
+                                <h2 className="mt-1 text-sm font-bold text-slate-900">
+                                    Ada Pong/Chi/Kong yang sudah dibuka di meja?
+                                </h2>
+                                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                    {bantuanBukaan}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => pilihJenisBukaan('concealed')}
+                                className={`rounded-xl border px-3 py-3 text-left transition ${jenisBukaan === 'concealed'
+                                    ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                                    : 'border-slate-200 bg-white hover:border-emerald-200'
+                                    }`}
+                            >
+                                <span className={`block text-xs font-bold ${jenisBukaan === 'concealed' ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                    Concealed
+                                </span>
+                                <span className="mt-0.5 block text-[10px] font-medium text-slate-500">semua masih di tangan</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => pilihJenisBukaan('exposed')}
+                                className={`rounded-xl border px-3 py-3 text-left transition ${jenisBukaan === 'exposed'
+                                    ? 'border-fuchsia-500 bg-fuchsia-50 ring-2 ring-fuchsia-200'
+                                    : 'border-slate-200 bg-white hover:border-fuchsia-200'
+                                    }`}
+                            >
+                                <span className={`block text-xs font-bold ${jenisBukaan === 'exposed' ? 'text-fuchsia-700' : 'text-slate-700'}`}>
+                                    Exposed
+                                </span>
+                                <span className="mt-0.5 block text-[10px] font-medium text-slate-500">ada yang sudah dibuka</span>
+                            </button>
+                        </div>
+                        <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                            Concealed = belum ada yang dibuka. Exposed = ada Pong, Kong atau Chi yang sudah dibuka di meja.
+                        </p>
+
+                        {jenisBukaan === 'exposed' && (
+                            <div className="mt-4 rounded-xl border border-fuchsia-100 bg-fuchsia-50/40 p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-fuchsia-700">
+                                        Ubin terakhir yang bikin menang
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => setWinningTile(null)}
+                                        className="text-[10px] font-bold text-fuchsia-700 underline decoration-fuchsia-300 underline-offset-2 transition hover:text-fuchsia-800"
+                                    >
+                                        Lewati
+                                    </button>
+                                </div>
+                                <p className="mt-0.5 text-[10px] text-slate-500">
+                                    {winningTile ? 'Sudah kami tebak. Ketuk untuk ganti.' : 'Opsional. Ketuk ubin yang bikin menang bila ingin menandainya.'}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {tiles.filter((code) => code?.[0] !== 'f').map((code, index) => (
+                                        <button
+                                            key={`${code}-menang-${index}`}
+                                            type="button"
+                                            onClick={() => setWinningTile(code)}
+                                            className={`rounded-lg px-2 py-1 text-[10px] font-bold ring-1 transition ${warnaKartu(code)} ${winningTile === code
+                                                ? 'outline outline-2 outline-fuchsia-500'
+                                                : 'hover:scale-105'
+                                                }`}
+                                        >
+                                            {labelKartu[code] ?? code}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                                    Menandai ubin kemenangan itu opsional. Faan dihitung ulang setelah kamu menekan Lanjut.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="mt-5 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={lewatiPertanyaan}
+                                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                Nanti
+                            </button>
+                            <button
+                                type="button"
+                                onClick={lanjutDariPertanyaan}
+                                disabled={!jenisBukaan}
+                                className="flex-[1.2] rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                                Lanjut
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {konfirmasiTerbuka && pendingScan && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-4 backdrop-blur-sm sm:items-center">

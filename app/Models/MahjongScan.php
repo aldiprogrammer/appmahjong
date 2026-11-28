@@ -22,6 +22,7 @@ class MahjongScan extends Model
         'round_wind',
         'is_self_draw',
         'is_concealed',
+        'winning_tile',
         'is_no_flowers',
         'is_last_tile',
         'is_robbing_kong',

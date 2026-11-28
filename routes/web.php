@@ -1,13 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\AturanDasarFaanController;
+use App\Http\Controllers\Admin\AturanMahjongController;
 use App\Http\Controllers\Admin\AturanPointController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\FaanHandController;
 use App\Http\Controllers\Admin\HargaJamMainController;
 use App\Http\Controllers\Admin\JamMainController;
 use App\Http\Controllers\Admin\KasirController;
+use App\Http\Controllers\Admin\KategoriFaanController;
 use App\Http\Controllers\Admin\KategoriMenuController;
 use App\Http\Controllers\Admin\MahjongFaanRuleController;
 use App\Http\Controllers\Admin\MejaController;
@@ -77,6 +81,7 @@ Route::middleware('pengguna.auth')->group(function () {
     Route::post('/point/scan', [PointController::class, 'scan'])->name('point.scan');
     Route::post('/point/cek-booking', [PointController::class, 'cekBooking'])->name('point.cek-booking');
     Route::post('/point/scan/{scan}/kartu', [PointController::class, 'perbaruiKartu'])->name('point.kartu');
+    Route::post('/point/scan/{scan}/bandingkan', [PointController::class, 'bandingkanBukaan'])->name('point.bandingkan');
     Route::post('/point/scan/{scan}/konfirmasi', [PointController::class, 'konfirmasi'])->name('point.konfirmasi');
     Route::delete('/point/scan/{scan}', [PointController::class, 'batalkan'])->name('point.batalkan');
 });
@@ -117,6 +122,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::resource('bookings', BookingController::class)->only(['index', 'destroy']);
         Route::patch('penggunas/{pengguna}/status', [PenggunaController::class, 'updateStatus'])->name('penggunas.status');
         Route::resource('penggunas', PenggunaController::class)->only(['index', 'destroy']);
+        Route::resource('faan-hands', FaanHandController::class)->except(['create', 'edit', 'show']);
+        Route::resource('kategori-faans', KategoriFaanController::class)->except(['create', 'edit', 'show']);
+        Route::resource('aturan-dasar-faans', AturanDasarFaanController::class)->except(['create', 'edit', 'show']);
+        Route::get('aturan-mahjongs/kode-baru', [AturanMahjongController::class, 'kodeBaru'])->name('aturan-mahjongs.kode');
+        Route::resource('aturan-mahjongs', AturanMahjongController::class)->except(['create', 'edit', 'show']);
         Route::resource('aturan-points', AturanPointController::class)->except(['create', 'edit', 'show']);
         Route::resource('mahjong-faan-rules', MahjongFaanRuleController::class)->except(['create', 'edit', 'show']);
         Route::resource('status-vouchers', StatusVoucherController::class)->except(['create', 'edit', 'show']);

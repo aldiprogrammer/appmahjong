@@ -133,6 +133,44 @@ function PeraturanIcon({ className = 'h-5 w-5' }) {
     );
 }
 
+function KategoriFaanIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75A1.5 1.5 0 0 1 5.25 5.25h4.19a1.5 1.5 0 0 1 1.06.44l1.31 1.31h7.94a1.5 1.5 0 0 1 1.5 1.5v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V6.75Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 12.75h7.5" />
+        </svg>
+    );
+}
+
+function FaanHandIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 7.5A1.5 1.5 0 0 1 5.25 6h4.5a1.5 1.5 0 0 1 1.5 1.5V19H5.25a1.5 1.5 0 0 1-1.5-1.5v-10Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12.75 8.25a1.5 1.5 0 0 1 1.5-1.5h4.5a1.5 1.5 0 0 1 1.5 1.5v9.25a1.5 1.5 0 0 1-1.5 1.5h-6v-10.75Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 10.5h2.25M6.75 13.5h2.25M15.75 11.25h2.25M15.75 14.25h2.25" />
+        </svg>
+    );
+}
+
+function AturanDasarFaanIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5h13.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V6a1.5 1.5 0 0 1 1.5-1.5Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9h4.5M8.25 12.75h7.5M8.25 16.5h5.25" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 3.75v1.5M18 3.75v1.5" />
+        </svg>
+    );
+}
+
+function AturanMahjongIcon({ className = 'h-5 w-5' }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 5.25A1.5 1.5 0 0 1 6 3.75h12a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5v-12Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 8.25h7.5M8.25 12h7.5M8.25 15.75h4.5" />
+        </svg>
+    );
+}
+
 function AturanPointIcon({ className = 'h-5 w-5' }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -198,6 +236,10 @@ const menuIcons = {
     bookings: BookingIcon,
     penggunas: PenggunaIcon,
     'setting-booking-rooms': SettingRoomIcon,
+    'faan-hands': FaanHandIcon,
+    'kategori-faans': KategoriFaanIcon,
+    'aturan-dasar-faans': AturanDasarFaanIcon,
+    'aturan-mahjongs': AturanMahjongIcon,
     'aturan-points': AturanPointIcon,
     'mahjong-faan-rules': MahjongFaanRuleIcon,
     'status-vouchers': StatusVoucherIcon,
@@ -214,6 +256,22 @@ const menuIcons = {
  * Kunci sama dengan kunci pada prop `adminMenus`.
  */
 const menuGroups = {
+    'kategori-faans': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
+    'faan-hands': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
+    'aturan-dasar-faans': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
+    'aturan-mahjongs': {
+        label: 'Pengaturan',
+        icon: PeraturanIcon,
+    },
     'aturan-points': {
         label: 'Pengaturan',
         icon: PeraturanIcon,
